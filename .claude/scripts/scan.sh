@@ -16,15 +16,22 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
 }
 
-# 从 READEME.md 解析项目编号列表
+# 从 READEME.md 的 <!-- projects-start --> ~ <!-- projects-end --> 之间解析项目
+# 仅匹配包含编号和仓库地址的数据行，忽略表头、分隔行、空行
 parse_projects() {
-  grep -oP '\d{2}-[A-Za-z0-9_-]+' "$REPO_README" | sort -u
+  sed -n '/<!-- projects-start -->/,/<!-- projects-end -->/p' "$REPO_README" \
+    | grep -P '^\|\s*\d{2}-' \
+    | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}' \
+    | sort -u
 }
 
-# 从 READEME.md 获取指定项目的仓库地址
+# 从 READEME.md 获取指定项目的仓库地址（仅在标记区间内查找）
 get_repo_url() {
   local project="$1"
-  grep "$project" "$REPO_README" | grep -oP 'https?://[^\s|]+' | head -1
+  sed -n '/<!-- projects-start -->/,/<!-- projects-end -->/p' "$REPO_README" \
+    | grep "$project" \
+    | grep -oP 'https?://[^\s|]+' \
+    | head -1
 }
 
 # 克隆或拉取仓库，返回新旧 HEAD hash
@@ -63,51 +70,102 @@ sync_repo() {
   echo "$new_hash"
 }
 
-# 生成变更摘要
+# 生成变更摘要报告
 generate_summary() {
   local repo_path="$1"
   local old_hash="$2"
   local new_hash="$3"
   local project_name="$4"
 
-  local changelog_file="$TEST_DIR/$project_name/changelog.md"
+  local report_dir="$TEST_DIR/$project_name/reports"
+  local scan_time
+  scan_time=$(date '+%Y-%m-%d_%H%M%S')
+  local report_file="$report_dir/${scan_time}.md"
 
-  mkdir -p "$(dirname "$changelog_file")"
+  mkdir -p "$report_dir"
 
-  # 如果是首次记录，写入表头
-  if [ ! -f "$changelog_file" ]; then
-    cat > "$changelog_file" <<HEADER
-# $project_name 变更记录
-
-| 扫描时间 | 提交数 | 提交范围 |
-| -------- | ------ | -------- |
-HEADER
-  fi
-
-  local commit_count
-  commit_count=$(git -C "$repo_path" rev-list --count "${old_hash}..${new_hash}" 2>/dev/null || echo "0")
-
-  local short_old short_new
+  local short_old short_new commit_count
   short_old=$(echo "$old_hash" | cut -c1-7)
   short_new=$(echo "$new_hash" | cut -c1-7)
+  commit_count=$(git -C "$repo_path" rev-list --count "${old_hash}..${new_hash}" 2>/dev/null || echo "0")
 
-  local scan_time
-  scan_time=$(date '+%Y-%m-%d %H:%M:%S')
+  local display_time
+  display_time=$(date '+%Y-%m-%d %H:%M:%S')
 
-  # 追加表格行
-  echo "| $scan_time | $commit_count | \`$short_old..$short_new\` |" >> "$changelog_file"
+  # 写入报告
+  cat > "$report_file" <<HEADER
+# ${project_name} 变更报告
 
-  # 追加详细提交信息
-  echo "" >> "$changelog_file"
-  echo "### $scan_time 详细提交" >> "$changelog_file"
-  echo "" >> "$changelog_file"
-  git -C "$repo_path" log --format="- **%h** %s (*%an*, %ar)" "${old_hash}..${new_hash}" >> "$changelog_file" 2>/dev/null || true
-  echo "" >> "$changelog_file"
+- **扫描时间**: ${display_time}
+- **提交范围**: \`${short_old}..${short_new}\` (${commit_count} 个提交)
+
+## 提交记录
+
+$(git -C "$repo_path" log --format="- **%h** %s (*%an*, %ar)" "${old_hash}..${new_hash}" 2>/dev/null || echo "无")
+
+## 变更文件统计
+
+$(git -C "$repo_path" diff --stat "${old_hash}..${new_hash}" 2>/dev/null || echo "无")
+
+## 文件变更明细
+
+HEADER
+
+  # 按变更类型分类
+  local added modified deleted renamed
+  added=$(git -C "$repo_path" diff --diff-filter=A --name-only "${old_hash}..${new_hash}" 2>/dev/null || true)
+  modified=$(git -C "$repo_path" diff --diff-filter=M --name-only "${old_hash}..${new_hash}" 2>/dev/null || true)
+  deleted=$(git -C "$repo_path" diff --diff-filter=D --name-only "${old_hash}..${new_hash}" 2>/dev/null || true)
+  renamed=$(git -C "$repo_path" diff --diff-filter=R --name-only "${old_hash}..${new_hash}" 2>/dev/null || true)
+
+  {
+    if [ -n "$added" ]; then
+      echo "### 新增文件"
+      echo ""
+      echo "$added" | while read -r f; do
+        [ -n "$f" ] && echo "- \`$f\`"
+      done
+      echo ""
+    fi
+
+    if [ -n "$modified" ]; then
+      echo "### 修改文件"
+      echo ""
+      echo "$modified" | while read -r f; do
+        [ -n "$f" ] && echo "- \`$f\`"
+      done
+      echo ""
+    fi
+
+    if [ -n "$deleted" ]; then
+      echo "### 删除文件"
+      echo ""
+      echo "$deleted" | while read -r f; do
+        [ -n "$f" ] && echo "- \`$f\`"
+      done
+      echo ""
+    fi
+
+    if [ -n "$renamed" ]; then
+      echo "### 重命名文件"
+      echo ""
+      echo "$renamed" | while read -r f; do
+        [ -n "$f" ] && echo "- \`$f\`"
+      done
+      echo ""
+    fi
+
+    echo "## 关键 diff 摘要"
+    echo ""
+    echo '```diff'
+    git -C "$repo_path" diff --unified=3 "${old_hash}..${new_hash}" -- '*.java' '*.vue' '*.js' '*.ts' '*.py' '*.xml' '*.yml' '*.yaml' '*.properties' '*.sql' 2>/dev/null | head -500 || true
+    echo '```'
+  } >> "$report_file"
 
   # 保存当前 hash 供下次对比
   echo "$new_hash" > "$TEST_DIR/$project_name/.last_hash"
 
-  log "  记录 $commit_count 个新提交 -> $changelog_file"
+  log "  生成报告: ${commit_count} 个提交 -> $report_file"
 }
 
 # 主流程

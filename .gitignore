@@ -1,14 +1,16 @@
-# Dependencies
-node_modules/
+# 仓库项目（外部克隆，不提交）
+repository/*
+!repository/READEME.md
 
-# Build output
-dist/
-build/
-coverage/
+# 测试工程（本地测试产物，不提交）
+test_project/*
+!test_project/READEME.md
 
-# Environment files
-.env
-.env.local
+# oh-my-claudecode 运行时
+.omc/
+
+# Claude 会话锁文件
+.claude/scheduled_tasks.lock
 
 # IDE
 .vscode/
@@ -16,14 +18,9 @@ coverage/
 *.swp
 *.swo
 
-# Logs
+# 环境文件
+.env
+.env.local
+
+# 日志
 *.log
-npm-debug.log*
-
-# Repository projects (外部克隆，不提交)
-repository/*
-!repository/READEME.md
-
-# Test projects (本地测试产物，不提交)
-test_project/*
-!test_project/READEME.md
