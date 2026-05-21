@@ -34,6 +34,8 @@ pm/
 │   │   ├── playwright-test-planner.md    # 阶段二：测试计划生成
 │   │   ├── playwright-test-generator.md  # 阶段三：测试代码生成
 │   │   └── playwright-test-healer.md     # 阶段四：失败测试修复
+│   ├── skills/                # Skill 定义
+│   │   └── pm/                # 项目注册管理（add/del/list）
 │   ├── scripts/scan.sh        # 仓库扫描脚本
 │   ├── test-artifacts/        # Playwright 运行时产物（trace、截图）
 │   └── scheduled_tasks.json   # 定时任务配置（提交到版本库）
@@ -99,13 +101,15 @@ bash .claude/scripts/scan.sh          # 扫描所有项目变更
 
 ### 项目注册
 
-新项目必须同时添加到 `repository/READEME.md` 和 `test_project/READEME.md` 的 `<!-- projects-start -->` / `<!-- projects-end -->` 块内：
+使用 `/pm` skill 管理项目注册（自动同步两个 registry 文件）：
 
 ```
-| NN-Name | ./NN-Name | https://repo-url | Git |
+/pm add [name] [url]    # 添加项目（名称和地址可选，缺省时交互询问，类型从地址自动推断）
+/pm del <name>          # 删除项目（需确认）
+/pm list                # 列出已注册项目
 ```
 
-不要在标记外添加内容 — 扫描脚本只解析标记内的区域。
+手动添加时，必须同时写入 `repository/READEME.md` 和 `test_project/READEME.md` 的 `<!-- projects-start -->` / `<!-- projects-end -->` 块内。不要在标记外添加内容 — 扫描脚本只解析标记内的区域。
 
 ### 测试执行
 
