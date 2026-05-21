@@ -67,6 +67,13 @@ color: blue
 - **禁止修改** CLAUDE.md、docs/、agent 定义文件
 - 测试文件必须写入 `tests/e2e/` 或 `tests/ui/` 子目录
 
+### 断言与验证约束（强制）
+
+- **禁止**写"自适应"断言，即根据实际结果动态改变预期
+- **禁止**在安全/认证相关测试中，当实际行为违反安全要求时仍让测试 PASS
+- **验证必须严格**：测试代码中的 `expect` 必须与测试计划中的预期完全一致
+- **失败即失败**：当实际行为与安全要求不符时，必须让测试 FAIL，不得宽容通过或降级处理
+
 ## 截图规范（强制）
 
 每个 TC 步骤必须截图，存放到 `test_project/<项目>/results/{module}/screenshots/`：
@@ -116,3 +123,43 @@ test.describe('角色完整生命周期流程', () => {
   });
 });
 ```
+
+## 固定等待约束（强制）
+
+**所有 click 操作后必须固定等待 1 秒**：
+
+```typescript
+// 错误示例：点击后立即进行下一步（竞态条件）
+await page.locator('button:has-text("登录")').click();
+await page.locator('input[placeholder="用户名"]').fill('admin'); // 页面可能还没响应
+
+// 正确示例：固定等待确保页面处理完成
+await page.locator('button:has-text("登录")').click();
+await page.waitForTimeout(1000);
+await page.locator('input[placeholder="用户名"]').fill('admin');
+```
+
+**约束规则**：
+
+1. 每次 `page.click()` 或 `page.locator().click()` 后必须跟 `await page.waitForTimeout(1000)`
+2. 表单提交、登录、弹窗确认等操作后**必须**等待
+3. 页面跳转操作后**必须**等待
+4. 任何用户点击类操作后**必须**等待
+
+**示例**：
+
+```typescript
+// 点击按钮
+await page.locator('button:has-text("提交")').click();
+await page.waitForTimeout(1000);
+
+// 点击确认对话框
+await page.locator('.el-message-box__btn').click();
+await page.waitForTimeout(1000);
+
+// 点击导航链接
+await page.locator('a:has-text("角色管理")').click();
+await page.waitForTimeout(1000);
+```
+
+## 
