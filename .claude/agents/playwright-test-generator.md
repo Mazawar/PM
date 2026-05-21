@@ -13,6 +13,7 @@ color: blue
 - 测试计划位于 `test_project/<项目编号>/test-config/test-plan.md`
 - 生成的测试代码存放在 `test_project/<项目编号>/tests/` 对应层级目录
 - 测试用例格式规范参见 `docs/01-TESTING.md`
+- 测试执行输出规范参见 `docs/02-WORKFLOW.md` 阶段四
 
 ## 工作流程
 
@@ -30,47 +31,55 @@ color: blue
    - 调用 `generator_read_log` 获取录制日志
    - 调用 `generator_write_test` 写入测试代码
 
-## 代码规范
+## 用例编号规范
 
-- 文件头部必须包含元信息注释：
+测试计划中每个场景有 **TC-XXX** 编号，生成的测试代码需在注释中标注对应关系：
 
 ```typescript
 // TEST-ID: TP-<项目编号>-L<层级>-<序号>
 // TEST-NAME: <测试名称>
 // TEST-LEVEL: L3 或 L4
 // TEST-TARGET: <目标页面/功能>
+// TC: TC-001, TC-002, TC-003  （本文件覆盖的 TC 编号）
 ```
 
-- 每个文件包含单个测试用例
-- 文件名使用小写 kebab-case，如 `login-flow.spec.ts`
+一个测试文件可覆盖多个 TC 编号，需全部列出。
+
+## 代码规范
+
+- 文件头部必须包含元信息注释（含 TC 编号映射）
+- 文件名使用小写 kebab-case，如 `role-full-lifecycle.spec.ts`
 - 使用 `test.describe` 包裹，名称与测试计划项一致
+- 使用 `test.step('TC-XXX: 步骤描述', ...)` 标注每个步骤对应的 TC 编号
 - 每个步骤前加注释，避免重复注释
 - 遵循录制日志中的最佳实践生成代码
 - 生成的代码写入 `test_project/<项目>/tests/e2e/` 或 `tests/ui/` 目录
 
+## 测试数据规范
+
+- 测试数据使用统一前缀（如 `test_`）便于识别和清理
+- 每个测试文件开头添加 cleanup 步骤，清理残留测试数据
+- 只通过新增操作测试，禁止修改/删除已有数据
+
 ## 示例
 
 ```typescript
-// spec: test-config/test-plan.md
-// TEST-ID: TP-01-RuoYi-Vue-L3-001
-// TEST-NAME: 用户登录流程
+// TEST-ID: TP-01-RuoYi-Vue-L3-003
+// TEST-NAME: 角色完整生命周期
 // TEST-LEVEL: L3
-// TEST-TARGET: 登录页面
+// TEST-TARGET: 系统管理 > 角色管理
+// TC: TC-001, TC-002, TC-003, TC-004, TC-005
 
-test.describe('用户登录', () => {
-  test('正确的账号密码登录成功', async ({ page }) => {
-    // 1. 打开登录页面
-    await page.goto('/login');
+test.describe('角色完整生命周期流程', () => {
+  test('角色导航、列表查看、新增、表单校验、编辑全流程', async ({ page }) => {
+    await test.step('TC-001: 导航到角色管理页面', async () => {
+      await navigateToRoleManagement(page);
+      await expect(page.locator('.el-table')).toBeVisible();
+    });
 
-    // 2. 输入用户名和密码
-    await page.fill('[name="username"]', 'admin');
-    await page.fill('[name="password"]', 'admin123');
-
-    // 3. 点击登录按钮
-    await page.click('button[type="submit"]');
-
-    // 4. 验证跳转到首页
-    await expect(page).toHaveURL(/.*home/);
+    await test.step('TC-003: 新增角色', async () => {
+      // 新增操作...
+    });
   });
 });
 ```

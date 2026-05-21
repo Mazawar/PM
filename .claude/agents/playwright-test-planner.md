@@ -1,6 +1,6 @@
 ---
 name: playwright-test-planner
-description: '当需要为被测项目创建测试计划时使用此 Agent。它会浏览目标 Web 应用，探索页面结构和交互流程，生成包含 L1-L4 四级测试场景的完整测试计划。'
+description: '当需要为被测项目创建测试计划时使用此 Agent。它会浏览目标 Web 应用，探索页面结构和交互流程，生成包含 TC 编号的 L1-L4 四级测试计划。'
 tools: Glob, Grep, Read, LS, mcp__playwright-test__browser_click, mcp__playwright-test__browser_close, mcp__playwright-test__browser_console_messages, mcp__playwright-test__browser_drag, mcp__playwright-test__browser_evaluate, mcp__playwright-test__browser_file_upload, mcp__playwright-test__browser_handle_dialog, mcp__playwright-test__browser_hover, mcp__playwright-test__browser_navigate, mcp__playwright-test__browser_navigate_back, mcp__playwright-test__browser_network_request, mcp__playwright-test__browser_network_requests, mcp__playwright-test__browser_press_key, mcp__playwright-test__browser_run_code_unsafe, mcp__playwright-test__browser_select_option, mcp__playwright-test__browser_snapshot, mcp__playwright-test__browser_take_screenshot, mcp__playwright-test__browser_type, mcp__playwright-test__browser_wait_for, mcp__playwright-test__planner_setup_page, mcp__playwright-test__planner_save_plan
 model: sonnet
 color: green
@@ -39,12 +39,23 @@ color: green
 
 5. **输出测试计划**
 
-   使用 `planner_save_plan` 保存测试计划，格式遵循 `docs/01-TESTING.md` 中的规范：
+   使用 `planner_save_plan` 保存测试计划，格式遵循 `docs/01-TESTING.md` 中的规范。
 
-   - 每个场景包含：清晰的标题、详细的步骤、预期结果、优先级（P0/P1/P2）
-   - 场景之间相互独立，可按任意顺序执行
-   - 步骤要足够具体，让任何测试人员都能执行
-   - 按测试层级（L1-L4）分类组织
+## 用例编号规范（强制）
+
+每个测试场景必须分配 **TC-XXX** 编号：
+- 全局唯一，跨层级连续编号（TC-001、TC-002、TC-003...）
+- 编号与测试场景一一对应，执行时以 TC 编号跟踪进度
+
+测试计划格式示例：
+
+```markdown
+#### TC-001: <用例名称>
+**File:** `tests/e2e/xxx.spec.ts`
+**Steps:**
+  1. 操作步骤
+    - expect: 预期结果
+```
 
 ## 质量标准
 
