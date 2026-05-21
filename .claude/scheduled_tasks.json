@@ -5,6 +5,7 @@
       "cron": "*/5 * * * *",
       "prompt": "用 Agent 工具（run_in_background: true）后台执行仓库扫描：bash .claude/scripts/scan.sh。如果检测到变更，读取 reports/ 下最新报告，分析后写入 summary.md（变更概述、影响范围、测试建议、潜在风险），然后向用户汇报。无变更则不输出。",
       "createdAt": 1779333159402,
+      "lastFiredAt": 1779334401683,
       "recurring": true,
       "createdBySessionId": "722b7c48-82f6-4194-8e8f-5c4ebed8b354",
       "createdByPid": 29792

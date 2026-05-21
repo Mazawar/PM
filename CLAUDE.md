@@ -1,94 +1,91 @@
-# PM - 自动化测试智能体工程
+# CLAUDE.md
 
-本工程是一个持续维护的自动化测试智能体项目，用于监控、管理和测试多个外部项目仓库。
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 项目定位
+## Project Overview
 
-本工程（pm）作为**自动化测试智能体的中枢工程**，职责包括：
+PM (Project Manager) is an automated testing agent hub. It monitors external project repositories, detects code changes, generates test plans, executes tests, and reports issues back to upstream projects.
 
-1. **持续监控** — 实时检测 `repository/` 下各项目仓库的代码变更
-2. **变更同步** — 将检测到的代码改动追加到 `test_project/` 对应的测试工程目录
-3. **自动化测试** — 对变更内容执行测试，验证功能正确性
-4. **问题反馈** — 测试发现的问题提交回原项目仓库
-
-## 目录结构
+## Architecture
 
 ```
 pm/
-├── repository/           # 项目仓库目录（源码克隆）
-│   ├── READEME.md        # 项目维护清单（编号、地址、仓库、类型）
-│   ├── 01-RuoYi-Vue/     # 示例：克隆的项目仓库
-│   └── ...
-├── test_project/         # 测试工程目录（与 repository 一一对应）
-│   ├── READEME.md        # 测试工程清单（编号、地址、仓库、类型）
-│   ├── 01-RuoYi-Vue/     # 示例：对应的测试工程子目录
-│   └── ...
-└── CLAUDE.md             # 本文件
+├── repository/            # Read-only clones of monitored projects
+│   ├── READEME.md         # Project registry (managed by scan.sh)
+│   └── <NN-Project>/      # Git clones, NEVER modify
+├── test_project/          # Test artifacts (one dir per repository entry)
+│   ├── READEME.md         # Test project registry
+│   ├── templates/         # Test case templates (L1-L4)
+│   └── <NN-Project>/
+│       ├── reports/       # Auto-generated change reports + summary.md
+│       ├── tests/         # Test code (unit/api/e2e/ui)
+│       ├── test-config/   # Environment configs, test plans
+│       └── results/       # Test execution results
+├── docs/                  # Project documentation
+│   ├── 00-README.md       # Doc index
+│   ├── 01-TESTING.md      # Testing framework rules
+│   └── 02-WORKFLOW.md     # Agent interaction workflow
+└── .claude/
+    ├── scripts/scan.sh    # Core scanning script
+    └── scheduled_tasks.json  # Cron config (committed, shared across machines)
 ```
 
-### 目录对应关系
+### Key Invariants
 
-`repository/` 中的每个项目子目录，必须在 `test_project/` 中有同名的测试子目录：
+- `repository/` entries and `test_project/` entries have 1:1 correspondence by name (e.g., `01-RuoYi-Vue`)
+- `repository/` is read-only — only `git clone` and `git pull`, never modify source
+- All test code and artifacts live under `test_project/`
+- Only registry files (READEME.md), docs, templates, and scripts are committed
 
-| repository/            | test_project/          | 说明               |
-| ---------------------- | ---------------------- | ------------------ |
-| `01-RuoYi-Vue/`        | `01-RuoYi-Vue/`        | 编号与名称完全对应 |
+## Commands
 
-## 工作流程
+### Repository Scanning
 
-### 1. 监控阶段 — 检测代码变更
+```bash
+bash .claude/scripts/scan.sh          # Scan all projects for changes
+```
 
-- 定期检查 `repository/` 下每个项目仓库的最新提交记录
-- 对比上次检查时的提交 hash，识别是否有新的代码提交
-- 如果检测到新提交，记录变更摘要（提交信息、文件列表、diff 摘要）
+The scan script:
+1. Parses `repository/READEME.md` between `<!-- projects-start -->` / `<!-- projects-end -->` markers
+2. Auto-clones missing repos, pulls existing ones
+3. Detects new commits via hash comparison (`.last_hash` files)
+4. Generates change reports to `test_project/<project>/reports/<timestamp>.md`
 
-### 2. 同步阶段 — 追加变更到测试目录
+### Project Registry
 
-- 将检测到的代码变更同步到 `test_project/<项目编号>/` 对应目录
-- 更新测试工程中的源码副本，确保与 repository 中的最新代码一致
-- 生成变更记录文件，记录本次同步的提交信息和变更内容
+New projects must be added to BOTH `repository/READEME.md` AND `test_project/READEME.md` inside the `<!-- projects-start -->` / `<!-- projects-end -->` block, following the table format:
 
-### 3. 等待指令 — 暂停等待下一步计划
+```
+| NN-Name | ./NN-Name | https://repo-url | Git |
+```
 
-- 同步完成后，**暂停并等待用户指令**
-- 向用户报告变更摘要，包括：项目名称、提交数量、涉及文件
-- 等待用户确认后再进入测试阶段
+Do NOT add content outside the markers — the scan script only parses within them.
 
-### 4. 测试阶段 — 执行自动化测试
+## Testing Framework
 
-- 根据用户指令启动对应项目的自动化测试
-- 在 `test_project/<项目编号>/` 中执行测试
-- 收集测试结果：通过/失败、错误日志、覆盖率数据
+See `docs/01-TESTING.md` for full rules. Key points:
 
-### 5. 反馈阶段 — 问题提交回原项目
+- **4 test levels**: L1 (unit) → L2 (API/integration) → L3 (E2E) → L4 (UI)
+- **Framework selection**: Check existing project deps first (`pom.xml`, `package.json`, etc.), then fall back to the mapping in 01-TESTING.md
+- **Test IDs**: `TP-<project>-L<level>-<NNN>` in file header comments
+- **Execution order**: L1 full run → L2/L3/L4 only for changed modules
 
-- 如果测试发现问题（失败、错误、异常），整理问题报告
-- 将问题以 issue 或其他合适的形式提交到原项目仓库
-- 问题报告应包含：复现步骤、错误日志、环境信息、建议修复方案
+## Agent Workflow
 
-## 维护规范
+See `docs/02-WORKFLOW.md` for full protocol. The flow is:
 
-### 仓库管理
+1. **Detect** — scan.sh finds changes, generates report
+2. **Analyze** — Agent reads report, writes `summary.md` with change overview, impact, test suggestions, risks
+3. **Propose test plan** — Agent generates plan, user confirms
+4. **Generate test cases** — Agent writes test code, user confirms
+5. **Execute tests** — L1→L2→L3→L4, collect results
+6. **Report & feedback** — Results to user, issues to upstream repo
 
-- 新增项目时，同时在 `repository/READEME.md` 和 `test_project/READEME.md` 中注册
-- 项目编号格式：`序号-项目名`（如 `01-RuoYi-Vue`）
-- 使用 git clone 克隆项目到 `repository/<编号>/`
-- 在 `test_project/<编号>/` 中创建对应的测试工程
+The agent always **proposes first, waits for user confirmation** before executing. Never auto-execute tests without user approval.
 
-### README 清单格式
+## Git Conventions
 
-两个 README 均使用表格格式维护项目清单：
-
-| 列   | 说明                                        |
-| ---- | ------------------------------------------- |
-| 编号 | 项目编号（如 01-RuoYi-Vue）                 |
-| 地址 | 相对路径（repository 用 `./`，test 用 `../repository/`） |
-| 仓库 | 远程仓库地址                                |
-| 类型 | 版本控制类型（Git）                         |
-
-### 注意事项
-
-- 不要修改 `repository/` 下项目仓库的源码，仅做只读的 clone 和 pull
-- 测试相关的所有修改和新增文件都放在 `test_project/` 目录下
-- 每次操作前先确认目录对应关系是否正确
-- 向原项目提交问题时，确保问题描述清晰且可复现
+- Commit messages in Chinese, concise, describe the change purpose
+- `repository/` contents and `test_project/` test artifacts are gitignored
+- `.claude/scheduled_tasks.json` IS committed (shared cron config)
+- `.omc/`, `*.log`, `.claude/scheduled_tasks.lock` are gitignored
