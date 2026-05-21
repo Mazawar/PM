@@ -13,6 +13,9 @@ test_project/*
 # Claude 会话锁文件
 .claude/scheduled_tasks.lock
 
+# Playwright 运行时产物（trace、截图等）
+.claude/test-artifacts/
+
 # IDE
 .vscode/
 .idea/
@@ -22,6 +25,9 @@ test_project/*
 # 环境文件
 .env
 .env.local
+
+# 依赖
+node_modules/
 
 # 日志
 *.log

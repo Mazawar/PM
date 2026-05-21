@@ -1,0 +1,23 @@
+{
+  "name": "pm",
+  "version": "1.0.0",
+  "description": "自动化测试智能体的中枢工程，用于监控、管理和测试多个外部项目仓库。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/mazawar/pm.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}
