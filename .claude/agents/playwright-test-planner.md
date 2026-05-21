@@ -40,9 +40,8 @@ color: green
    - **异常处理** — 错误输入、网络异常、权限不足
 
 5. **输出测试计划**
-   - 写入模块计划 `test-config/plans/{module}.md`
-   - 更新总计划索引 `test-config/test-plan.md`（添加模块条目和 TC 范围）
-   - 格式遵循 `docs/01-TESTING.md` 中的测试计划格式规范
+   - 写入模块计划 `test-config/plans/{module}.md`（详细 TC 步骤）
+   - 更新总计划索引 `test-config/test-plan.md`（仅模块索引表，禁止写详细步骤）
 
 ## 用例编号规范（强制）
 

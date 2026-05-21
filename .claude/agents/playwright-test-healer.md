@@ -11,14 +11,14 @@ color: red
 ## 项目上下文
 
 - 测试代码位于 `test_project/<项目编号>/tests/` 下
-- 测试结果按模块分目录：`test_project/<项目编号>/results/latest/{module}/`
+- 测试结果按模块分目录：`test_project/<项目编号>/results/{module}/`
 - 测试框架规则参见 `docs/01-TESTING.md`
 - 输出规范参见 `docs/02-WORKFLOW.md` 阶段四
 
 ## 输出结构（修复后必须更新）
 
 ```
-results/latest/
+results/
 ├── summary.md                      # 汇总报告
 ├── {module}/                       # 按模块分目录
 │   ├── progress.txt                # TC-XXX:PASS/FAIL
@@ -31,19 +31,19 @@ results/latest/
 
 ### progress.txt 更新规则
 
-- 路径：`results/latest/{module}/progress.txt`
+- 路径：`results/{module}/progress.txt`
 - 修复并验证通过后，将该 TC 的 `FAIL` 改为 `PASS`
 - 如果确认是应用 Bug 而非测试问题，保持 `FAIL` 不变
 
 ### report.md 更新规则
 
-- 路径：`results/latest/{module}/report.md`
+- 路径：`results/{module}/report.md`
 - 更新对应 TC 的详细结果状态
 - 在修复记录中添加：修复原因、修改方式、验证结果
 
 ### summary.md 更新规则
 
-- 路径：`results/latest/summary.md`
+- 路径：`results/summary.md`
 - 所有模块修复完成后，更新汇总报告的通过率
 
 ## 工作流程
@@ -76,9 +76,15 @@ results/latest/
    - 逐个修复，每次修复后重新测试
 
 6. **更新输出**
-   - 更新 `results/latest/{module}/progress.txt` 中对应 TC 的状态
-   - 更新 `results/latest/{module}/report.md` 的详细结果和修复记录
-   - 更新 `results/latest/summary.md` 汇总报告
+   - 更新 `results/{module}/progress.txt` 中对应 TC 的状态
+   - 更新 `results/{module}/report.md` 的详细结果和修复记录
+   - 更新 `results/summary.md` 汇总报告
+
+## 禁止行为（强制）
+
+- **禁止修改** `playwright.config.ts`、`package.json`、`.mcp.json`、CLAUDE.md、docs/、agent 定义文件
+- **禁止在** `test_project/<项目>/tests/` 以外创建或修改 `.spec.ts` 文件
+- 修复范围仅限于 `test_project/<项目>/tests/` 和 `test_project/<项目>/results/`
 
 ## 修复原则
 

@@ -60,6 +60,24 @@ color: blue
 - `role-lifecycle.spec.ts` — 角色管理 / 生命周期
 - `role-permission.spec.ts` — 角色管理 / 权限与删除
 
+## 禁止行为（强制）
+
+- **禁止修改** `playwright.config.ts`、`package.json`、`.mcp.json` 等项目配置文件
+- **禁止写入** `test_project/<项目>/tests/` 以外的 `.spec.ts` 文件
+- **禁止修改** CLAUDE.md、docs/、agent 定义文件
+- 测试文件必须写入 `tests/e2e/` 或 `tests/ui/` 子目录
+
+## 截图规范（强制）
+
+每个 TC 步骤必须截图，存放到 `test_project/<项目>/results/{module}/screenshots/`：
+- 每个用例至少 3 张：初始页面、关键操作后、最终结果
+- 命名格式：`tc-{编号}-{简称}.png`（如 `tc-001-page-loaded.png`）
+- 页面跳转后必须截图
+- 错误/异常状态必须截图
+- 截图路径使用相对于 `results/{module}/screenshots/` 的路径
+
+在测试代码中使用 `await page.screenshot({ path: '...' })` 主动截图，不依赖 Playwright 配置的自动截图。
+
 ## 代码规范
 
 - 文件头部必须包含元信息注释（含 MODULE 和 TC 编号映射）

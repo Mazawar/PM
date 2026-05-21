@@ -75,14 +75,14 @@
 **Agent 职责**:
 1. 准备测试环境
 2. 按 L1 → L2 → L3 → L4 顺序执行
-3. 将结果输出到 `results/latest/` 目录
+3. 将结果输出到 `results/` 目录
 
 ### 输出结构（强制）
 
 测试结果按**功能模块**分目录存放，互不覆盖：
 
 ```
-results/latest/
+results/
 ├── summary.md                      # 汇总报告（聚合所有模块）
 ├── user-management/                # 用户管理模块
 │   ├── progress.txt                # TC-001~TC-007 进度
@@ -109,7 +109,7 @@ results/latest/
 
 ### progress.txt 格式
 
-路径：`results/latest/{module}/progress.txt`
+路径：`results/{module}/progress.txt`
 
 每行一条，`TC-XXX:状态`：
 
@@ -123,7 +123,7 @@ TC-003:PASS
 
 ### report.md 格式
 
-路径：`results/latest/{module}/report.md`
+路径：`results/{module}/report.md`
 
 ```markdown
 # 测试报告
@@ -163,7 +163,7 @@ TC-003:PASS
 
 ### 截图规则
 
-路径：`results/latest/{module}/screenshots/`
+路径：`results/{module}/screenshots/`
 
 命名：`tc-{编号}-{简称}.png`（如 `tc-001-login-page.png`）
 - 每用例至少 3 张：初始页面、关键操作后、最终结果
@@ -188,7 +188,7 @@ TC-003:PASS
 1. 更新模块报告概要统计（通过数/总数/通过率）
 2. 验证截图引用，缺失替换为 `（截图未生成）`，跨模块引用一律删除
 3. 确认 `report.md` 和 `screenshots/` 存在且非空
-4. 更新 `results/latest/summary.md` 汇总报告（聚合所有模块结果）
+4. 更新 `results/summary.md` 汇总报告（聚合所有模块结果）
 
 ## 阶段五：结果汇报
 

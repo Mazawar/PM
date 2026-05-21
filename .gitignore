@@ -32,3 +32,6 @@ node_modules/
 
 # 日志
 *.log
+
+# 跟踪文件
+.traces/

@@ -22,7 +22,7 @@ pm/
 │       │   └── plans/         # 按模块拆分的详细计划
 │       ├── tests/             # 测试代码（{module}-{scenario}.spec.ts）
 │       ├── reports/           # 变更报告 + summary.md
-│       └── results/latest/    # 测试执行结果（按模块分目录）
+│       └── results/            # 测试执行结果（按模块分目录）
 │           ├── summary.md     # 汇总报告
 │           └── <module>/      # progress.txt + report.md + screenshots/
 ├── docs/                      # 项目文档
@@ -60,7 +60,9 @@ planner → generator → healer（按需）
 
 ### playwright-test-planner
 - **职责**: 浏览被测应用，探索页面结构和交互流程
-- **输出**: `test-config/test-plan.md`，包含 L1-L4 四级测试场景
+- **输出**: 两层计划文件，严格分离：
+  - `test-config/test-plan.md` — **总计划索引**（Application Overview + 模块索引表），禁止写详细步骤
+  - `test-config/plans/{module}.md` — **模块详细计划**（TC 编号、Steps、expect），所有详细内容只在这里
 - **触发**: 用户确认测试任务后
 
 ### playwright-test-generator
@@ -127,7 +129,7 @@ Playwright 运行时产物（trace、失败截图）输出到 `.claude/test-arti
 测试结果按**功能模块**分目录存放，互不覆盖：
 
 ```
-results/latest/
+results/
 ├── summary.md                  # 汇总报告（聚合所有模块结果）
 ├── user-management/            # 按模块分目录
 │   ├── progress.txt            # TC 进度追踪

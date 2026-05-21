@@ -104,10 +104,10 @@ tests/
 
 ### 结果目录组织规则
 
-- **按模块分目录**：`results/latest/{module}/`，每个模块独立存放 progress、report、screenshots
+- **按模块分目录**：`results/{module}/`，每个模块独立存放 progress、report、screenshots
 - **互不覆盖**：测试新模块时创建新目录，不删除已有模块的结果
 - **同模块覆盖**：重新测试同一模块时覆盖该模块的结果
-- **汇总报告**：`results/latest/summary.md` 聚合所有模块的测试结果概要
+- **汇总报告**：`results/summary.md` 聚合所有模块的测试结果概要
 
 ## 4. 用例编号规范
 
@@ -218,7 +218,7 @@ TP-<项目编号>-L<层级>-<序号>
 
 ### 进度文件（progress.txt）
 
-路径：`test_project/<NN-Project>/results/latest/{module}/progress.txt`
+路径：`test_project/<NN-Project>/results/{module}/progress.txt`
 
 每行一条记录，格式：`TC-XXX:状态`
 
@@ -238,7 +238,7 @@ TC-004:SKIP
 
 ### 模块测试报告（report.md）
 
-路径：`test_project/<NN-Project>/results/latest/{module}/report.md`
+路径：`test_project/<NN-Project>/results/{module}/report.md`
 
 ```markdown
 # <模块名称> 测试报告
@@ -284,7 +284,7 @@ TC-004:SKIP
 
 ### 汇总报告（summary.md）
 
-路径：`test_project/<NN-Project>/results/latest/summary.md`
+路径：`test_project/<NN-Project>/results/summary.md`
 
 聚合所有模块的测试结果，每次执行后更新：
 
@@ -311,7 +311,7 @@ TC-004:SKIP
 
 ### 截图规范
 
-路径：`test_project/<NN-Project>/results/latest/{module}/screenshots/`
+路径：`test_project/<NN-Project>/results/{module}/screenshots/`
 
 命名格式：`tc-{编号}-{简称}.png`
 
