@@ -10,14 +10,15 @@ color: blue
 
 ## 项目上下文
 
-- 测试计划位于 `test_project/<项目编号>/test-config/test-plan.md`
-- 生成的测试代码存放在 `test_project/<项目编号>/tests/` 对应层级目录
+- 模块测试计划位于 `test_project/<项目编号>/test-config/plans/{module}.md`
+- 总计划索引位于 `test_project/<项目编号>/test-config/test-plan.md`
+- 测试代码存放在 `test_project/<项目编号>/tests/` 对应层级目录
 - 测试用例格式规范参见 `docs/01-TESTING.md`
 - 测试执行输出规范参见 `docs/02-WORKFLOW.md` 阶段四
 
 ## 工作流程
 
-1. **读取测试计划** — 从 `test-config/test-plan.md` 获取已确认的测试场景
+1. **读取测试计划** — 从 `test-config/plans/{module}.md` 获取已确认的测试场景
 
 2. **页面初始化** — 调用 `generator_setup_page` 准备测试页面
 
@@ -40,20 +41,33 @@ color: blue
 // TEST-NAME: <测试名称>
 // TEST-LEVEL: L3 或 L4
 // TEST-TARGET: <目标页面/功能>
-// TC: TC-001, TC-002, TC-003  （本文件覆盖的 TC 编号）
+// MODULE: <模块名>
+// TC: TC-XXX, TC-YYY  （本文件覆盖的 TC 编号）
 ```
 
 一个测试文件可覆盖多个 TC 编号，需全部列出。
 
+## 文件命名规范（强制）
+
+文件名格式：`{module}-{scenario}.spec.ts`
+
+- `{module}` — 模块英文短名，kebab-case，与 `test-config/plans/` 下的文件名一致
+- `{scenario}` — 场景描述，kebab-case
+
+示例：
+- `user-lifecycle.spec.ts` — 用户管理 / 生命周期
+- `user-search.spec.ts` — 用户管理 / 搜索筛选
+- `role-lifecycle.spec.ts` — 角色管理 / 生命周期
+- `role-permission.spec.ts` — 角色管理 / 权限与删除
+
 ## 代码规范
 
-- 文件头部必须包含元信息注释（含 TC 编号映射）
-- 文件名使用小写 kebab-case，如 `role-full-lifecycle.spec.ts`
+- 文件头部必须包含元信息注释（含 MODULE 和 TC 编号映射）
 - 使用 `test.describe` 包裹，名称与测试计划项一致
 - 使用 `test.step('TC-XXX: 步骤描述', ...)` 标注每个步骤对应的 TC 编号
 - 每个步骤前加注释，避免重复注释
 - 遵循录制日志中的最佳实践生成代码
-- 生成的代码写入 `test_project/<项目>/tests/e2e/` 或 `tests/ui/` 目录
+- 生成的代码写入 `tests/e2e/` 或 `tests/ui/` 目录
 
 ## 测试数据规范
 
@@ -68,16 +82,17 @@ color: blue
 // TEST-NAME: 角色完整生命周期
 // TEST-LEVEL: L3
 // TEST-TARGET: 系统管理 > 角色管理
-// TC: TC-001, TC-002, TC-003, TC-004, TC-005
+// MODULE: role-management
+// TC: TC-008, TC-009, TC-010, TC-011, TC-012
 
 test.describe('角色完整生命周期流程', () => {
   test('角色导航、列表查看、新增、表单校验、编辑全流程', async ({ page }) => {
-    await test.step('TC-001: 导航到角色管理页面', async () => {
+    await test.step('TC-008: 导航到角色管理页面', async () => {
       await navigateToRoleManagement(page);
       await expect(page.locator('.el-table')).toBeVisible();
     });
 
-    await test.step('TC-003: 新增角色', async () => {
+    await test.step('TC-010: 新增角色', async () => {
       // 新增操作...
     });
   });

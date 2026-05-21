@@ -51,7 +51,11 @@
 ```
 test_project/<NN-Project>/
 ├── test-config/                # 测试配置与计划
-│   ├── test-plan.md            # 测试计划（含 TC 编号）
+│   ├── test-plan.md            # 总测试计划（索引 + 概览）
+│   ├── plans/                  # 按模块拆分的详细计划
+│   │   ├── user-management.md  # 用户管理测试计划
+│   │   ├── role-management.md  # 角色管理测试计划
+│   │   └── <module>.md         # 其他模块
 │   └── environment.json        # 环境配置（URL、端口、凭证占位）
 ├── tests/                      # 测试脚本代码
 │   ├── unit/                   # L1 单元测试
@@ -63,10 +67,47 @@ test_project/<NN-Project>/
 │   └── summary.md             # Agent 分析的变更汇总
 └── results/                    # 测试执行结果
     └── latest/                 # 最近一次执行结果
-        ├── progress.txt        # 执行进度追踪
-        ├── report.md           # 人类可读测试报告
-        └── screenshots/        # 测试截图
+        ├── summary.md          # 汇总报告（聚合所有模块）
+        ├── user-management/    # 按功能模块分目录
+        │   ├── progress.txt
+        │   ├── report.md
+        │   └── screenshots/
+        ├── role-management/
+        │   ├── progress.txt
+        │   ├── report.md
+        │   └── screenshots/
+        └── menu-management/
+            ├── progress.txt
+            ├── report.md
+            └── screenshots/
 ```
+
+### 测试文件命名规范
+
+测试文件名必须包含**模块前缀**，格式：`{module}-{scenario}.spec.ts`
+
+```
+tests/
+├── e2e/
+│   ├── user-lifecycle.spec.ts          # 用户管理 - 生命周期
+│   ├── user-search.spec.ts             # 用户管理 - 搜索筛选
+│   ├── role-lifecycle.spec.ts          # 角色管理 - 生命周期
+│   ├── role-search.spec.ts             # 角色管理 - 搜索筛选
+│   └── menu-crud.spec.ts              # 菜单管理 - 增删改查
+└── ui/
+    ├── user-form-ui.spec.ts            # 用户管理 - 表单 UI
+    ├── role-dialog-ui.spec.ts          # 角色管理 - 对话框 UI
+    └── menu-tree-ui.spec.ts           # 菜单管理 - 树形控件 UI
+```
+
+模块前缀为功能的英文短名，kebab-case 格式。同一模块的文件共享前缀，便于筛选和批量执行。
+
+### 结果目录组织规则
+
+- **按模块分目录**：`results/latest/{module}/`，每个模块独立存放 progress、report、screenshots
+- **互不覆盖**：测试新模块时创建新目录，不删除已有模块的结果
+- **同模块覆盖**：重新测试同一模块时覆盖该模块的结果
+- **汇总报告**：`results/latest/summary.md` 聚合所有模块的测试结果概要
 
 ## 4. 用例编号规范
 
@@ -95,6 +136,70 @@ TP-<项目编号>-L<层级>-<序号>
 
 一个 TC 可能对应一个或多个测试文件中的 test case。执行智能体以 TC 编号跟踪进度，脚本文件以 TP 编号组织代码。
 
+## 测试计划格式规范
+
+### 总计划（test-plan.md）
+
+`test-config/test-plan.md` 是所有模块的索引和概览，不包含详细步骤：
+
+```markdown
+# <项目名称> 测试计划
+
+## Application Overview
+- 被测应用: <URL>
+- 技术栈: <描述>
+- 登录凭证: <账号/密码>
+
+## 模块索引
+
+| 模块 | 计划文件 | TC 范围 | 用例数 | 优先级 |
+|------|---------|---------|--------|--------|
+| 用户管理 | [plans/user-management.md](plans/user-management.md) | TC-001~TC-007 | 7 | P0 |
+| 角色管理 | [plans/role-management.md](plans/role-management.md) | TC-008~TC-029 | 22 | P0 |
+| 菜单管理 | [plans/menu-management.md](plans/menu-management.md) | TC-030~TC-044 | 15 | P1 |
+```
+
+### 模块计划（plans/{module}.md）
+
+每个模块一个独立文件，包含详细测试场景。TC 编号全局连续，各模块分配编号范围：
+
+```markdown
+# <模块名称> 测试计划
+
+## 模块概述
+- 功能入口: <导航路径>
+- 核心功能: <列举>
+- 优先级: P0/P1/P2
+
+## Test Scenarios
+
+### L3 E2E 测试
+
+#### TC-001: <用例名称>
+**Steps:**
+  1. 操作步骤
+    - expect: 预期结果
+  2. 操作步骤
+    - expect: 预期结果
+
+#### TC-002: <用例名称>
+**Steps:**
+  1. ...
+
+### L4 UI 测试
+
+#### TC-005: <用例名称>
+**Steps:**
+  1. ...
+```
+
+### TC 编号分配规则
+
+- TC 编号全局唯一，跨模块连续递增（TC-001、TC-002...TC-999）
+- 每个模块在总计划中分配编号范围（如角色管理 TC-008~TC-029）
+- 模块内按层级分组（L3 在前，L4 在后），组内按编号递增
+- 预留编号间隙便于后续新增用例
+
 ## 5. 测试用例格式
 
 每个测试文件头部必须包含元信息注释：
@@ -113,7 +218,7 @@ TP-<项目编号>-L<层级>-<序号>
 
 ### 进度文件（progress.txt）
 
-路径：`test_project/<NN-Project>/results/latest/progress.txt`
+路径：`test_project/<NN-Project>/results/latest/{module}/progress.txt`
 
 每行一条记录，格式：`TC-XXX:状态`
 
@@ -129,14 +234,14 @@ TC-004:SKIP
 - `FAIL` — 断言失败或操作异常
 - `SKIP` — 仅当页面 404 / 功能未实现等客观原因，必须在报告中注明原因
 
-进度文件是跨迭代的**唯一状态来源**，不依赖记忆。
+进度文件是跨迭代的**唯一状态来源**，不依赖记忆。每个模块独立一个 progress.txt。
 
-### 测试报告（report.md）
+### 模块测试报告（report.md）
 
-路径：`test_project/<NN-Project>/results/latest/report.md`
+路径：`test_project/<NN-Project>/results/latest/{module}/report.md`
 
 ```markdown
-# 测试报告
+# <模块名称> 测试报告
 
 ## 概要
 - 测试需求: <描述>
@@ -148,29 +253,16 @@ TC-004:SKIP
 
 | # | 用例编号 | 用例名称 | 结果 | 截图 |
 |---|---------|---------|------|------|
-| 1 | TC-001 | 正常登录 | PASS | ![](screenshots/tc-001-result.png) |
-| 2 | TC-002 | 新增用户 | FAIL | ![](screenshots/tc-002-error.png) |
+| 1 | TC-001 | xxx | PASS | ![](screenshots/tc-001-result.png) |
+| 2 | TC-002 | xxx | FAIL | ![](screenshots/tc-002-error.png) |
 
 ## 详细结果
 
-### TC-001: 正常登录 - PASS
+### TC-001: <名称> - PASS/FAIL
 **步骤**:
-1. 打开登录页面 → ![](screenshots/tc-001-login-page.png)
-2. 输入账号密码并提交 → ![](screenshots/tc-001-submit.png)
-3. 验证跳转到首页 → ![](screenshots/tc-001-home.png)
-**预期**: 登录成功，跳转到首页
-**实际**: 与预期一致
-
----
-
-### TC-002: 新增用户 - FAIL
-**步骤**:
-1. 打开用户管理页面 → ![](screenshots/tc-002-user-page.png)
-2. 点击新增按钮 → ![](screenshots/tc-002-dialog.png)
-3. 填写表单并提交 → ![](screenshots/tc-002-error.png)
-**预期**: 新增成功提示
-**实际**: 表单校验失败，提示"用户名已存在"
-**错误信息**: 用户名 test_user 已被占用
+1. 操作 → ![](screenshots/tc-001-xxx.png)
+**预期**: ...
+**实际**: ...
 
 ---
 
@@ -178,7 +270,11 @@ TC-004:SKIP
 
 | # | 严重程度 | 用例 | 描述 | 建议 |
 |---|---------|------|------|------|
-| 1 | 高 | TC-002 | 用户名唯一性校验未提示 | 增加前端校验 |
+
+## 修复记录
+
+| # | 问题 | 修复方式 |
+|---|------|---------|
 
 ## 环境信息
 - 浏览器: Chromium
@@ -186,9 +282,36 @@ TC-004:SKIP
 - 操作系统: <自动检测>
 ```
 
+### 汇总报告（summary.md）
+
+路径：`test_project/<NN-Project>/results/latest/summary.md`
+
+聚合所有模块的测试结果，每次执行后更新：
+
+```markdown
+# 测试汇总报告
+
+## 概要
+- 目标应用: <URL>
+- 测试时间: <YYYY-MM-DD HH:mm>
+- 总体结果: <总通过数>/<总用例数> 通过（通过率 XX%）
+
+## 模块结果概览
+
+| 模块 | 通过/总数 | 通过率 | 详细报告 |
+|------|----------|--------|---------|
+| 用户管理 | 7/7 | 100% | [查看](user-management/report.md) |
+| 角色管理 | 20/22 | 91% | [查看](role-management/report.md) |
+
+## 所有缺陷汇总
+
+| # | 严重程度 | 模块 | 用例 | 描述 | 建议 |
+|---|---------|------|------|------|------|
+```
+
 ### 截图规范
 
-路径：`test_project/<NN-Project>/results/latest/screenshots/`
+路径：`test_project/<NN-Project>/results/latest/{module}/screenshots/`
 
 命名格式：`tc-{编号}-{简称}.png`
 
@@ -200,6 +323,12 @@ TC-004:SKIP
 - 错误/异常状态必须截图
 - 截图失败标注 `（截图未生成）`
 - 所有截图必须本次执行实时截取，禁止引用历史报告
+
+**截图归属规则（强制）**：
+- 截图必须存放在对应模块的 `screenshots/` 目录下
+- 报告只能引用**同模块同目录**下的截图，禁止跨模块引用
+- 截图文件名中的 TC 编号必须与报告中的 TC 编号一致
+- 每个截图只能被一个 TC 引用，禁止多 TC 复用同一截图
 
 ## 7. 环境管理
 

@@ -10,8 +10,9 @@ color: green
 
 ## 项目上下文
 
-- 测试计划存放在 `test_project/<项目编号>/test-config/test-plan.md`
-- 测试代码存放在 `test_project/<项目编号>/tests/` 下，按层级分为 `unit/`、`api/`、`e2e/`、`ui/`
+- 总计划索引：`test_project/<项目编号>/test-config/test-plan.md`
+- 模块详细计划：`test_project/<项目编号>/test-config/plans/{module}.md`
+- 测试代码：`test_project/<项目编号>/tests/` 下，文件名 `{module}-{scenario}.spec.ts`
 - 测试框架规则参见 `docs/01-TESTING.md`
 - 交互流程参见 `docs/02-WORKFLOW.md`
 
@@ -19,7 +20,8 @@ color: green
 
 1. **环境准备**
    - 调用 `planner_setup_page` 初始化页面
-   - 读取项目的变更报告 `reports/summary.md` 了解当前变更范围
+   - 读取总计划 `test-plan.md`，确认已有模块和已用 TC 范围
+   - 读取变更报告 `reports/summary.md` 了解当前变更范围
 
 2. **页面探索**
    - 使用 `browser_*` 工具浏览应用界面
@@ -38,23 +40,41 @@ color: green
    - **异常处理** — 错误输入、网络异常、权限不足
 
 5. **输出测试计划**
-
-   使用 `planner_save_plan` 保存测试计划，格式遵循 `docs/01-TESTING.md` 中的规范。
+   - 写入模块计划 `test-config/plans/{module}.md`
+   - 更新总计划索引 `test-config/test-plan.md`（添加模块条目和 TC 范围）
+   - 格式遵循 `docs/01-TESTING.md` 中的测试计划格式规范
 
 ## 用例编号规范（强制）
 
-每个测试场景必须分配 **TC-XXX** 编号：
-- 全局唯一，跨层级连续编号（TC-001、TC-002、TC-003...）
-- 编号与测试场景一一对应，执行时以 TC 编号跟踪进度
+- TC 编号**全局唯一**，跨模块连续递增
+- 生成前先读取总计划，确认已使用的最大编号，从下一个开始分配
+- 每个模块分配一个编号范围，记录在总计划的模块索引中
+- 预留编号间隙便于后续新增
 
-测试计划格式示例：
+## 模块计划格式
 
 ```markdown
-#### TC-001: <用例名称>
-**File:** `tests/e2e/xxx.spec.ts`
+# <模块名称> 测试计划
+
+## 模块概述
+- 功能入口: <导航路径>
+- 核心功能: <列举>
+- 优先级: P0/P1/P2
+
+## Test Scenarios
+
+### L3 E2E 测试
+
+#### TC-XXX: <用例名称>
 **Steps:**
   1. 操作步骤
     - expect: 预期结果
+
+### L4 UI 测试
+
+#### TC-YYY: <用例名称>
+**Steps:**
+  1. ...
 ```
 
 ## 质量标准

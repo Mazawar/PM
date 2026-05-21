@@ -18,9 +18,13 @@ pm/
 │   ├── templates/             # 测试用例模板（L1-L4）
 │   └── <NN-Project>/
 │       ├── test-config/       # 测试计划、环境配置
-│       ├── tests/             # 测试代码（unit/api/e2e/ui）
+│       │   ├── test-plan.md   # 总计划（模块索引）
+│       │   └── plans/         # 按模块拆分的详细计划
+│       ├── tests/             # 测试代码（{module}-{scenario}.spec.ts）
 │       ├── reports/           # 变更报告 + summary.md
-│       └── results/           # 测试执行结果
+│       └── results/latest/    # 测试执行结果（按模块分目录）
+│           ├── summary.md     # 汇总报告
+│           └── <module>/      # progress.txt + report.md + screenshots/
 ├── docs/                      # 项目文档
 │   ├── 00-README.md           # 文档索引
 │   ├── 01-TESTING.md          # 测试框架规则
@@ -120,19 +124,35 @@ Playwright 运行时产物（trace、失败截图）输出到 `.claude/test-arti
 
 ### 执行输出结构（强制）
 
-测试执行结果必须输出到 `test_project/<项目>/results/latest/`，包含：
+测试结果按**功能模块**分目录存放，互不覆盖：
 
 ```
 results/latest/
-├── progress.txt        # 进度追踪，格式：TC-XXX:PASS/FAIL/SKIP
-├── report.md           # 测试报告（概要 + 结果概览 + 详细结果 + 缺陷汇总）
-└── screenshots/        # 截图，命名：tc-{编号}-{简称}.png
+├── summary.md                  # 汇总报告（聚合所有模块结果）
+├── user-management/            # 按模块分目录
+│   ├── progress.txt            # TC 进度追踪
+│   ├── report.md               # 模块详细报告
+│   └── screenshots/            # 模块截图（禁止跨模块引用）
+├── role-management/
+│   ├── progress.txt
+│   ├── report.md
+│   └── screenshots/
+└── <module>/                   # 更多模块...
 ```
 
-- `progress.txt` 是跨迭代唯一状态来源，每完成一个用例立即追加
-- `report.md` 按 `docs/02-WORKFLOW.md` 阶段四定义的格式输出
-- 截图每用例至少 3 张，报告用 `![](screenshots/tc-xxx-xxx.png)` 引用
-- 所有 TC 编号完成后更新概要统计（通过数/总数/通过率）
+- `progress.txt` 每模块独立，格式 `TC-XXX:PASS/FAIL/SKIP`
+- `report.md` 每模块独立，按 `docs/02-WORKFLOW.md` 阶段四格式
+- 截图每用例至少 3 张，**只能引用同模块目录**，禁止跨模块复用
+- `summary.md` 汇总所有模块通过率，每次测试后更新
+- 测试文件命名必须含模块前缀：`{module}-{scenario}.spec.ts`
+
+### 测试文件命名
+
+```
+tests/e2e/user-lifecycle.spec.ts        # 用户管理 - 生命周期
+tests/e2e/role-search.spec.ts           # 角色管理 - 搜索筛选
+tests/ui/user-form-ui.spec.ts           # 用户管理 - 表单 UI
+```
 
 ### Playwright 配置
 

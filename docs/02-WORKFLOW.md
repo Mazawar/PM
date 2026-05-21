@@ -79,16 +79,37 @@
 
 ### 输出结构（强制）
 
+测试结果按**功能模块**分目录存放，互不覆盖：
+
 ```
 results/latest/
-├── progress.txt        # 进度追踪（跨迭代唯一状态源）
-├── report.md           # 人类可读测试报告
-└── screenshots/        # 测试截图
-    ├── tc-001-xxx.png
-    └── tc-002-xxx.png
+├── summary.md                      # 汇总报告（聚合所有模块）
+├── user-management/                # 用户管理模块
+│   ├── progress.txt                # TC-001~TC-007 进度
+│   ├── report.md                   # 用户管理详细报告
+│   └── screenshots/                # 用户管理截图
+│       └── tc-001-xxx.png
+├── role-management/                # 角色管理模块
+│   ├── progress.txt                # TC-008~TC-022 进度
+│   ├── report.md                   # 角色管理详细报告
+│   └── screenshots/                # 角色管理截图
+│       └── tc-008-xxx.png
+└── <module-name>/                  # 其他模块
+    ├── progress.txt
+    ├── report.md
+    └── screenshots/
 ```
 
+**模块目录命名**：kebab-case，与测试文件前缀一致（如 `user-management`、`role-management`）
+
+**关键规则**：
+- 测试新模块 → 创建新目录，不删除已有模块结果
+- 重新测试同一模块 → 覆盖该模块结果，其他模块不受影响
+- 截图只能引用同模块同目录下的文件，禁止跨模块复用
+
 ### progress.txt 格式
+
+路径：`results/latest/{module}/progress.txt`
 
 每行一条，`TC-XXX:状态`：
 
@@ -101,6 +122,8 @@ TC-003:PASS
 状态：`PASS` | `FAIL` | `SKIP`（仅客观不可执行）
 
 ### report.md 格式
+
+路径：`results/latest/{module}/report.md`
 
 ```markdown
 # 测试报告
@@ -140,11 +163,15 @@ TC-003:PASS
 
 ### 截图规则
 
-- 命名：`tc-{编号}-{简称}.png`（如 `tc-001-login-page.png`）
+路径：`results/latest/{module}/screenshots/`
+
+命名：`tc-{编号}-{简称}.png`（如 `tc-001-login-page.png`）
 - 每用例至少 3 张：初始页面、关键操作后、最终结果
 - 引用：报告用 `![](screenshots/tc-xxx-xxx.png)` 相对路径
 - 错误状态必须截图
 - 截图失败标注 `（截图未生成）`
+- **禁止跨模块引用截图**
+- **禁止多 TC 复用同一截图**
 
 ### 执行约束
 
@@ -158,9 +185,10 @@ TC-003:PASS
 ### 完成判定
 
 所有 TC 编号都在 progress.txt 中有 PASS/FAIL 记录后：
-1. 更新报告概要统计（通过数/总数/通过率）
-2. 验证截图引用，缺失替换为 `（截图未生成）`
-3. 确认 report.md 和 screenshots/ 存在且非空
+1. 更新模块报告概要统计（通过数/总数/通过率）
+2. 验证截图引用，缺失替换为 `（截图未生成）`，跨模块引用一律删除
+3. 确认 `report.md` 和 `screenshots/` 存在且非空
+4. 更新 `results/latest/summary.md` 汇总报告（聚合所有模块结果）
 
 ## 阶段五：结果汇报
 
