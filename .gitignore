@@ -20,8 +20,10 @@ coverage/
 *.log
 npm-debug.log*
 
-# PM worktree directories (managed by PM isolation)
-worktrees/
+# Repository projects (外部克隆，不提交)
+repository/*
+!repository/READEME.md
 
-# Other
-.omc/
+# Test projects (本地测试产物，不提交)
+test_project/*
+!test_project/READEME.md
