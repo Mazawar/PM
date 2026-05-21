@@ -1,10 +1,10 @@
 {
   "tasks": [
     {
-      "id": "225eb901",
+      "id": "6126037e",
       "cron": "*/5 * * * *",
-      "prompt": "从项目根目录执行仓库扫描脚本：bash .claude/scripts/scan.sh\n\n如果检测到变更（脚本输出中有\"生成报告\"字样），执行以下步骤：\n\n1. 读取 test_project/ 下对应项目的 reports/ 目录中最新的报告文件\n2. 分析报告内容，生成一份变更汇总，写入同目录下的 summary.md，内容包括：\n   - **变更概述**：用自然语言概括本次改动的整体目的\n   - **影响范围**：涉及哪些模块/功能\n   - **重点测试建议**：列出建议的测试方向和关注点\n   - **潜在风险**：可能引入的问题或边界情况\n3. 向用户汇报变更摘要和测试建议\n\n如果没有变更，简要说明即可，不打扰用户。",
-      "createdAt": 1779332361679,
+      "prompt": "用 Agent 工具（run_in_background: true）后台执行仓库扫描：bash .claude/scripts/scan.sh。如果检测到变更，读取 reports/ 下最新报告，分析后写入 summary.md（变更概述、影响范围、测试建议、潜在风险），然后向用户汇报。无变更则不输出。",
+      "createdAt": 1779333159402,
       "recurring": true,
       "createdBySessionId": "722b7c48-82f6-4194-8e8f-5c4ebed8b354",
       "createdByPid": 29792
