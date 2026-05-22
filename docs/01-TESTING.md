@@ -50,36 +50,38 @@
 
 ```
 test_project/<NN-Project>/
+├── playwright.config.ts       # 项目级 Playwright 配置（独立 baseURL）
+├── start.sh                   # 一键启动脚本（project-manage-setup 生成）
 ├── test-config/                # 测试配置与计划
 │   ├── test-plan.md            # 总测试计划（索引 + 概览）
 │   ├── plans/                  # 按模块拆分的详细计划
 │   │   ├── user-management.md  # 用户管理测试计划
 │   │   ├── role-management.md  # 角色管理测试计划
 │   │   └── <module>.md         # 其他模块
-│   └── environment.json        # 环境配置（URL、端口、凭证占位）
+│   └── environment.json        # 环境配置（技术栈、端口、凭据、中间件、启动命令）
 ├── tests/                      # 测试脚本代码
 │   ├── unit/                   # L1 单元测试
 │   ├── api/                    # L2 接口/集成测试
 │   ├── e2e/                    # L3 E2E 流程测试
 │   └── ui/                     # L4 UI 自动化测试
-├── reports/                    # 扫描变更报告（脚本自动生成）
+├── reports/                    # 扫描变更报告 + 启动报告
+│   ├── startup.md              # 环境启动报告（project-manage-setup 生成）
 │   ├── 2026-05-21_103500.md   # 原始变更报告
 │   └── summary.md             # Agent 分析的变更汇总
 └── results/                    # 测试执行结果
-    └── latest/                 # 最近一次执行结果
-        ├── summary.md          # 汇总报告（聚合所有模块）
-        ├── user-management/    # 按功能模块分目录
-        │   ├── progress.txt
-        │   ├── report.md
-        │   └── screenshots/
-        ├── role-management/
-        │   ├── progress.txt
-        │   ├── report.md
-        │   └── screenshots/
-        └── menu-management/
-            ├── progress.txt
-            ├── report.md
-            └── screenshots/
+    ├── summary.md              # 汇总报告（聚合所有模块）
+    ├── user-management/        # 按功能模块分目录
+    │   ├── progress.txt
+    │   ├── report.md
+    │   └── screenshots/
+    ├── role-management/
+    │   ├── progress.txt
+    │   ├── report.md
+    │   └── screenshots/
+    └── menu-management/
+        ├── progress.txt
+        ├── report.md
+        └── screenshots/
 ```
 
 ### 测试文件命名规范
@@ -332,11 +334,21 @@ TC-004:SKIP
 
 ## 7. 环境管理
 
+### 项目级 Playwright 配置
+
+每个项目 **必须** 拥有独立的 `playwright.config.ts`，不依赖全局配置。
+
+- **创建时机**: 首次测试时由 `project-manage-setup` agent 自动生成
+- **baseURL 来源**: 从源码推断（vite.config.ts、.env、application.yml 等）
+- **运行命令**: `npx playwright test --config=test_project/<NN>/playwright.config.ts`
+- **environment.json** 是环境的**唯一真实来源**，`playwright.config.ts` 的 `baseURL` 必须与之一致
+
 ### 测试环境配置
 
-- 环境配置存放在 `test-config/environment.json`
-- 敏感信息（密码、Token）使用占位符，运行时由用户提供
-- 支持多环境：`environment-dev.json`、`environment-staging.json`
+- 环境配置存放在 `test-config/environment.json`（由 project-manage-setup 生成）
+- 包含：端口、凭据、技术栈、中间件、启动命令、健康检查 URL
+- 端口优先从源码推断，推断不了再询问用户
+- 每次测试前强制健康检查：`curl -s -o /dev/null -w "%{http_code}" <healthCheck.url>`
 
 ### 依赖服务
 
