@@ -23,7 +23,7 @@ Detect → Analyze → Plan → Generate → Execute → Report
 3. 首次运行测试 → 有失败则启动 healer
 4. 汇总结果 → 向用户汇报
 
-**关键**：测试生成后首次运行若失败，**必须委托 healer**，禁止主会话逐步排查。
+**关键**：测试生成后运行若出现 **TimeoutError**，**必须委托 healer**，禁止主会话逐步排查。
 
 ## Agent 调度管线
 
