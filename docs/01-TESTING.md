@@ -51,7 +51,7 @@
 ```
 test_project/<NN-Project>/
 ├── playwright.config.ts       # 项目级 Playwright 配置（独立 baseURL）
-├── start.sh                   # 一键启动脚本（project-manage-setup 生成）
+├── start.sh                   # 一键启动脚本（Setup Agent 生成）
 ├── test-config/                # 测试配置与计划
 │   ├── test-plan.md            # 总测试计划（索引 + 概览）
 │   ├── plans/                  # 按模块拆分的详细计划
@@ -65,7 +65,7 @@ test_project/<NN-Project>/
 │   ├── e2e/                    # L3 E2E 流程测试
 │   └── ui/                     # L4 UI 自动化测试
 ├── reports/                    # 扫描变更报告 + 启动报告
-│   ├── startup.md              # 环境启动报告（project-manage-setup 生成）
+│   ├── startup.md              # 环境启动报告（Setup Agent 生成）
 │   ├── 2026-05-21_103500.md   # 原始变更报告
 │   └── summary.md             # Agent 分析的变更汇总
 └── results/                    # 测试执行结果
@@ -338,17 +338,17 @@ TC-004:SKIP
 
 每个项目 **必须** 拥有独立的 `playwright.config.ts`，不依赖全局配置。
 
-- **创建时机**: 首次测试时由 `project-manage-setup` agent 自动生成
+- **创建时机**: 测试前环境检查时由 Setup Agent 自动生成（已配置则跳过）
 - **baseURL 来源**: 从源码推断（vite.config.ts、.env、application.yml 等）
 - **运行命令**: `npx playwright test --config=test_project/<NN>/playwright.config.ts`
 - **environment.json** 是环境的**唯一真实来源**，`playwright.config.ts` 的 `baseURL` 必须与之一致
 
 ### 测试环境配置
 
-- 环境配置存放在 `test-config/environment.json`（由 project-manage-setup 生成）
+- 环境配置存放在 `test-config/environment.json`（由 Setup Agent 生成）
 - 包含：端口、凭据、技术栈、中间件、启动命令、健康检查 URL
 - 端口优先从源码推断，推断不了再询问用户
-- 每次测试前强制健康检查：`curl -s -o /dev/null -w "%{http_code}" <healthCheck.url>`
+- **每次测试前强制环境检查**：无配置 → 启动 Setup Agent；有配置但服务未运行 → 提示启动；一切就绪 → 跳过
 
 ### 依赖服务
 

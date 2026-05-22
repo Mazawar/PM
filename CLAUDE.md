@@ -18,7 +18,7 @@ pm/
 │   ├── templates/             # 测试用例模板（L1-L4）
 │   └── <NN-Project>/
 │       ├── playwright.config.ts # 项目级 Playwright 配置（独立 baseURL）
-│       ├── start.sh           # 一键启动脚本（project-manage-setup 生成）
+│       ├── start.sh           # 一键启动脚本（Setup Agent 生成）
 │       ├── test-config/       # 测试计划、环境配置（environment.json）
 │       ├── tests/             # 测试代码（{module}-{scenario}.spec.ts）
 │       ├── reports/           # 变更报告 + startup.md
@@ -56,12 +56,12 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 
 主会话 **不直接编写或调试测试代码**，只做调度和确认：
 
-1. 接收任务 → 环境检查 → 首次测试时启动 `project-manage-setup`
+1. 接收任务 → 环境检查（无配置启动 Setup Agent，已配置则跳过）
 2. 启动 planner → 审阅计划 → 确认后启动 generator
 3. 首次运行测试 → 有失败则启动 healer
 4. 汇总结果 → 向用户汇报
 
-- **Setup** 仅在首次测试时触发（project-manage-setup agent），从源码自动推断技术栈和端口，推断不了才问用户
+- **Setup** 在每次测试前检查环境：无配置时启动 Setup Agent 分析源码、推断端口；已配置且服务运行则跳过
 - 每次测试前**必须**检查目标服务是否运行（读取 environment.json 的 healthCheck）
 
 ## Commands

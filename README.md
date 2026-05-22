@@ -73,7 +73,7 @@ pm/
 │   ├── templates/                 # 测试用例模板（L1-L4，多语言）
 │   └── <NN-Project>/
 │       ├── playwright.config.ts   # 项目级 Playwright 配置（独立 baseURL）
-│       ├── start.sh               # 一键启动脚本（project-manage-setup 生成）
+│       ├── start.sh               # 一键启动脚本（Setup Agent 生成）
 │       ├── test-config/           # 测试计划
 │       │   ├── test-plan.md       # 总计划索引（模块索引表）
 │       │   ├── plans/             # 按模块拆分的详细计划

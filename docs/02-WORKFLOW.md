@@ -20,7 +20,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 
 **触发条件**: 用户首次要求测试某项目，检测到 `playwright.config.ts` 不存在
 
-**职责**（`project-manage-setup` agent）:
+**职责**（Setup Agent）：
 1. 分析仓库源码，识别技术栈（前端框架、后端框架、数据库、中间件）
 2. 从配置文件自动推断端口（vite.config.ts、.env、application.yml 等）
 3. 生成环境配置文件：
@@ -149,7 +149,7 @@ planner → generator → healer（按需）
   规划      生成       修复
 ```
 
-- `project-manage-setup` 由首次测试处理流程单独触发，不在此管线中
+- Setup Agent 由环境检查流程触发（无配置时自动启动，已配置则跳过）
 - Agent 始终 **先提议，等用户确认** 后再执行
 - 主会话 **不直接编写或调试测试代码**，只做调度和确认
 

@@ -8,7 +8,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 ```
 
 1. **Detect** — `scan.sh` 检测变更，生成报告到 `reports/`
-2. **Setup** — 首次测试时 `project-manage-setup` agent 分析项目环境（仅触发一次）
+2. **Setup** — 每次测试前检查环境，无配置时启动 Setup Agent 分析项目环境
 3. **Analyze** — Agent 读报告，写 `reports/summary.md`
 4. **Plan** — planner agent 生成测试计划，**用户确认**
 5. **Generate** — generator agent 生成测试代码，**用户确认**
@@ -26,30 +26,24 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 
 **关键**：测试生成后运行若出现 **TimeoutError**，**必须委托 healer**，禁止主会话逐步排查。
 
-## 首次测试处理
+## 测试前环境检查（强制）
 
-用户首次要求测试某项目时，主会话检查 `test_project/<NN>/playwright.config.ts` 是否存在：
+每次测试前，主会话**必须**检查目标项目环境：
 
-1. **不存在**（首次测试）→ 启动 `project-manage-setup` agent（`Agent(subagent_type="project-manage-setup")`）
-   - agent 询问端口、凭据
-   - 分析技术栈 → 生成 `playwright.config.ts`、`environment.json`、`start.sh`、`startup.md`
-   - 验证环境 → 完成后进入测试流程
-2. **已存在** → 跳过 Setup，直接进入测试流程
-
-## 环境检查（每次测试前，强制）
-
-启动测试前，主会话**必须**检查目标服务状态：
-
-1. 读取 `test_project/<NN>/test-config/environment.json` 中的 `healthCheck`
-2. 用 curl 检查服务是否在运行：`curl -s -o /dev/null -w "%{http_code}" <healthCheck.url>`
-3. 检查结果：
+1. 检查 `test_project/<NN>/playwright.config.ts` 和 `test-config/environment.json` 是否存在
+2. **不存在**（未配置）→ 启动 Setup Agent（`Agent(subagent_type="project-manage-setup")`）
+   - Agent 分析源码、推断端口和凭据
+   - 生成 `playwright.config.ts`、`environment.json`、`start.sh`、`startup.md`
+   - 验证环境 → 完成后继续测试流程
+3. **已存在**（已配置）→ 读取 `environment.json` 中的 `healthCheck`
+4. 用 curl 检查服务是否在运行：`curl -s -o /dev/null -w "%{http_code}" <healthCheck.url>`
+5. 检查结果：
    - **通过** → 继续测试流程
    - **未通过** → 提示用户先启动服务，输出 `bash test_project/<NN>/start.sh`
-   - **无 environment.json** → 首次测试，启动 `project-manage-setup` agent
 
 ## Agent 调度管线
 
-测试执行管线（Setup 由首次测试处理流程单独触发，不在此管线中）：
+测试执行管线（Setup 由环境检查流程按需触发，不在此管线中）：
 
 ```
 planner → generator → healer（按需）
@@ -84,4 +78,4 @@ planner → generator → healer（按需）
 - `.claude/rules/` 规则文件
 - `repository/` 下的源码
 
-**例外**：`test_project/<NN>/playwright.config.ts` 和 `test-config/environment.json` 由 `project-manage-setup` 和 `healer` agent 管理。
+**例外**：`test_project/<NN>/playwright.config.ts` 和 `test-config/environment.json` 由 Setup Agent 和 `healer` agent 管理。
