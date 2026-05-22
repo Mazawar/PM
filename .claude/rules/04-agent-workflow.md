@@ -1,18 +1,19 @@
 # Agent 调度与工作流规则
 
-## 六阶段流程
+## 七阶段流程
 
 ```
-Detect → Analyze → Plan → Generate → Execute → Report
- 扫描     分析      规划    生成      执行      汇报
+Detect → Setup → Analyze → Plan → Generate → Execute → Report
+ 扫描     配置     分析      规划    生成      执行      汇报
 ```
 
 1. **Detect** — `scan.sh` 检测变更，生成报告到 `reports/`
-2. **Analyze** — Agent 读报告，写 `reports/summary.md`
-3. **Plan** — planner agent 生成测试计划，**用户确认**
-4. **Generate** — generator agent 生成测试代码，**用户确认**
-5. **Execute** — 运行测试，失败交 healer agent
-6. **Report** — 汇总结果，向用户汇报
+2. **Setup** — 首次测试时 `project-manage-setup` agent 分析项目环境（仅触发一次）
+3. **Analyze** — Agent 读报告，写 `reports/summary.md`
+4. **Plan** — planner agent 生成测试计划，**用户确认**
+5. **Generate** — generator agent 生成测试代码，**用户确认**
+6. **Execute** — 运行测试，失败交 healer agent
+7. **Report** — 汇总结果，向用户汇报
 
 ## 主会话职责（强制）
 
@@ -25,18 +26,47 @@ Detect → Analyze → Plan → Generate → Execute → Report
 
 **关键**：测试生成后运行若出现 **TimeoutError**，**必须委托 healer**，禁止主会话逐步排查。
 
+## 首次测试处理
+
+用户首次要求测试某项目时，主会话检查 `test_project/<NN>/playwright.config.ts` 是否存在：
+
+1. **不存在**（首次测试）→ 启动 `project-manage-setup` agent（`Agent(subagent_type="project-manage-setup")`）
+   - agent 询问端口、凭据
+   - 分析技术栈 → 生成 `playwright.config.ts`、`environment.json`、`start.sh`、`startup.md`
+   - 验证环境 → 完成后进入测试流程
+2. **已存在** → 跳过 Setup，直接进入测试流程
+
+## 环境检查（每次测试前，强制）
+
+启动测试前，主会话**必须**检查目标服务状态：
+
+1. 读取 `test_project/<NN>/test-config/environment.json` 中的 `healthCheck`
+2. 用 curl 检查服务是否在运行：`curl -s -o /dev/null -w "%{http_code}" <healthCheck.url>`
+3. 检查结果：
+   - **通过** → 继续测试流程
+   - **未通过** → 提示用户先启动服务，输出 `bash test_project/<NN>/start.sh`
+   - **无 environment.json** → 首次测试，启动 `project-manage-setup` agent
+
 ## Agent 调度管线
+
+测试执行管线（Setup 由首次测试处理流程单独触发，不在此管线中）：
 
 ```
 planner → generator → healer（按需）
+  规划      生成       修复
 ```
 
 - Agent 始终 **先提议，等用户确认** 后再执行
 - 未经用户批准不自动执行测试
+- **项目编号传递**：主会话启动 Agent 时，**必须**在 prompt 中传递项目编号（如 `02-oa-llm`）和关键路径信息
 - 启动命令：
   - planner: `Agent(subagent_type="playwright-test-planner")`
   - generator: `Agent(subagent_type="playwright-test-generator")`
   - healer: `Agent(subagent_type="playwright-test-healer")`
+- 测试运行必须使用项目级配置：
+  ```bash
+  npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
+  ```
 
 ## 用户确认点
 
@@ -49,7 +79,9 @@ planner → generator → healer（按需）
 ## 禁止修改列表
 
 所有 Agent 禁止修改以下文件：
-- `playwright.config.ts`、`package.json`、`.mcp.json`
+- 项目根目录下的 `playwright.config.ts`（全局配置）、`package.json`、`.mcp.json`
 - CLAUDE.md、`docs/`、agent 定义文件
 - `.claude/rules/` 规则文件
 - `repository/` 下的源码
+
+**例外**：`test_project/<NN>/playwright.config.ts` 和 `test-config/environment.json` 由 `project-manage-setup` 和 `healer` agent 管理。

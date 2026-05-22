@@ -5,7 +5,7 @@ description: |
   URL; type auto-detected from URL), delete existing projects (requires name +
   confirmation), or list all registered projects. Updates both registry files atomically.
 argument-hint: "[add [name] [url]|del <name>|list]"
-allowed-tools: Read, Edit, AskUserQuestion
+allowed-tools: Read, Edit, Write, AskUserQuestion, Bash
 ---
 
 # Project Registry Manager
@@ -41,6 +41,8 @@ Ask **only** for missing info using **one single AskUserQuestion call**:
 1. **项目名称** — Only ask if NOT provided in arguments. Short project name (e.g., `RuoYi-Vue`, `MyApp`). Letters, digits, hyphens only. No number prefix — auto-assigned.
 2. **仓库地址** — Only ask if NOT provided in arguments. Full URL or local path. Use free-text input (user selects "Other" to type URL).
 
+**DO NOT ask for port or credentials** — 这些在首次测试时由 `project-manage-setup` agent 询问。
+
 **DO NOT ask for project type** — auto-detect from the address:
 - URL ending in `.git` or matching `github.com` / `gitee.com` / `gitlab.com` → **Git**
 - URL starting with `svn://` or containing `/svn/` → **SVN**
@@ -62,7 +64,17 @@ Show the auto-detected type in the report for user to verify.
 - Check the new entry name does NOT already exist in either registry
 - If it exists, stop and inform the user
 
-### Step 4: Write to Both Registries
+### Step 4: Create Project Directories
+
+Create directory structure only:
+
+```bash
+mkdir -p test_project/{NN}-{Name}/{test-config/plans,tests/{unit,api,e2e,ui},results,reports}
+```
+
+**不创建** `playwright.config.ts` 和 `environment.json`，这些由 `project-manage-setup` agent 在首次测试时生成。
+
+### Step 5: Write to Both Registries
 
 **`repository/READEME.md`** — insert row at end of table (before `<!-- projects-end -->`):
 
@@ -78,19 +90,20 @@ Show the auto-detected type in the report for user to verify.
 
 Note the address column differs: repository uses `./`, test_project uses `../repository/`.
 
-### Step 5: Report
+### Step 6: Report
 
 Output a summary:
 
 ```
 ✓ 项目已添加: {NN}-{Name}
 
-| 文件 | 条目 |
+| 文件 | 内容 |
 |------|------|
 | repository/READEME.md | {NN}-{Name} \| ./{NN}-{Name} \| {URL} \| {Type} |
 | test_project/READEME.md | {NN}-{Name} \| ../repository/{NN}-{Name} \| {URL} \| {Type} |
 
 下次执行 scan.sh 时将自动克隆仓库。
+首次测试时将自动启动 project-manage-setup agent 配置环境（端口、凭据、技术栈分析）。
 ```
 
 ---

@@ -85,14 +85,14 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 
 ### 修复范围
 
-- 仅限 `test_project/<项目>/tests/` 和 `results/`
+- `test_project/<项目>/tests/`、`results/`、`playwright.config.ts`、`test-config/environment.json`
 - 从测试文件头 `// MODULE: xxx` 确定模块目录
 - 截图只更新对应模块目录，禁止跨模块操作
 
 ### 修复原则
 
 - 优先健壮、可维护的方案，避免临时补丁
-- 禁止使用 `test.fixme()` 或 `test.skip()`
+- 允许 `test.fixme()` 标记应用 Bug（必须注释原因），禁止无理由的 `test.skip()`
 - 不向用户提问，自主判断执行最合理方案
 - 不使用 `waitFor` 的 `networkidle` 等废弃 API
 - 逐个修复验证，不批量修改后再测

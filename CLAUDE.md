@@ -17,9 +17,11 @@ pm/
 │   ├── READEME.md             # 测试项目注册表
 │   ├── templates/             # 测试用例模板（L1-L4）
 │   └── <NN-Project>/
-│       ├── test-config/       # 测试计划、环境配置
+│       ├── playwright.config.ts # 项目级 Playwright 配置（独立 baseURL）
+│       ├── start.sh           # 一键启动脚本（project-manage-setup 生成）
+│       ├── test-config/       # 测试计划、环境配置（environment.json）
 │       ├── tests/             # 测试代码（{module}-{scenario}.spec.ts）
-│       ├── reports/           # 变更报告 + summary.md
+│       ├── reports/           # 变更报告 + startup.md
 │       └── results/           # 测试执行结果（按模块分目录）
 ├── docs/                      # 项目文档
 ├── .claude/
@@ -38,24 +40,29 @@ pm/
 | 文件 | 内容 |
 |------|------|
 | `01-project-invariants.md` | 项目结构、目录规范、注册表双写、Git 规则 |
-| `02-testing-framework.md` | 测试层级定义、框架选择、覆盖要求、测试数据安全、RuoYi-Vue 特定规则 |
+| `02-testing-framework.md` | 测试层级定义、框架选择、覆盖要求、测试数据安全 |
 | `03-test-output.md` | 结果目录结构、文件命名、progress/report 格式、截图规范 |
-| `04-agent-workflow.md` | 六阶段流程、主会话职责、调度管线、用户确认点、禁止修改列表 |
+| `04-agent-workflow.md` | 七阶段流程、主会话职责、调度管线、环境检查、用户确认点、禁止修改列表 |
 | `05-agent-behavior.md` | planner/generator/healer 各 Agent 行为约束 |
 
-## Agent Pipeline
+## Agent Pipeline 与七阶段流程
 
 ```
-planner → generator → healer（按需）
-  规划        生成        修复
+Detect → Setup → Analyze → Plan → Generate → Execute → Report
+ 扫描     配置     分析      规划    生成      执行      汇报
 ```
+
+测试执行管线：`planner → generator → healer（按需）`
 
 主会话 **不直接编写或调试测试代码**，只做调度和确认：
 
-1. 接收任务 → 启动 planner
-2. 审阅计划 → 确认后启动 generator
+1. 接收任务 → 环境检查 → 首次测试时启动 `project-manage-setup`
+2. 启动 planner → 审阅计划 → 确认后启动 generator
 3. 首次运行测试 → 有失败则启动 healer
 4. 汇总结果 → 向用户汇报
+
+- **Setup** 仅在首次测试时触发（project-manage-setup agent），从源码自动推断技术栈和端口，推断不了才问用户
+- 每次测试前**必须**检查目标服务是否运行（读取 environment.json 的 healthCheck）
 
 ## Commands
 
@@ -76,7 +83,7 @@ bash .claude/scripts/scan.sh          # 扫描所有项目变更
 ### 测试执行
 
 ```bash
-npx playwright test test_project/<NN-Project>/tests/ --project=chromium
+npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
 ```
 
 ## Git Conventions

@@ -215,7 +215,7 @@ main() {
   done
 
   if [ "$has_change" -eq 1 ]; then
-    log "检测到变更，请查看 test_project/ 下对应项目的 changelog.md"
+    log "检测到变更，请查看 test_project/ 下对应项目的 reports/ 目录"
   else
     log "所有项目均无新变更"
   fi
