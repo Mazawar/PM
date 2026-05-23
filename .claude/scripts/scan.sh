@@ -70,6 +70,52 @@ sync_repo() {
   echo "$new_hash"
 }
 
+# 首次扫描基线报告（新克隆或 .last_hash 丢失）
+generate_initial_report() {
+  local repo_path="$1"
+  local new_hash="$2"
+  local project_name="$3"
+
+  local report_dir="$TEST_DIR/$project_name/reports"
+  local scan_time
+  scan_time=$(date '+%Y-%m-%d_%H%M%S')
+  local report_file="$report_dir/${scan_time}.md"
+
+  mkdir -p "$report_dir"
+
+  local short_new recent_count
+  short_new=$(echo "$new_hash" | cut -c1-7)
+  recent_count=$(git -C "$repo_path" rev-list --count --since="30 days ago" HEAD 2>/dev/null || echo "0")
+  if [ "$recent_count" -eq 0 ]; then
+    recent_count=$(git -C "$repo_path" rev-list --count HEAD 2>/dev/null || echo "?")
+  fi
+
+  local display_time
+  display_time=$(date '+%Y-%m-%d %H:%M:%S')
+
+  cat > "$report_file" <<HEADER
+# ${project_name} 基线报告（首次扫描）
+
+- **扫描时间**: ${display_time}
+- **基线提交**: \`${short_new}\`
+- **近期提交数（30天）**: ${recent_count}
+
+## 最近提交记录
+
+$(git -C "$repo_path" log --format="- **%h** %s (*%an*, %ar)" -30 2>/dev/null || echo "无")
+
+## 变更文件统计（最近 30 次提交）
+
+$(git -C "$repo_path" diff --stat HEAD~30..HEAD 2>/dev/null || echo "无")
+
+HEADER
+
+  # 保存当前 hash 供下次对比
+  echo "$new_hash" > "$TEST_DIR/$project_name/.last_hash"
+
+  log "  生成基线报告: ${recent_count} 个近期提交 -> $report_file"
+}
+
 # 生成变更摘要报告
 generate_summary() {
   local repo_path="$1"
@@ -196,10 +242,9 @@ main() {
     old_hash=$(echo "$sync_result" | sed -n '1p')
     new_hash=$(echo "$sync_result" | sed -n '2p')
 
-    # 首次扫描（新克隆或无历史记录）：记录基线
+    # 首次扫描（新克隆或 .last_hash 丢失）：生成基线报告
     if [ ! -f "$test_path/.last_hash" ] || [ -z "$old_hash" ]; then
-      echo "$new_hash" > "$test_path/.last_hash"
-      log "  基线记录: ${new_hash:0:7}"
+      generate_initial_report "$repo_path" "$new_hash" "$project"
       continue
     fi
 

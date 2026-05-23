@@ -79,3 +79,9 @@ planner → generator → healer（按需）
 - `repository/` 下的源码
 
 **例外**：`test_project/<NN>/playwright.config.ts` 和 `test-config/environment.json` 由 Setup Agent 和 `healer` agent 管理。
+
+### `.last_hash` 保护（强制）
+
+- `test_project/<NN>/.last_hash` 是扫描脚本的变更追踪基准，**任何 Agent 禁止删除或清空**
+- Setup Agent 创建目录时，若 `.last_hash` 已存在必须保留原内容
+- 仅 `scan.sh` 有权写入 `.last_hash`

@@ -97,12 +97,12 @@ npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
 | `test-config/environment.json` | Setup Agent | 端口、凭据、技术栈、中间件、启动命令 |
 | `playwright.config.ts` | Setup Agent | baseURL 指向正确端口 |
 | `start.sh` | Setup Agent | 一键启动脚本（端口检查 + 健康检查） |
-| `reports/startup.md` | Setup Agent | 环境启动报告（技术架构、中间件状态、验证结果） |
+| `reports/startup.md` | Setup Agent | 环境启动报告（含实际验证结果，非假设） |
 
 ### 环境检查（每次测试前）
 
 主会话在启动测试前，检查 `environment.json` 中的 `healthCheck`：
 - 服务是否运行在指定端口
 - 健康检查 URL 是否返回预期状态码
-- 未通过则提示用户先启动服务（可运行 `start.sh`）
+- **未通过** → 启动 Setup Agent，由 Agent 负责启动服务并验证（不是仅提示用户）
 
