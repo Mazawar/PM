@@ -85,7 +85,7 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 
 ### 修复范围
 
-- `test_project/<项目>/tests/`、`results/`、`playwright.config.ts`、`test-config/environment.json`
+- `test_project/<NN-Project>/tests/`、`results/`、`playwright.config.ts`、`test-config/environment.json`
 - 从测试文件头 `// MODULE: xxx` 确定模块目录
 - 截图只更新对应模块目录，禁止跨模块操作
 
@@ -96,6 +96,13 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 - 不向用户提问，自主判断执行最合理方案
 - 不使用 `waitFor` 的 `networkidle` 等废弃 API
 - 逐个修复验证，不批量修改后再测
+
+### 修复次数限制（强制）
+
+- 每个 TC 最多 **3 次修复尝试**
+- 3 次尝试后仍失败 → 用 `test.fixme()` 标记，注释原因（如"应用 Bug：xxx"）
+- `progress.txt` 中保持 `FAIL` 状态不变
+- `report.md` 中记录尝试次数和最终标记原因
 
 ### 输出更新
 

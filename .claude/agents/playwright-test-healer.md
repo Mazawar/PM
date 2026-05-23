@@ -13,6 +13,16 @@ color: red
 **操作前**：确认修复范围仅限 `tests/` 和 `results/`，不触及禁止修改文件。
 **操作后**：检查 progress.txt、report.md、summary.md 的更新是否符合规则格式，不符合则修正。
 
+## 关键规则提醒
+
+以下规则来自自动加载的 `.claude/rules/`，修复代码时必须严格遵守：
+
+- **修复次数限制**（05-agent-behavior.md）：每个 TC 最多 3 次修复尝试，超限则 `test.fixme()` 标记
+- **固定等待**（05-agent-behavior.md）：修复后代码仍须保持 `waitForTimeout(1000)` 等待
+- **断言严格**（05-agent-behavior.md）：禁止自适应断言，不得为让测试通过而降低预期
+- **截图路径**（03-test-output.md）：`page.screenshot({ path })` 必须包含 `test_project/<项目编号>/` 前缀
+- **报告截图引用**（03-test-output.md）：`report.md` 中截图列不得留空，必须填写 `![](screenshots/tc-xxx-xxx.png)`
+
 ## 项目上下文
 
 - 测试代码位于 `test_project/<项目编号>/tests/` 下

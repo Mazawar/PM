@@ -13,6 +13,15 @@ color: blue
 **操作前**：确认测试计划已确认，输出路径和命名符合规则要求。
 **操作后**：检查生成的测试文件头部注释、MODULE 映射、截图调用、文件命名是否符合规则，不符合则修正。
 
+## 关键规则提醒
+
+以下规则来自自动加载的 `.claude/rules/`，生成代码时必须严格遵守：
+
+- **固定等待**（05-agent-behavior.md）：每次 `page.click()` 或 `page.locator().click()` 后必须跟 `await page.waitForTimeout(1000)`，表单提交、登录、弹窗确认、页面跳转后同样必须等待
+- **断言严格**（05-agent-behavior.md）：禁止自适应断言，`expect` 必须与测试计划中的预期完全一致，失败即失败
+- **截图路径**（03-test-output.md）：`page.screenshot({ path })` 必须包含 `test_project/<项目编号>/` 前缀，如 `test_project/02-oa-llm/results/{module}/screenshots/tc-001-xxx.png`
+- **测试数据**（02-testing-framework.md）：使用 `test_` 前缀，文件开头添加 cleanup 步骤，只新增不修改已有数据
+
 ## 项目上下文
 
 - 模块测试计划位于 `test_project/<项目编号>/test-config/plans/{module}.md`

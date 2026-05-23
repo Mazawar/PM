@@ -7,22 +7,22 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
  扫描     配置     分析      规划    生成      执行      汇报
 ```
 
-1. **Detect** — `scan.sh` 检测变更，生成报告到 `reports/`
+1. **Detect** — `scan.sh` 检测变更，生成报告到 `test_project/<NN-Project>/reports/`
 2. **Setup** — 每次测试前检查环境，无配置时启动 Setup Agent 分析项目环境
-3. **Analyze** — Agent 读报告，写 `reports/summary.md`
+3. **Analyze** — planner Agent 读变更报告，写 `test_project/<NN-Project>/results/summary.md`（变更概述、影响范围、测试建议）；无变更报告时跳过此步骤，直接进入 Plan
 4. **Plan** — planner agent 生成测试计划，**用户确认**
 5. **Generate** — generator agent 生成测试代码，**用户确认**
 6. **Execute** — 运行测试，失败交 healer agent
-7. **Report** — 汇总结果，向用户汇报
+7. **Report** — 主会话汇总结果（生成/更新 `progress.txt`、`report.md`、`results/summary.md`），向用户汇报
 
 ## 主会话职责（强制）
 
 主会话 **不直接编写或调试测试代码**，只做：
 
-1. 接收任务 → 启动 planner
-2. 审阅计划 → 确认后启动 generator
+1. 接收任务 → 环境检查（无配置启动 Setup Agent，已配置则跳过）
+2. 启动 planner → planner 同时负责 Analyze（读变更报告）和 Plan → 审阅计划 → 确认后启动 generator
 3. 首次运行测试 → 有失败则启动 healer
-4. 汇总结果 → 向用户汇报
+4. 汇总结果 → 生成/更新 `progress.txt`、`report.md`、`results/summary.md` → 向用户汇报
 
 **关键**：测试生成后运行若出现 **TimeoutError**，**必须委托 healer**，禁止主会话逐步排查。
 
@@ -39,7 +39,26 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 4. 用 curl 检查服务是否在运行：`curl -s -o /dev/null -w "%{http_code}" <healthCheck.url>`
 5. 检查结果：
    - **通过** → 继续测试流程
-   - **未通过** → 提示用户先启动服务，输出 `bash test_project/<NN>/start.sh`
+   - **未通过** → 启动 Setup Agent，由 Agent 负责启动服务并验证（不是仅提示用户）
+
+## Report 阶段（强制）
+
+测试运行完成后，无论通过或失败，**主会话**必须生成/更新以下结果文件：
+
+### 结果文件生成（每次测试后）
+
+1. **`results/{module}/progress.txt`** — 根据 Playwright 输出填写每条 TC 状态（PASS/FAIL/SKIP）
+2. **`results/{module}/report.md`** — 按规则 03 格式填写（含截图引用）
+3. **`results/summary.md`** — 聚合所有模块通过率
+
+### 结果来源
+
+- **healer 已运行** → healer 更新了 progress.txt 和 report.md，主会话只需更新 summary.md
+- **healer 未运行**（全通过或用户未批准 healer）→ 主会话根据 Playwright 输出生成全部结果文件
+
+### 禁止空结果
+
+**不允许**测试运行后 `results/` 目录下没有 progress.txt 和 report.md。即使全部通过也必须生成。
 
 ## Agent 调度管线
 
@@ -53,6 +72,7 @@ planner → generator → healer（按需）
 - Agent 始终 **先提议，等用户确认** 后再执行
 - 未经用户批准不自动执行测试
 - **项目编号传递**：主会话启动 Agent 时，**必须**在 prompt 中传递项目编号（如 `02-oa-llm`）和关键路径信息
+- **项目编号验证**：Agent 启动后必须首先确认项目编号有效（检查 `test_project/<NN-Project>/` 目录存在），无效则立即报错退出，不继续执行
 - 启动命令：
   - planner: `Agent(subagent_type="playwright-test-planner")`
   - generator: `Agent(subagent_type="playwright-test-generator")`
