@@ -110,8 +110,29 @@ TC-003:PASS
 - 页面跳转后必须截图
 - 错误/异常状态必须截图
 - 命名：`tc-{编号}-{简称}.png`
-- 路径使用相对路径：`![](screenshots/tc-xxx-xxx.png)`
+
+### 截图保存路径（强制）
+
+`page.screenshot({ path })` 的路径相对于 CWD（项目根 `pm/`）解析，**必须包含完整前缀**：
+
+```
+test_project/<NN-Project>/results/{module}/screenshots/tc-{编号}-{简称}.png
+```
+
+示例：`test_project/02-oa-llm/results/annual-project-setup/screenshots/tc-001-login-page.png`
+
+**禁止**使用缺少 `test_project/<NN>/` 前缀的相对路径（如 `results/screenshots/...`），这会导致截图写入错误位置。
+
+### 报告中引用截图（强制）
+
+`report.md` 中的截图引用使用相对于 `report.md` 所在目录的路径：
+
+```markdown
+![](screenshots/tc-xxx-xxx.png)
+```
+
+`report.md` 的"结果概览"表格中，截图列**必须**填写每个 TC 的关键截图引用，不得留空。
+
 - 禁止跨模块引用截图
 - 禁止跨 TC 复用截图
 - 实时生成，禁止引用历史报告截图
-- 在测试代码中用 `await page.screenshot({ path: '...' })` 主动截图

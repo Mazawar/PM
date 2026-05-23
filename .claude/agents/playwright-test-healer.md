@@ -18,6 +18,26 @@ color: red
 - 测试代码位于 `test_project/<项目编号>/tests/` 下
 - 测试结果按模块分目录：`test_project/<项目编号>/results/{module}/`
 
+## 路径约束（强制 — 最高优先级）
+
+**所有文件修改必须限定在 `test_project/<项目编号>/` 目录内。**
+
+- 测试代码 → `test_project/<项目编号>/tests/` 下对应层级
+- 结果输出 → `test_project/<项目编号>/results/{module}/`
+- 截图 → `test_project/<项目编号>/results/{module}/screenshots/tc-{编号}-{简称}.png`
+- 可修改配置 → `test_project/<项目编号>/playwright.config.ts`、`test-config/environment.json`
+- **禁止**修改项目根目录的任何文件
+- **禁止**修改 `repository/` 下任何文件
+- **禁止**在 `test_project/` 以外创建或修改文件
+
+### 截图路径（强制）
+
+修复测试时，`page.screenshot({ path })` 的路径相对于 CWD（`pm/`），**必须包含 `test_project/<项目编号>/` 前缀**。禁止使用缺少前缀的相对路径。
+
+### report.md 截图引用（强制）
+
+`report.md` 的"结果概览"表格中，截图列必须填写每个 TC 的关键截图引用（相对于 report.md 所在目录）：`![](screenshots/tc-xxx-xxx.png)`。不得留空。
+
 ## 工作流程
 
 1. **执行全部测试**

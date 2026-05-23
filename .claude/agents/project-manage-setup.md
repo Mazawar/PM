@@ -149,18 +149,41 @@ PORT=<端口>
 
 echo "===== 启动 $PROJECT_NAME ====="
 
-# 1. 检查端口占用
-if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1 || netstat -ano | grep ":$PORT " | grep LISTENING >/dev/null 2>&1; then
+# 0. 检查仓库目录
+if [ ! -d "$REPO_DIR" ]; then
+  echo "[FAIL] 仓库目录不存在: $REPO_DIR"
+  exit 1
+fi
+
+# 1. 检查端口占用（兼容 Windows）
+PORT_RUNNING=false
+if netstat -ano 2>/dev/null | grep ":$PORT " | grep -q "LISTENING"; then
   echo "[OK] 端口 $PORT 已有服务运行"
-else
+  PORT_RUNNING=true
+elif lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
+  echo "[OK] 端口 $PORT 已有服务运行 (lsof)"
+  PORT_RUNNING=true
+fi
+
+if [ "$PORT_RUNNING" = false ]; then
   echo "[..] 启动服务..."
-  # <根据技术栈生成启动命令>
+  # 检查依赖
+  if [ ! -d "$REPO_DIR/node_modules" ]; then
+    echo "[..] 安装依赖..."
+    (cd "$REPO_DIR" && pnpm install) || (cd "$REPO_DIR" && npm install)
+    if [ $? -ne 0 ]; then
+      echo "[FAIL] 依赖安装失败"
+      exit 1
+    fi
+  fi
+  # <根据技术栈生成启动命令，使用 cd 子shell 避免工作目录污染>
 fi
 
 # 2. 健康检查
 echo "[..] 健康检查..."
 for i in $(seq 1 30); do
-  if curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT" 2>/dev/null | grep -q "200"; then
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT" 2>/dev/null)
+  if [ "$HTTP_CODE" = "200" ]; then
     echo "[OK] 服务健康检查通过 (http://localhost:$PORT)"
     exit 0
   fi
@@ -170,6 +193,23 @@ done
 echo "[FAIL] 服务启动超时，请检查日志"
 exit 1
 ```
+
+### Step 3.5: 验证生成的脚本（强制）
+
+**在进入 Step 4 之前，必须验证 start.sh 能否正常执行。**
+
+1. **语法检查** — 运行 `bash -n test_project/<NN>/start.sh`，确保无语法错误
+2. **试运行** — 运行 `bash test_project/<NN>/start.sh`，观察输出：
+   - 端口检测逻辑是否正确识别当前状态（已运行 / 未运行）
+   - 健康检查是否能正常完成
+   - 脚本是否因命令不存在（如 Windows 下 `lsof`）而报错
+3. **修复脚本问题** — 如果试运行暴露问题，立即修复 start.sh：
+   - Windows 环境：用 `netstat -ano | grep ":$PORT " | grep LISTENING` 替代 `lsof`
+   - 工作目录问题：备选启动路径使用绝对路径或正确恢复工作目录
+   - 后台进程管理：确保 `&` 在当前 shell 环境下正确工作
+4. **重新验证** — 修复后再次试运行，直到脚本无错误执行完成
+
+**不允许在 start.sh 未通过试运行验证的情况下进入 Step 4。**
 
 ### Step 4: 启动服务并验证（核心步骤）
 

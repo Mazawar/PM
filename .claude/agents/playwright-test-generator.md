@@ -19,6 +19,30 @@ color: blue
 - 总计划索引位于 `test_project/<项目编号>/test-config/test-plan.md`
 - 测试代码存放在 `test_project/<项目编号>/tests/` 对应层级目录
 
+## 路径约束（强制 — 最高优先级）
+
+**所有文件写入必须使用以 `test_project/<项目编号>/` 为根的绝对路径或从项目根开始的相对路径。**
+
+- 测试文件 → `test_project/<项目编号>/tests/e2e/{module}-{scenario}.spec.ts`
+- Seed 文件 → `test_project/<项目编号>/tests/seed.spec.ts`
+- **禁止**写入项目根目录（`pm/`、`pm/e2e/`）
+- **禁止**写入 `repository/` 下任何位置
+- **禁止**写入 `test_project/` 以外的任何位置
+
+`generator_write_test` 的 `fileName` 参数必须以 `test_project/<项目编号>/tests/` 开头。
+
+### 截图路径（强制）
+
+`page.screenshot({ path })` 的路径相对于 CWD（`pm/`）解析，**必须包含完整前缀**：
+
+```typescript
+await page.screenshot({ path: 'test_project/<项目编号>/results/{module}/screenshots/tc-{编号}-{简称}.png' });
+```
+
+**禁止**使用 `results/screenshots/...`（缺少 `test_project/<NN>/` 前缀），这会写入错误位置。
+
+**写入前自检**：每次写入前，确认路径包含 `test_project/` 且不包含 `pm/e2e/`。违反此约束的写入操作必须立即纠正。
+
 ## 工作流程
 
 1. **读取测试计划** — 从 `test-config/plans/{module}.md` 获取已确认的测试场景
