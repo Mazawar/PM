@@ -79,6 +79,19 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 
 **不允许**测试运行后 `results/` 目录下没有 progress.txt 和 report.md。即使全部通过也必须生成。
 
+### 测试报告通知（可选）
+
+结果文件生成后，主会话可调用通知脚本推送报告邮件：
+
+```bash
+node .claude/scripts/notify.mjs --project <NN-Project>           # 有失败时发送
+node .claude/scripts/notify.mjs --project <NN-Project> --dry-run # 仅预览不发送
+```
+
+- 需先创建 `.claude/scripts/notify-config.json`（从 `notify-config.example.json` 复制并填写 SMTP 信息）
+- 通知配置含 SMTP 密码，已 gitignore，不提交到版本库
+- 默认仅在有失败用例时发送（`sendOn.onFail: true`），可配置 `sendOn.always: true` 每次都发
+
 ## Agent 调度管线
 
 测试执行管线（Setup 由环境检查流程按需触发，不在此管线中）：

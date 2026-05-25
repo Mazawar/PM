@@ -23,12 +23,16 @@ test_project/*
 *.swp
 *.swo
 
+# 通知配置（含 SMTP 密码）
+.claude/scripts/notify-config.json
+
 # 环境文件
 .env
 .env.local
 
 # 依赖
 node_modules/
+package-lock.json
 
 # 日志
 *.log
