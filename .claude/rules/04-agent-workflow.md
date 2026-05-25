@@ -9,7 +9,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 
 1. **Detect** — `scan.sh` 检测变更，生成报告到 `test_project/<NN-Project>/reports/`
 2. **Setup** — 每次测试前检查环境，无配置时启动 Setup Agent 分析项目环境
-3. **Analyze** — planner Agent 读变更报告，写 `test_project/<NN-Project>/results/summary.md`（变更概述、影响范围、测试建议）；无变更报告时跳过此步骤，直接进入 Plan
+3. **Analyze** — planner Agent 读变更报告，写 `test_project/<NN-Project>/reports/summary.md`（变更概述、影响范围、测试建议）；无变更报告时跳过此步骤，直接进入 Plan
 4. **Plan** — planner agent 生成测试计划，**用户确认**
 5. **Generate** — generator agent 生成测试代码，**用户确认**
 6. **Execute** — 运行测试，失败交 healer agent

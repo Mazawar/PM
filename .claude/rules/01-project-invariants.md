@@ -36,6 +36,7 @@ test_project/<NN-Project>/
 │       ├── report.md
 │       └── screenshots/
 └── reports/
+    ├── summary.md            # 变更分析汇总（定时扫描写入）
     ├── startup.md            # 环境启动报告（Setup Agent 生成）
     └── {timestamp}.md        # 变更报告（scan.sh 生成）
 ```
