@@ -1,10 +1,10 @@
 # Agent 调度与工作流规则
 
-## 七阶段流程
+## 七阶段流程 + 发布阶段
 
 ```
-Detect → Setup → Analyze → Plan → Generate → Execute → Report
- 扫描     配置     分析      规划    生成      执行      汇报
+Detect → Setup → Analyze → Plan → Generate → Execute → Report → Publish
+ 扫描     配置     分析      规划    生成      执行      汇报      发布
 ```
 
 1. **Detect** — `scan.sh` 检测变更，生成报告到 `test_project/<NN-Project>/reports/`
@@ -14,6 +14,24 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 5. **Generate** — generator agent 生成测试代码，**用户确认**
 6. **Execute** — 运行测试，失败交 healer agent
 7. **Report** — 主会话汇总结果（生成/更新 `progress.txt`、`report.md`、`results/summary.md`），向用户汇报
+8. **Publish** — Report 阶段全部通过后，主会话**必须主动询问**用户是否发布；用户确认后启动 publisher agent，编译打包项目并上传附件到 Gitee Release
+
+## 流程阶段可见性（强制）
+
+每个阶段进入或跳过时，主会话**必须**输出一行状态标记：
+
+| 阶段 | 进入时输出 | 跳过时输出 |
+|------|-----------|-----------|
+| Detect | `## Detect — 扫描项目变更` | `## Detect — 跳过（无变更检测需求）` |
+| Setup | `## Setup — 检查环境配置` | `## Setup — 跳过（环境已配置，服务运行中）` |
+| Analyze | `## Analyze — 分析变更报告` | `## Analyze — 跳过（无变更报告）` |
+| Plan | `## Plan — 创建测试计划` | -（不可跳过） |
+| Generate | `## Generate — 生成测试代码` | -（不可跳过） |
+| Execute | `## Execute — 执行测试` | -（不可跳过） |
+| Report | `## Report — 生成测试报告` | -（不可跳过） |
+| Publish | `## Publish — 构建发布` | `## Publish — 跳过（用户未确认发布）` |
+
+不可跳过的阶段若缺失说明流程出错，需中断并提示。
 
 ## 主会话职责（强制）
 
@@ -23,6 +41,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 2. 启动 planner → planner 同时负责 Analyze（读变更报告）和 Plan → 审阅计划 → 确认后启动 generator
 3. 首次运行测试 → 有失败则启动 healer
 4. 汇总结果 → 生成/更新 `progress.txt`、`report.md`、`results/summary.md` → 向用户汇报
+5. **Publish 询问** — 测试**全部通过**后，必须主动询问"是否发布到 Git Release"，不可等待用户提出；有失败时询问"是否修复后发布"
 
 **关键**：测试生成后运行若出现 **TimeoutError**，**必须委托 healer**，禁止主会话逐步排查。
 
@@ -69,6 +88,14 @@ planner → generator → healer（按需）
   规划      生成       修复
 ```
 
+构建发布管线（Report 后全部通过时，主会话**必须主动询问**，不可等待用户提出）：
+
+```
+                  ┌─ 用户确认 → publisher
+Report → 用户询问 ┤                  构建 → 确认发布 → 打 Tag + Release + 上传附件
+                  └─ 跳过
+```
+
 - Agent 始终 **先提议，等用户确认** 后再执行
 - 未经用户批准不自动执行测试
 - **项目编号传递**：主会话启动 Agent 时，**必须**在 prompt 中传递项目编号（如 `02-oa-llm`）和关键路径信息
@@ -77,6 +104,7 @@ planner → generator → healer（按需）
   - planner: `Agent(subagent_type="playwright-test-planner")`
   - generator: `Agent(subagent_type="playwright-test-generator")`
   - healer: `Agent(subagent_type="playwright-test-healer")`
+  - publisher: `Agent(subagent_type="test-result-publisher")`
 - 测试运行必须使用项目级配置：
   ```bash
   npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
@@ -88,7 +116,8 @@ planner → generator → healer（按需）
 |------|---------|
 | Plan 后 | 测试计划的模块覆盖和 TC 编号分配 |
 | Generate 后 | 生成的测试代码 |
-| Report 后 | 是否提交 issue 或进一步测试 |
+| Report 后 | 全部通过 → 是否发布到 Git Release / 跳过；有失败 → 是否修复后发布 / 提交 issue / 进一步测试 |
+| Publish（构建后） | 确认发布到 Git Release（打 Tag + 创建 Release + 上传附件） |
 
 ## 禁止修改列表
 

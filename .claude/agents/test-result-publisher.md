@@ -88,8 +88,16 @@ color: green
 
 ## 步骤六：收集测试报告并打包
 
-- 将 `test_project/<项目编号>/results/` 复制到 `build/$VERSION/test-reports/results/`，排除 Playwright 自动产物
-- 进入 `build/` 目录，将整个版本目录打包为 `.zip`（优先）或 `.tar.gz`
+- 将 `test_project/<项目编号>/results/` **下的内容**复制到 `build/$VERSION/test-reports/`，**排除 artifacts/ 目录和 progress.txt**
+- 最终 `test-reports/` 结构应为：
+  ```
+  test-reports/
+  ├── summary.md
+  └── {module}/
+      ├── report.md
+      └── screenshots/
+  ```
+- 进入 `build/` 目录，将整个版本目录打包（`.zip` 优先）
 - 记录最终 ARCHIVE 路径供后续使用
 
 ## 用户确认
