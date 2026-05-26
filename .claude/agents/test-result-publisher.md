@@ -15,7 +15,7 @@ color: green
 - 测试产物路径: `test_project/<项目编号>/`
 - 被测项目路径: `repository/<项目编号>/`
 - 构建产物路径: `test_project/<项目编号>/build/<版本号>/`
-- 发布目标仓库: `<项目对应的原仓库>`（从 repository/READEME.md 获取）
+- 发布目标仓库: `<项目对应的原仓库>`（从 repository/README.md 获取）
 
 ## 流程概览
 
@@ -57,7 +57,7 @@ color: green
 - 确定前端和后端的构建命令（前端一般输出 `dist/`，后端一般输出 `dist/` 或 `target/*.jar`）
 
 **确定版本号**：
-- 从 `repository/READEME.md` 提取仓库地址，`sed` 去除协议前缀和 `.git` 后缀得到 `owner/repo`
+- 从 `repository/README.md` 提取仓库地址，`sed` 去除协议前缀和 `.git` 后缀得到 `owner/repo`
 - 调用 Gitee API `GET /repos/{owner}/{repo}/releases` 获取已有 Release tag
 - 筛选格式 `v0.{数字}.0`，取最大数字加 1 作为新版本。首次发布为 `v0.1.0`
 
@@ -129,7 +129,7 @@ color: green
 
 ## 步骤八：创建 Release
 
-- 从 READEME.md 提取 `owner/repo`
+- 从 README.md 提取 `owner/repo`
 - POST `https://gitee.com/api/v5/repos/{owner}/{repo}/releases`，tag_name 与 git tag 一致
 - body 包含项目编号、版本号和测试结果概要
 - 从响应 JSON 中提取 `id` 作为 `release_id`

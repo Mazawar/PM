@@ -7,16 +7,31 @@ set -euo pipefail
 PM_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 REPO_DIR="$PM_ROOT/repository"
 TEST_DIR="$PM_ROOT/test_project"
-REPO_README="$REPO_DIR/READEME.md"
+REPO_README="$REPO_DIR/README.md"
+TEST_README="$TEST_DIR/README.md"
+TEMPLATE_DIR="$PM_ROOT/.claude/templates"
 LOG_FILE="$PM_ROOT/.omc/logs/scan.log"
 
 mkdir -p "$(dirname "$LOG_FILE")"
+
+# 确保 README 文件存在，不存在则从模板复制
+if [ ! -f "$REPO_README" ]; then
+  mkdir -p "$REPO_DIR"
+  cp "$TEMPLATE_DIR/repository-README.md" "$REPO_README"
+  log "从模板创建: $REPO_README"
+fi
+
+if [ ! -f "$TEST_README" ]; then
+  mkdir -p "$TEST_DIR"
+  cp "$TEMPLATE_DIR/test-project-README.md" "$TEST_README"
+  log "从模板创建: $TEST_README"
+fi
 
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
 }
 
-# 从 READEME.md 的 <!-- projects-start --> ~ <!-- projects-end --> 之间解析项目
+# 从 README.md 的 <!-- projects-start --> ~ <!-- projects-end --> 之间解析项目
 # 仅匹配包含编号和仓库地址的数据行，忽略表头、分隔行、空行
 parse_projects() {
   sed -n '/<!-- projects-start -->/,/<!-- projects-end -->/p' "$REPO_README" \
@@ -25,7 +40,7 @@ parse_projects() {
     | sort -u
 }
 
-# 从 READEME.md 获取指定项目的仓库地址（仅在标记区间内查找）
+# 从 README.md 获取指定项目的仓库地址（仅在标记区间内查找）
 get_repo_url() {
   local project="$1"
   sed -n '/<!-- projects-start -->/,/<!-- projects-end -->/p' "$REPO_README" \

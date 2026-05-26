@@ -11,8 +11,8 @@ allowed-tools: Read, Edit, Write, AskUserQuestion, Bash
 # Project Registry Manager
 
 Manage projects in two registry files:
-- `repository/READEME.md` — project source registry
-- `test_project/READEME.md` — test project registry
+- `repository/README.md` — project source registry
+- `test_project/README.md` — test project registry
 
 Both use `<!-- projects-start -->` / `<!-- projects-end -->` markers. Only edit within markers.
 
@@ -53,7 +53,7 @@ Show the auto-detected type in the report for user to verify.
 
 ### Step 2: Calculate Number
 
-1. Read `repository/READEME.md`
+1. Read `repository/README.md`
 2. Parse all existing entries in the `<!-- projects-start -->` table
 3. Find the max number N (e.g., `01-RuoYi-Vue` → N=1)
 4. New number = N+1, zero-padded to 2 digits (e.g., `02`)
@@ -76,13 +76,13 @@ mkdir -p test_project/{NN}-{Name}/{test-config/plans,tests/{unit,api,e2e,ui},res
 
 ### Step 5: Write to Both Registries
 
-**`repository/READEME.md`** — insert row at end of table (before `<!-- projects-end -->`):
+**`repository/README.md`** — insert row at end of table (before `<!-- projects-end -->`):
 
 ```
 | {NN}-{Name} | ./{NN}-{Name} | {URL} | {Type} |
 ```
 
-**`test_project/READEME.md`** — insert row at end of table (before `<!-- projects-end -->`):
+**`test_project/README.md`** — insert row at end of table (before `<!-- projects-end -->`):
 
 ```
 | {NN}-{Name} | ../repository/{NN}-{Name} | {URL} | {Type} |
@@ -99,8 +99,8 @@ Output a summary:
 
 | 文件 | 内容 |
 |------|------|
-| repository/READEME.md | {NN}-{Name} \| ./{NN}-{Name} \| {URL} \| {Type} |
-| test_project/READEME.md | {NN}-{Name} \| ../repository/{NN}-{Name} \| {URL} \| {Type} |
+| repository/README.md | {NN}-{Name} \| ./{NN}-{Name} \| {URL} \| {Type} |
+| test_project/README.md | {NN}-{Name} \| ../repository/{NN}-{Name} \| {URL} \| {Type} |
 
 下次执行 scan.sh 时将自动克隆仓库。
 测试前环境检查时将自动启动 Setup Agent 配置环境（端口、凭据、技术栈分析），已配置则跳过。
@@ -117,7 +117,7 @@ Output a summary:
 
 ### Step 2: Find in Registry
 
-1. Read `repository/READEME.md`
+1. Read `repository/README.md`
 2. Search for the project name in the table (match partial: `RuoYi-Vue` matches `01-RuoYi-Vue`)
 3. If not found, stop with error: `未找到项目: {name}`
 
@@ -137,8 +137,8 @@ If cancelled, stop with `已取消。`
 ### Step 4: Remove from Both Registries
 
 Remove the matching row from:
-- `repository/READEME.md`
-- `test_project/READEME.md`
+- `repository/README.md`
+- `test_project/README.md`
 
 ### Step 5: Report
 
@@ -146,8 +146,8 @@ Remove the matching row from:
 ✓ 项目已移除: {NN}-{Name}
 
 已从以下文件中删除:
-- repository/READEME.md
-- test_project/READEME.md
+- repository/README.md
+- test_project/README.md
 
 注意：仓库目录和测试产物仍保留在磁盘上，需手动清理。
 ```
@@ -158,7 +158,7 @@ Remove the matching row from:
 
 ### Step 1: Read Registry
 
-Read `repository/READEME.md` and parse the table within `<!-- projects-start -->` / `<!-- projects-end -->`.
+Read `repository/README.md` and parse the table within `<!-- projects-start -->` / `<!-- projects-end -->`.
 
 ### Step 2: Display
 

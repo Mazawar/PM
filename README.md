@@ -64,12 +64,12 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 ```
 pm/
 ├── repository/                    # 外部项目只读克隆（gitignore）
-│   ├── READEME.md                 # 项目注册表（scan.sh 管理）
+│   ├── README.md                 # 项目注册表（scan.sh 管理）
 │   └── <NN-Project>/              # Git clones，禁止修改源码
 │       └── .last_hash             # 上次扫描的 commit hash
 │
 ├── test_project/                  # 测试产物（gitignore，仅注册表和模板提交）
-│   ├── READEME.md                 # 测试工程注册表
+│   ├── README.md                 # 测试工程注册表
 │   └── <NN-Project>/
 │       ├── playwright.config.ts   # 项目级 Playwright 配置（独立 baseURL）
 │       ├── start.sh               # 一键启动脚本（Setup Agent 生成）
