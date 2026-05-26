@@ -1,10 +1,8 @@
 # 仓库项目（外部克隆，不提交）
 repository/*
-!repository/README.md
 
 # 测试工程（本地测试产物，不提交）
 test_project/*
-!test_project/README.md
 
 # oh-my-claudecode 运行时
 .omc/
