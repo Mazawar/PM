@@ -23,7 +23,7 @@ results/
 | 测试文件 | `{module}-{scenario}.spec.ts` | `user-lifecycle.spec.ts` |
 | 截图文件 | `tc-{编号}-{简称}.png` | `tc-001-login-page.png` |
 | 模块目录 | kebab-case | `user-management/` |
-| 模块名 | 与 `test-config/plans/` 文件名一致 | `role-management` |
+| 模块名 | 与 `plans/` 文件名一致 | `role-management` |
 
 测试文件必须写入 `tests/e2e/` 或 `tests/ui/` 子目录。
 

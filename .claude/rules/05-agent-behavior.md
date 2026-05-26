@@ -16,8 +16,8 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 
 ### 计划分层（强制）
 
-- `test-config/test-plan.md` — **仅** Application Overview + 模块索引表
-- `test-config/plans/{module}.md` — **所有**详细内容（TC 步骤、expect）
+- `plans/test-plan.md` — **仅** Application Overview + 模块索引表
+- `plans/{module}.md` — **所有**详细内容（TC 步骤、expect）
 - 禁止在总计划中写详细步骤，禁止在模块计划中省略步骤
 
 ### 行为约束

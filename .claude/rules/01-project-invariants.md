@@ -19,11 +19,13 @@
 ```
 test_project/<NN-Project>/
 ├── playwright.config.ts       # 项目级 Playwright 配置（必须）
+├── vitest.config.ts           # 项目级 Vitest 配置（L2 API 测试，Setup Agent 生成）
+├── plans/                     # 测试计划
+│   ├── test-plan.md           # 总计划索引（仅模块索引表）
+│   └── {module}.md            # 模块详细计划
 ├── start.sh                   # 一键启动脚本（Setup Agent 生成）
 ├── test-config/
-│   ├── test-plan.md          # 总计划索引（仅模块索引表）
-│   ├── plans/{module}.md     # 模块详细计划
-│   └── environment.json      # 环境配置（技术栈、端口、凭据、中间件、启动命令）
+│   └── environment.json       # 环境配置（技术栈、端口、凭据、中间件、启动命令）
 ├── tests/
 │   ├── unit/                 # L1
 │   ├── api/                  # L2
@@ -43,13 +45,13 @@ test_project/<NN-Project>/
 
 ## 项目级 Playwright 配置（约定）
 
-每个项目 **必须** 拥有独立的 `playwright.config.ts`，不依赖全局配置。
+每个项目 **必须** 拥有独立的 `playwright.config.ts` 和 `vitest.config.ts`，不依赖全局配置。
 
 ### 创建时机
 
 测试前环境检查时由 Setup Agent 创建（已配置则跳过），从源码推断或询问用户确定 `baseURL`。
 
-### 配置模板
+### Playwright 配置模板
 
 ```typescript
 import { defineConfig } from '@playwright/test';
@@ -70,10 +72,32 @@ export default defineConfig({
 });
 ```
 
+### Vitest 配置模板
+
+```typescript
+import { defineConfig } from 'vitest/config';
+import path from 'path';
+
+export default defineConfig({
+  test: {
+    root: path.resolve(__dirname),
+    include: ['tests/api/**/*.spec.ts'],
+    timeout: 30000,
+    testTimeout: 15000,
+  },
+});
+```
+
 ### 运行命令
 
+L3/L4:
 ```bash
 npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
+```
+
+L2:
+```bash
+npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 ```
 
 ### 约束
@@ -96,7 +120,8 @@ npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
 | 文件 | 生成者 | 内容 |
 |------|--------|------|
 | `test-config/environment.json` | Setup Agent | 端口、凭据、技术栈、中间件、启动命令 |
-| `playwright.config.ts` | Setup Agent | baseURL 指向正确端口 |
+| `playwright.config.ts` | Setup Agent | L3/L4 baseURL 指向正确端口 |
+| `vitest.config.ts` | Setup Agent | L2 API 测试配置 |
 | `start.sh` | Setup Agent | 一键启动脚本（端口检查 + 健康检查） |
 | `SETUP.md` | Setup Agent | 环境启动报告（含实际验证结果，非假设） |
 
