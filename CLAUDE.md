@@ -15,13 +15,13 @@ pm/
 │   └── <NN-Project>/          # Git clones，禁止修改源码
 ├── test_project/              # 测试产物（每个 repository 条目对应一个目录）
 │   ├── READEME.md             # 测试项目注册表
-│   ├── templates/             # 测试用例模板（L1-L4）
 │   └── <NN-Project>/
 │       ├── playwright.config.ts # 项目级 Playwright 配置（独立 baseURL）
 │       ├── start.sh           # 一键启动脚本（Setup Agent 生成）
 │       ├── test-config/       # 测试计划、环境配置（environment.json）
 │       ├── tests/             # 测试代码（{module}-{scenario}.spec.ts）
-│       ├── reports/           # 变更报告 + startup.md
+│       ├── SETUP.md          # 环境启动报告（Setup Agent 生成）
+│       ├── reports/           # 变更报告
 │       └── results/           # 测试执行结果（按模块分目录）
 ├── docs/                      # 项目文档
 ├── .claude/
@@ -32,6 +32,19 @@ pm/
 ├── .mcp.json                  # Playwright MCP Server 配置
 └── playwright.config.ts       # Playwright 全局配置
 ```
+
+## Project Configuration
+
+每个项目（`test_project/<NN-Project>/`）包含以下配置文件，由 Setup Agent 生成：
+
+| 文件 | 说明 |
+|------|------|
+| `playwright.config.ts` | 项目级 Playwright 配置（独立 baseURL、outputDir） |
+| `test-config/environment.json` | 环境配置（端口、凭据、技术栈、中间件、启动命令、healthCheck） |
+| `start.sh` | 一键启动脚本（端口检查 + 健康检查） |
+| `SETUP.md` | 环境启动报告（实际验证结果） |
+
+`environment.json` 是环境的唯一真实来源，`playwright.config.ts` 的 `baseURL` 必须与其一致。修改时同步更新两者。
 
 ## Rules
 
@@ -85,6 +98,17 @@ bash .claude/scripts/scan.sh          # 扫描所有项目变更
 ```bash
 npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
 ```
+
+### 测试报告邮件通知
+
+```bash
+node .claude/scripts/notify.mjs --project <NN-Project>           # 有失败时发送
+node .claude/scripts/notify.mjs --project <NN-Project> --dry-run # 仅预览不发送
+```
+
+- 配置文件：`.claude/scripts/notify-config.json`（从 `notify-config.example.json` 复制并填写 SMTP 信息）
+- 含 SMTP 密码，已 gitignore
+- 默认仅失败时发送（`sendOn.onFail: true`），可配置 `sendOn.always: true` 每次都发
 
 ## Git Conventions
 

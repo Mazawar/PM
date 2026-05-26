@@ -64,8 +64,8 @@ test_project/<NN-Project>/
 │   ├── api/                    # L2 接口/集成测试
 │   ├── e2e/                    # L3 E2E 流程测试
 │   └── ui/                     # L4 UI 自动化测试
-├── reports/                    # 扫描变更报告 + 启动报告
-│   ├── startup.md              # 环境启动报告（Setup Agent 生成）
+├── SETUP.md                  # 环境启动报告（Setup Agent 生成）
+├── reports/                    # 扫描变更报告
 │   ├── 2026-05-21_103500.md   # 原始变更报告
 │   └── summary.md             # Agent 分析的变更汇总
 └── results/                    # 测试执行结果

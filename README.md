@@ -70,7 +70,6 @@ pm/
 │
 ├── test_project/                  # 测试产物（gitignore，仅注册表和模板提交）
 │   ├── READEME.md                 # 测试工程注册表
-│   ├── templates/                 # 测试用例模板（L1-L4，多语言）
 │   └── <NN-Project>/
 │       ├── playwright.config.ts   # 项目级 Playwright 配置（独立 baseURL）
 │       ├── start.sh               # 一键启动脚本（Setup Agent 生成）
@@ -79,7 +78,8 @@ pm/
 │       │   ├── plans/             # 按模块拆分的详细计划
 │       │   └── environment.json   # 环境配置（技术栈、端口、凭据、中间件）
 │       ├── tests/                 # 测试代码（{module}-{scenario}.spec.ts）
-│       ├── reports/               # 变更报告 + startup.md
+│       ├── SETUP.md                # 环境启动报告（Setup Agent 生成）
+│       ├── reports/               # 变更报告
 │       └── results/               # 测试执行结果（按模块分目录）
 │           ├── summary.md         # 汇总报告
 │           └── <module>/          # progress.txt + report.md + screenshots/

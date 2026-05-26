@@ -7,6 +7,7 @@
 | 编号 | 地址 | 仓库 | 类型 |
 | --- | --- | --- | --- |
 | 01-RuoYi-Vue | ../repository/01-RuoYi-Vue | https://gitee.com/y_project/RuoYi-Vue | Git |
+| 02-oa-llm | ../repository/02-oa-llm | https://gitee.com/xiao_tianxia/oa-llm.git | Git |
 
 <!-- projects-end -->
 

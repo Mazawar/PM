@@ -5,7 +5,6 @@ repository/*
 # 测试工程（本地测试产物，不提交）
 test_project/*
 !test_project/READEME.md
-!test_project/templates/
 
 # oh-my-claudecode 运行时
 .omc/

@@ -35,9 +35,9 @@ test_project/<NN-Project>/
 │       ├── progress.txt
 │       ├── report.md
 │       └── screenshots/
+├── SETUP.md                # 环境启动报告（Setup Agent 生成）
 └── reports/
     ├── summary.md            # 变更分析汇总（定时扫描写入）
-    ├── startup.md            # 环境启动报告（Setup Agent 生成）
     └── {timestamp}.md        # 变更报告（scan.sh 生成）
 ```
 
@@ -57,7 +57,7 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   timeout: 60000,
-  outputDir: './results/artifacts',
+  outputDir: './artifacts',
   use: {
     baseURL: 'http://localhost:<端口>',  // 项目指定
     headless: true,
@@ -98,7 +98,7 @@ npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
 | `test-config/environment.json` | Setup Agent | 端口、凭据、技术栈、中间件、启动命令 |
 | `playwright.config.ts` | Setup Agent | baseURL 指向正确端口 |
 | `start.sh` | Setup Agent | 一键启动脚本（端口检查 + 健康检查） |
-| `reports/startup.md` | Setup Agent | 环境启动报告（含实际验证结果，非假设） |
+| `SETUP.md` | Setup Agent | 环境启动报告（含实际验证结果，非假设） |
 
 ### 环境检查（每次测试前）
 

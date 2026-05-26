@@ -22,7 +22,7 @@ color: purple
 - 环境配置：`test_project/<NN-Project>/test-config/environment.json`
 - Playwright 配置：`test_project/<NN-Project>/playwright.config.ts`
 - 启动脚本：`test_project/<NN-Project>/start.sh`
-- 启动报告：`test_project/<NN-Project>/reports/startup.md`
+- 启动报告：`test_project/<NN-Project>/SETUP.md`
 - **变更追踪**：`test_project/<NN-Project>/.last_hash`（仅 scan.sh 管理，禁止删除或清空）
 
 ## 工作流程
@@ -278,7 +278,7 @@ exit 1
 
 ### Step 5: 输出启动报告
 
-写入 `test_project/<NN>/reports/startup.md`：
+写入 `test_project/<NN>/SETUP.md`：
 
 ```markdown
 # <NN-Project> 环境启动报告

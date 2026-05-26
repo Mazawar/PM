@@ -52,7 +52,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 1. 检查 `test_project/<NN>/playwright.config.ts` 和 `test-config/environment.json` 是否存在
 2. **不存在**（未配置）→ 启动 Setup Agent（`Agent(subagent_type="project-manage-setup")`）
    - Agent 分析源码、推断端口和凭据
-   - 生成 `playwright.config.ts`、`environment.json`、`start.sh`、`startup.md`
+   - 生成 `playwright.config.ts`、`environment.json`、`start.sh`、`SETUP.md`
    - 验证环境 → 完成后继续测试流程
 3. **已存在**（已配置）→ 读取 `environment.json` 中的 `healthCheck`
 4. 用 curl 检查服务是否在运行：`curl -s -o /dev/null -w "%{http_code}" <healthCheck.url>`

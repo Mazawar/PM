@@ -28,7 +28,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
    - `test-config/environment.json` — 端口、凭据、技术栈、中间件、启动命令、健康检查
    - `start.sh` — 一键启动脚本（端口检查 + 健康检查）
 4. 验证环境（服务可达性、页面加载、登录验证）
-5. 输出 `reports/startup.md` 启动报告
+5. 输出 `SETUP.md` 启动报告
 
 **约定大于配置**：端口信息优先从源码推断，推断不了再询问用户。
 
