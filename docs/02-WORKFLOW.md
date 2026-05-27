@@ -1,10 +1,10 @@
 # Agent 测试交互流程规范
 
-## 七阶段流程
+## 八阶段流程
 
 ```
-Detect → Setup → Analyze → Plan → Generate → Execute → Report
- 扫描     配置     分析      规划    生成      执行      汇报
+Detect → Setup → Analyze → Plan → Generate → Execute → Report → Publish
+ 扫描     配置     分析      规划    生成      执行      汇报      发布
 ```
 
 ### 阶段一：Detect 变更检测
@@ -14,7 +14,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 **职责**:
 1. 拉取所有注册项目的最新代码
 2. 对比上次 hash，检测新提交
-3. 生成变更报告到 `test_project/<NN>/reports/`
+3. 生成变更报告到 `test_project/<NN-Project>/reports/`
 
 ### 阶段二：Setup 环境配置（仅首次）
 
@@ -49,7 +49,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 
 **Agent 职责**:
 1. 基于 `summary.md` 或用户需求生成测试计划
-2. 写入 `test-config/test-plan.md`（模块索引）和 `test-config/plans/{module}.md`（详细步骤）
+2. 写入 `plans/00-test-plan.md`（模块索引）和 `plans/NN-{module}.md`（详细步骤）
 3. 每个场景分配 **TC-XXX** 编号（全局唯一，跨层级连续）
 4. 向用户展示计划并等待确认
 
@@ -77,7 +77,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 
 **Agent 职责**:
 1. 使用 `playwright-test-generator` agent 按计划生成测试代码
-2. 测试代码写入 `tests/e2e/` 或 `tests/ui/` 对应目录
+2. 测试代码写入 `test_project/<NN-Project>/tests/e2e/` 或 `tests/ui/` 对应模块子目录
 3. 向用户展示用例概览
 
 **失败处理**: 生成后首次运行若有失败，委托 `playwright-test-healer` 修复，不在主会话手动调试。
@@ -87,9 +87,9 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 **触发条件**: 用户确认测试用例
 
 **环境检查（每次测试前，强制）**:
-1. 读取 `test-config/environment.json` 中的 `healthCheck`
+1. 读取 `test_project/<NN-Project>/test-config/environment.json` 中的 `healthCheck`
 2. 用 curl 检查服务是否在运行
-3. 未通过 → 提示用户先启动服务（`bash test_project/<NN>/start.sh`）
+3. 未通过 → 启动 Setup Agent 启动服务并验证（`bash test_project/<NN-Project>/start.sh`）
 
 **执行命令**:
 ```bash
@@ -132,7 +132,7 @@ results/
 ### 阶段七：Report 结果汇报
 
 **Agent 职责**:
-1. 更新各模块 `report.md` 和 `results/summary.md`
+1. 更新各模块 `test_project/<NN-Project>/results/{module}/report.md` 和 `results/summary.md`
 2. 向用户展示测试结果概要
 3. 失败用例附上截图和错误详情
 
@@ -160,7 +160,7 @@ planner → generator → healer（按需）
 | 场景 | 处理方式 |
 |------|---------|
 | 测试环境无法启动 | 记录错误，报告用户，等待用户配置 |
-| 服务未运行 | 提示用户先启动服务（`bash test_project/<NN>/start.sh`） |
+| 服务未运行 | 启动 Setup Agent 启动服务（`bash test_project/<NN-Project>/start.sh`） |
 | 测试框架未安装 | 自动安装（需用户确认），或提示用户手动安装 |
 | 外部依赖不可用 | 跳过依赖该服务的用例，标记为 SKIP |
 | 执行超时 | 单个用例超时 5 分钟自动终止，标记为 ERROR |

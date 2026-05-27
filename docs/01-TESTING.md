@@ -52,18 +52,20 @@
 test_project/<NN-Project>/
 ├── playwright.config.ts       # 项目级 Playwright 配置（独立 baseURL）
 ├── start.sh                   # 一键启动脚本（Setup Agent 生成）
-├── test-config/                # 测试配置与计划
-│   ├── test-plan.md            # 总测试计划（索引 + 概览）
-│   ├── plans/                  # 按模块拆分的详细计划
-│   │   ├── user-management.md  # 用户管理测试计划
-│   │   ├── role-management.md  # 角色管理测试计划
-│   │   └── <module>.md         # 其他模块
+├── test-config/                # 测试配置
 │   └── environment.json        # 环境配置（技术栈、端口、凭据、中间件、启动命令）
+├── plans/                      # 测试计划（planner Agent 生成）
+│   ├── 00-test-plan.md         # 总计划索引（仅模块索引表）
+│   └── NN-{module}.md          # 模块详细计划（NN 为两位序号）
 ├── tests/                      # 测试脚本代码
 │   ├── unit/                   # L1 单元测试
 │   ├── api/                    # L2 接口/集成测试
 │   ├── e2e/                    # L3 E2E 流程测试
+│   │   └── {module}/           # 按模块分子目录
+│   │       └── tc-{编号}-{简称}.spec.ts
 │   └── ui/                     # L4 UI 自动化测试
+│       └── {module}/
+│           └── tc-{编号}-{简称}.spec.ts
 ├── SETUP.md                  # 环境启动报告（Setup Agent 生成）
 ├── reports/                    # 扫描变更报告
 │   ├── 2026-05-21_103500.md   # 原始变更报告
@@ -86,30 +88,36 @@ test_project/<NN-Project>/
 
 ### 测试文件命名规范
 
-测试文件名必须包含**模块前缀**，格式：`{module}-{scenario}.spec.ts`
+测试文件名格式：`tc-{编号}-{简称}.spec.ts`，按模块分子目录
 
 ```
 tests/
 ├── e2e/
-│   ├── user-lifecycle.spec.ts          # 用户管理 - 生命周期
-│   ├── user-search.spec.ts             # 用户管理 - 搜索筛选
-│   ├── role-lifecycle.spec.ts          # 角色管理 - 生命周期
-│   ├── role-search.spec.ts             # 角色管理 - 搜索筛选
-│   └── menu-crud.spec.ts              # 菜单管理 - 增删改查
+│   ├── user-management/
+│   │   ├── tc-001-user-lifecycle.spec.ts
+│   │   └── tc-002-user-search.spec.ts
+│   ├── role-management/
+│   │   ├── tc-008-role-lifecycle.spec.ts
+│   │   └── tc-009-role-search.spec.ts
+│   └── menu-management/
+│       └── tc-015-menu-crud.spec.ts
 └── ui/
-    ├── user-form-ui.spec.ts            # 用户管理 - 表单 UI
-    ├── role-dialog-ui.spec.ts          # 角色管理 - 对话框 UI
-    └── menu-tree-ui.spec.ts           # 菜单管理 - 树形控件 UI
+    ├── user-management/
+    │   └── tc-005-user-form-ui.spec.ts
+    ├── role-management/
+    │   └── tc-020-role-dialog-ui.spec.ts
+    └── menu-management/
+        └── tc-030-menu-tree-ui.spec.ts
 ```
 
 模块前缀为功能的英文短名，kebab-case 格式。同一模块的文件共享前缀，便于筛选和批量执行。
 
 ### 结果目录组织规则
 
-- **按模块分目录**：`results/{module}/`，每个模块独立存放 progress、report、screenshots
+- **按模块分目录**：`test_project/<NN-Project>/results/{module}/`，每个模块独立存放 progress、report、screenshots
 - **互不覆盖**：测试新模块时创建新目录，不删除已有模块的结果
 - **同模块覆盖**：重新测试同一模块时覆盖该模块的结果
-- **汇总报告**：`results/summary.md` 聚合所有模块的测试结果概要
+- **汇总报告**：`test_project/<NN-Project>/results/summary.md` 聚合所有模块的测试结果概要
 
 ## 4. 用例编号规范
 
@@ -140,9 +148,9 @@ TP-<项目编号>-L<层级>-<序号>
 
 ## 测试计划格式规范
 
-### 总计划（test-plan.md）
+### 总计划（00-test-plan.md）
 
-`test-config/test-plan.md` 是所有模块的索引和概览，不包含详细步骤：
+`plans/00-test-plan.md` 是所有模块的索引和概览，不包含详细步骤：
 
 ```markdown
 # <项目名称> 测试计划
@@ -156,12 +164,12 @@ TP-<项目编号>-L<层级>-<序号>
 
 | 模块 | 计划文件 | TC 范围 | 用例数 | 优先级 |
 |------|---------|---------|--------|--------|
-| 用户管理 | [plans/user-management.md](plans/user-management.md) | TC-001~TC-007 | 7 | P0 |
-| 角色管理 | [plans/role-management.md](plans/role-management.md) | TC-008~TC-029 | 22 | P0 |
-| 菜单管理 | [plans/menu-management.md](plans/menu-management.md) | TC-030~TC-044 | 15 | P1 |
+| 用户管理 | [01-user-management.md](01-user-management.md) | TC-001~TC-007 | 7 | P0 |
+| 角色管理 | [02-role-management.md](02-role-management.md) | TC-008~TC-029 | 22 | P0 |
+| 菜单管理 | [03-menu-management.md](03-menu-management.md) | TC-030~TC-044 | 15 | P1 |
 ```
 
-### 模块计划（plans/{module}.md）
+### 模块计划（plans/NN-{module}.md）
 
 每个模块一个独立文件，包含详细测试场景。TC 编号全局连续，各模块分配编号范围：
 
@@ -340,12 +348,12 @@ TC-004:SKIP
 
 - **创建时机**: 测试前环境检查时由 Setup Agent 自动生成（已配置则跳过）
 - **baseURL 来源**: 从源码推断（vite.config.ts、.env、application.yml 等）
-- **运行命令**: `npx playwright test --config=test_project/<NN>/playwright.config.ts`
+- **运行命令**: `npx playwright test --config=test_project/<NN-Project>/playwright.config.ts`
 - **environment.json** 是环境的**唯一真实来源**，`playwright.config.ts` 的 `baseURL` 必须与之一致
 
 ### 测试环境配置
 
-- 环境配置存放在 `test-config/environment.json`（由 Setup Agent 生成）
+- 环境配置存放在 `test_project/<NN-Project>/test-config/environment.json`（由 Setup Agent 生成）
 - 包含：端口、凭据、技术栈、中间件、启动命令、健康检查 URL
 - 端口优先从源码推断，推断不了再询问用户
 - **每次测试前强制环境检查**：无配置 → 启动 Setup Agent；有配置但服务未运行 → 提示启动；一切就绪 → 跳过
