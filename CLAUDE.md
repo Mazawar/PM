@@ -82,6 +82,22 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 
 ## Commands
 
+### SSH 远程管理
+
+通过 MCP SSH Manager 管理远程服务器，配置文件为项目根目录 `.env`（已 gitignore）。
+
+```bash
+# 首次配置：复制模板并填写
+cp .env.example .env
+# 编辑 .env，添加 SSH_SERVER_* 变量
+```
+
+配置格式：`SSH_SERVER_<NAME>_<FIELD>=value`（NAME 用下划线，如 UBUNTU_DEV）
+
+- 字段：HOST、USER、PASSWORD、KEYPATH、PORT、PROXYJUMP
+- 示例见 `.env.example`
+- MCP 工具：执行命令、上传下载、健康检查、数据库操作等（共 37 个工具）
+
 ### 仓库扫描
 
 ```bash
