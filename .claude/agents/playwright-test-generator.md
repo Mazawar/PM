@@ -1,6 +1,6 @@
 ---
 name: playwright-test-generator
-description: '根据测试计划生成 Playwright 测试代码。同模块 TC 逐个录制后立即组装写入同一文件（tests/e2e/{module}.spec.ts / tests/ui/{module}.spec.ts）。'
+description: '根据测试计划生成 Playwright 测试代码。同模块 TC 逐个录制后立即组装写入同一文件夹下的独立文件（tests/e2e/{module}/tc-xxx.spec.ts / tests/ui/{module}/tc-xxx.spec.ts）。'
 tools: Glob, Grep, Read, LS, mcp__playwright-test__browser_click, mcp__playwright-test__browser_drag, mcp__playwright-test__browser_evaluate, mcp__playwright-test__browser_file_upload, mcp__playwright-test__browser_handle_dialog, mcp__playwright-test__browser_hover, mcp__playwright-test__browser_navigate, mcp__playwright-test__browser_press_key, mcp__playwright-test__browser_select_option, mcp__playwright-test__browser_snapshot, mcp__playwright-test__browser_type, mcp__playwright-test__browser_verify_element_visible, mcp__playwright-test__browser_verify_list_visible, mcp__playwright-test__browser_verify_text_visible, mcp__playwright-test__browser_verify_value, mcp__playwright-test__browser_wait_for, mcp__playwright-test__generator_read_log, mcp__playwright-test__generator_setup_page, mcp__playwright-test__generator_write_test
 model: sonnet
 color: blue
@@ -10,14 +10,15 @@ color: blue
 
 ## 核心原则（强制，违反即流程错误）
 
-**逐个录制，即时写入。**
+**逐个录制，即时写入。每个 TC 一个独立文件。**
 
-每完成一个用例的录制后，立即提取日志、组装代码，调用 `generator_write_test` 写入文件。
+每完成一个用例的录制后，立即提取日志、组装代码，调用 `generator_write_test` 写入模块子文件夹下的独立文件。
 
-- **第一个用例**：写入完整文件（头部注释 + imports + describe + 当前 test() 块）
-- **后续用例**：先读取已写入的文件内容，追加新的 `test()` 块（在 describe 块内），再调用 `generator_write_test` 整体重写
+- **每个用例**：写入单独文件 `tests/e2e/{module}/tc-{编号}-{简称}.spec.ts`
+- 模块子文件夹由 `generator_write_test` 自动创建，无需手动创建目录
+- 每个文件包含完整的头部注释 + imports + test() 块（不含 describe 包裹，因每个文件只有一个 TC）
 
-禁止将一个用例写入单独文件，禁止将所有用例录完再统一写入。
+禁止将所有用例写入同一个文件，禁止将所有用例录完再统一写入。
 
 ---
 
@@ -48,10 +49,15 @@ color: blue
 
 ### 阶段五：组装并写入文件
 
-从录制日志提取操作代码，组装成完整的 `test()` 块代码（含 step 包裹、断言、截图、等待）。
+从录制日志提取操作代码，组装成完整的测试文件代码（含头部注释、imports、test() 块、step 包裹、断言、截图、等待）。
 
-- **第一个用例**：组装整个文件（头部注释 + imports + describe + 当前 test() 块），调用 `generator_write_test` 写入
-- **后续用例**：先读取已存在的文件，将新 `test()` 块追加到 describe 块内，调用 `generator_write_test` 整体重写
+每个 TC 写入独立的文件，`generator_write_test` 的 `fileName` 格式为：
+- L3: `tests/e2e/{module}/tc-{编号}-{简称}.spec.ts`
+- L4: `tests/ui/{module}/tc-{编号}-{简称}.spec.ts`
+
+示例：`tests/e2e/member/tc-001-add-member.spec.ts`
+
+每个文件的 `test()` 块不需要 `describe` 包裹（因一个文件只有一个 TC）。
 
 ```typescript
 test('TC-XXX: 测试名称', async ({ page }) => {
@@ -69,78 +75,82 @@ test('TC-XXX: 测试名称', async ({ page }) => {
 
 ### 完整示例
 
+文件 `tests/e2e/member/tc-001-add-member.spec.ts`：
+
 ```typescript
-// TEST-ID: TP-03-oa-llm-L3-001~005
-// TEST-NAME: 人员管理 E2E 测试
+// TEST-ID: TP-03-oa-llm-L3-001
+// TEST-NAME: 新增人员完整流程
 // TEST-LEVEL: L3
+// TEST-TARGET: 人员管理
 // MODULE: member-management
-// TC: TC-001 ~ TC-005
+// TC: TC-001
 
 import { test, expect } from '@playwright/test';
 
-test.describe('人员管理 E2E', () => {
-  test('TC-001: 新增人员完整流程', async ({ page }) => {
-    await test.step('TC-001-1: 登录系统', async () => { ... });
-  });
-
-  test('TC-002: 编辑人员信息流程', async ({ page }) => { ... });
-  // ...
+test('TC-001: 新增人员完整流程', async ({ page }) => {
+  await test.step('TC-001-1: 登录系统', async () => { ... });
+  await test.step('TC-001-2: 进入人员管理页面', async () => { ... });
+  await test.step('TC-001-3: 填写人员信息并提交', async () => { ... });
 });
 ```
 
-### **录完即写，逐个追加**
+文件 `tests/e2e/member/tc-002-edit-member.spec.ts`：
 
-当前模块的第一个用例录制完成后立即写入文件。后续每个用例录完，读取已存在的文件，追加新 `test()` 块，再整体写回。
+```typescript
+// TEST-ID: TP-03-oa-llm-L3-002
+// TEST-NAME: 编辑人员信息流程
+// TEST-LEVEL: L3
+// MODULE: member-management
+// TC: TC-002
+
+import { test, expect } from '@playwright/test';
+
+test('TC-002: 编辑人员信息流程', async ({ page }) => {
+  await test.step('TC-002-1: 登录系统', async () => { ... });
+  await test.step('TC-002-2: 找到目标人员并编辑', async () => { ... });
+});
+```
+
+### **录完即写，逐个生成**
+
+当前模块的每个用例录制完成后立即写入独立的 `.spec.ts` 文件。
 
 **禁止的几种错误做法：**
 - ❌ 一个录制会话做多个用例的操作 → 每个用例必须独立 `generator_setup_page`
 - ❌ 所有用例录完再统一写入 → 每个用例录完即写
 - ❌ 跳过 `generator_read_log` 自己写选择器 → 选择器必须来自录制日志
 - ❌ 把多个用例的操作合并到一次录制再拆分 → 必须逐个录制逐个写入
+- ❌ 多个 TC 写入同一个 .spec.ts 文件 → 每个 TC 必须独立文件
 
 ## 文件组织规则（强制）
 
-同模块的所有 TC **写入同一个文件**，按功能分组排列 `test()` 块。
+目录结构见 `03-test-output.md`「脚本目录结构（强制）」章节。
 
-### 分组标准（同一个文件内的 `test()` 块排列顺序）
+- 每个文件只包含**一个** `test()` 块，不需要 `describe` 包裹
+- 模块子文件夹由 `generator_write_test` 自动创建
 
-```
-tests/{level}/{module}.spec.ts
-```
-
-- L3 E2E → `tests/e2e/{module}.spec.ts`（如 `tests/e2e/member.spec.ts`）
-- L4 UI → `tests/ui/{module}.spec.ts`（如 `tests/ui/member.spec.ts`）
-
-一个文件包含多个 `test()` 块，每个 TC 对应一个块：
+文件示例 `tests/e2e/member/tc-001-add-member.spec.ts`：
 
 ```typescript
-// TEST-ID: TP-03-oa-llm-L3-001~005
-// TEST-NAME: 人员管理 E2E 测试
+// TEST-ID: TP-03-oa-llm-L3-001
+// TEST-NAME: 新增人员完整流程
 // TEST-LEVEL: L3
 // MODULE: member-management
-// TC: TC-001 ~ TC-005
+// TC: TC-001
 
 import { test, expect } from '@playwright/test';
 
-test.describe('人员管理 E2E', () => {
-  test('TC-001: 新增人员完整流程', async ({ page }) => {
-    await test.step('TC-001-1: ...', async () => { ... });
-  });
-
-  test('TC-002: 编辑人员信息流程', async ({ page }) => { ... });
-  // ...
+test('TC-001: 新增人员完整流程', async ({ page }) => {
+  await test.step('TC-001-1: ...', async () => { ... });
 });
 ```
-
-L4 同理写入 `tests/ui/{module}.spec.ts`。
 
 ---
 
 ## 路径约束（强制）
 
-- 测试文件 → `test_project/<项目编号>/tests/e2e/{module}.spec.ts`
-- L4 UI 测试文件 → `test_project/<项目编号>/tests/ui/{module}.spec.ts`
-- 一个文件包含多个 `test()` 块（按功能分组），详见文件组织规则
+目录结构见 `03-test-output.md`「脚本目录结构（强制）」章节。
+
 - 截图路径 → `test_project/<项目编号>/results/{module}/screenshots/tc-{编号}-{简称}.png`
 
 ## 代码结构（强制）
@@ -151,15 +161,18 @@ L4 同理写入 `tests/ui/{module}.spec.ts`。
 // TEST-LEVEL: L3|L4
 // TEST-TARGET: <目标页面/功能>
 // MODULE: <模块名>
-// TC: TC-XXX, TC-YYY
+// TC: TC-XXX
 
-test.describe('描述', () => {
-  test('场景名', async ({ page }) => {
-    await test.step('TC-XXX: 步骤描述', async () => {
-      // 操作代码（来自录制日志）
-      // 断言
-      // 截图
-    });
+import { test, expect } from '@playwright/test';
+
+test('TC-XXX: 测试名称', async ({ page }) => {
+  await test.step('TC-XXX-1: 步骤描述', async () => {
+    // 操作代码（来自录制日志）
+    // 断言
+    // 截图
+  });
+  await test.step('TC-XXX-2: 步骤描述', async () => {
+    // ...
   });
 });
 ```

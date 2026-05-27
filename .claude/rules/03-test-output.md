@@ -16,11 +16,32 @@ results/
 - 同模块重测时覆盖
 - 截图只能引用同模块目录，禁止跨模块复用
 
+## 脚本目录结构（强制）
+
+```
+test_project/<NN-Project>/
+└── tests/
+    ├── e2e/
+    │   └── {module}/
+    │       ├── tc-{编号}-{简称}.spec.ts   # L3 E2E 每个 TC 一个文件
+    │       ├── tc-{编号}-{简称}.spec.ts
+    │       └── ...
+    └── ui/
+        └── {module}/
+            ├── tc-{编号}-{简称}.spec.ts   # L4 UI 每个 TC 一个文件
+            ├── tc-{编号}-{简称}.spec.ts
+            └── ...
+```
+
+- 每个 TC 一个独立文件，不加 `describe` 包裹
+- 模块子文件夹由 `generator_write_test` 自动创建
+- 使用 `test.step('TC-XXX-N: 步骤描述', ...)` 标注每个步骤
+
 ## 文件命名
 
 | 类型 | 格式 | 示例 |
 |------|------|------|
-| 测试文件 | `{module}.spec.ts`（一个模块所有 TC 写入同一文件） | `member.spec.ts` |
+| 测试文件 | `tc-{编号}-{简称}.spec.ts` | `tc-001-add-member.spec.ts` |
 | 截图文件 | `tc-{编号}-{简称}.png` | `tc-001-login-page.png` |
 | 模块目录 | kebab-case | `user-management/` |
 | 模块名 | 与 `plans/` 文件名一致 | `role-management` |
@@ -35,12 +56,12 @@ results/
 // TEST-LEVEL: L1|L2|L3|L4
 // TEST-TARGET: <目标页面/功能>
 // MODULE: <模块名>
-// TC: TC-XXX, TC-YYY  （本文件覆盖的 TC 编号）
+// TC: TC-XXX  （本文件覆盖的 TC 编号）
 ```
 
 代码结构：
-- `test.describe()` 包裹，名称与计划一致
-- `test.step('TC-XXX: 步骤描述', ...)` 标注每个步骤
+- 每个文件只有一个 `test()` 块，不对应 `describe` 包裹
+- `test.step('TC-XXX-N: 步骤描述', ...)` 标注每个步骤
 - 每步骤前加注释，避免重复注释
 
 ## progress.txt 格式

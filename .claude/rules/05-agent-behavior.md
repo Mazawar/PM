@@ -127,10 +127,10 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 
 ### 代码生成（强制）
 
-- 文件头部必须包含完整元信息注释（TEST-ID, MODULE, TC 映射）
-- 使用 `test.describe()` + `test.step('TC-XXX: ...')` 结构，一个文件包含多个 `test()` 块
-- 文件命名：`{module}.spec.ts`（一个模块所有 TC 写入同一个文件，如 `member.spec.ts` 包含全部增删改查搜索分页测试）
-- 写入 `tests/e2e/` 或 `tests/ui/` 子目录
+- 文件头部必须包含完整元信息注释（TEST-ID, MODULE, TC 编号）
+- 每个 TC 一个独立文件，使用 `test.step('TC-XXX-N: ...')` 结构，**不加** `describe` 包裹
+- 文件命名：`{module}/tc-{编号}-{简称}.spec.ts`（如 `member/tc-001-add-member.spec.ts`）
+- 写入 `tests/e2e/` 或 `tests/ui/` 子目录下的模块子文件夹
 - 用 `page.screenshot()` 主动截图，不依赖自动截图
 - 代码中的选择器必须来自 `generator_read_log` 的录制输出，禁止凭记忆重构
 
