@@ -103,7 +103,7 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 4. 操作失败时调整选择器重试（最多 3 次）
 5. **此阶段只执行浏览器操作，不写测试代码**
 
-**阶段二：生成代码（从录制日志提取 + 组装）**
+**阶段二：组装并写入（立即写入）**
 
 6. 当前用例操作完成后，调 `generator_read_log` 获取 Playwright 自动生成的代码
 7. 从日志提取各步骤的操作代码，直接使用其中的选择器
@@ -111,12 +111,13 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
    - `expect()` 断言 — 按测试计划预期
    - `await page.waitForTimeout(1000)` — 每次 click 类操作后
    - `page.screenshot({ path: ... })` — 关键节点
-9. 组装完整文件（头部注释 + imports + describe 包裹 + test.step 结构）
-10. 调用 `generator_write_test` 写入文件
+9. 组装 `test()` 块，调用 `generator_write_test` 立即写入文件
+   - 第一个用例：写入完整文件（头部 + imports + describe + 当前 test() 块）
+   - 后续用例：读已有文件 → 追加新 test() 块到 describe 内 → 整体写回
 
 **阶段三：下一个用例**
 
-11. 重复阶段一和阶段二，开始新的录制会话（新的 `generator_setup_page`）
+11. 重复阶段一和二，开始新的录制会话（新的 `generator_setup_page`）
 
 **禁止**：一个录制会话做多个测试用例的操作后再统一生成代码。
 
