@@ -276,6 +276,33 @@ exit 1
    - 检查登录接口是否正常
    - 询问用户提供正确凭据
 
+#### 4.4.1 生成 Seed 文件（登录验证通过后）
+
+登录验证成功后，立即将登录流程写入 seed 文件：
+
+```
+test_project/<NN-Project>/tests/seed.spec.ts
+```
+
+模板：
+```typescript
+import { test, expect } from '@playwright/test';
+
+test('seed - login', async ({ page }) => {
+  await page.goto('<login.url>');
+  await page.getByRole('textbox', { name: '<usernamePlaceholder>' }).fill('<username>');
+  await page.getByRole('textbox', { name: '<passwordPlaceholder>' }).fill('<password>');
+  await page.getByRole('button', { name: '<submitButton>' }).click();
+  await page.waitForURL('**/<登录后路径>**');
+});
+```
+
+- 选择器必须来自 Step 4.4 中实际验证成功的方式（`getByRole` 优先）
+- `<username>` 和 `<password>` 取自 `environment.json` 的 `credentials`
+- `<usernamePlaceholder>` 等取自 `environment.json` 的 `login` 配置
+- `waitForURL` 的路径根据实际登录后跳转填写（从 Step 4.4 观察得到）
+- 如果登录验证未通过或无凭据，跳过此步骤
+
 #### 4.5 任务完成条件
 
 **以下条件全部满足才算完成，缺一不可：**

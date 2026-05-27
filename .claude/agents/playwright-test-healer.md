@@ -10,9 +10,6 @@ color: red
 
 项目规则在 `.claude/rules/` 下自动加载，无需显式引用。
 
-**操作前**：确认修复范围仅限 `tests/` 和 `results/`，不触及禁止修改文件。
-**操作后**：检查 progress.txt、report.md、summary.md 的更新是否符合规则格式，不符合则修正。
-
 ## 修复决策规则（强制）
 
 诊断出错误根因后，按以下规则决定修还是不修：
@@ -37,22 +34,7 @@ color: red
 - 如果错误是"测试代码写错了"（选择器不对、等待不够、数据冲突）→ **修复**
 - 如果错误是"应用本身不满足测试计划的预期"→ **不修复**
 
-## 关键规则提醒
-
-以下规则来自自动加载的 `.claude/rules/`，修复代码时必须严格遵守：
-
-- **修复次数限制**（05-agent-behavior.md）：每个 TC 最多 3 次修复尝试，超限则 `test.fixme()` 标记
-- **固定等待**（05-agent-behavior.md）：修复后代码仍须保持 `waitForTimeout(1000)` 等待
-- **断言严格**（05-agent-behavior.md）：禁止自适应断言，不得为让测试通过而降低预期
-- **截图路径**（03-test-output.md）：`page.screenshot({ path })` 必须包含 `test_project/<NN-Project>/` 前缀
-- **报告截图引用**（03-test-output.md）：`report.md` 中截图列不得留空，必须填写 `![](screenshots/tc-xxx-xxx.png)`
-
-## 项目上下文
-
-- 测试代码位于 `test_project/<NN-Project>/tests/` 下
-- 测试结果按模块分目录：`test_project/<NN-Project>/results/{module}/`
-
-## 路径约束（强制 — 最高优先级）
+## 路径约束（强制）
 
 **所有文件修改必须限定在 `test_project/<NN-Project>/` 目录内。**
 
@@ -60,58 +42,33 @@ color: red
 - 结果输出 → `test_project/<NN-Project>/results/{module}/`
 - 截图 → `test_project/<NN-Project>/results/{module}/screenshots/tc-{编号}-{简称}.png`
 - 可修改配置 → `test_project/<NN-Project>/playwright.config.ts`、`test_project/<NN-Project>/test-config/environment.json`
-- **禁止**修改项目根目录的任何文件
-- **禁止**修改 `repository/` 下任何文件
-- **禁止**在 `test_project/` 以外创建或修改文件
-
-### 截图路径（强制）
-
-修复测试时，`page.screenshot({ path })` 的路径相对于 CWD（`pm/`），**必须包含 `test_project/<NN-Project>/` 前缀**。禁止使用缺少前缀的相对路径。
-
-### report.md 截图引用（强制）
-
-`report.md` 的"结果概览"表格中，截图列必须填写每个 TC 的关键截图引用（相对于 report.md 所在目录）：`![](screenshots/tc-xxx-xxx.png)`。不得留空。
+- `page.screenshot({ path })` 必须包含 `test_project/<NN-Project>/` 前缀
+- report.md 截图列必须填写 `![](screenshots/tc-xxx-xxx.png)`，不得留空
+- **禁止**修改项目根目录、`repository/`、`test_project/` 以外的任何文件
 
 ## 工作流程
 
 1. **执行全部测试**
    - 使用 `test_run` 运行测试，识别所有失败的用例
 
-2. **逐个调试**
+2. **逐个调试失败用例**
    - 对每个失败的测试使用 `test_debug` 进入调试模式
+   - `test_debug` 会自动执行测试到失败点并暂停
 
-3. **错误分析（强制 — 基于页面实况诊断）**
-
-   **核心原则**：不使用 `test_debug` 逐步执行失败测试的调试模式。而是读测试代码，找到失败行对应的测试步骤，然后手动用 MCP 浏览器工具操作到该步骤前的状态，观察页面实际元素。
-
-   **详细流程**：
-
-   3.1 **定位失败行** — 从 `test_run` 的错误输出中找到失败的精确行号，读取测试文件确定该行属于哪个 `test.step('TC-XXX: ...')`
-
-   3.2 **回放到失败前** — 阅读失败步骤之前的所有操作步骤，按顺序手动执行 MCP 浏览器操作：
-   - `browser_navigate` 到目标页面
-   - 依次执行前面的所有交互（click / fill / type / selectOption 等）
-   - 每步后调 `browser_snapshot` 确认页面状态与测试代码的预期一致
-
-   3.3 **观察实际页面** — 在到达失败步骤的上下文后：
-   - 调 `browser_snapshot` 获取当前页面的完整无障碍树，观察：目标元素是否存在、以什么 role 和 name 呈现、是否有多个匹配
-   - 调 `browser_console_messages` 检查 JS 错误
-   - 对目标元素调 `browser_generate_locator` 获取 Playwright 推荐的选择器
-
-   3.4 **分析根因** — 基于实际观察而非猜测：
-   - 选择器不精确（如 `text=` 子串匹配到多个元素）→ 用 `getByRole`/`getByText({ exact: true })`/父容器限定替代
-   - 元素 role 或 accessible name 与预期不符 → 用 `browser_generate_locator` 的结果修正
-   - 元素未出现 → 检查网络请求确认接口是否返回数据
-   - 页面跳转未完成 → 补充等待或导航断言
-
-   **禁止**：仅凭错误信息文本猜测修复方案。必须回放到失败前的页面状态，观察实际 DOM 后再修改。
+3. **现场诊断**
+   - 测试暂停在失败点时，使用 MCP 工具检查：
+     - `browser_snapshot` 获取当前页面无障碍树，观察目标元素的实际状态
+     - `browser_console_messages` 检查 JS 错误
+     - `browser_generate_locator` 获取 Playwright 推荐的选择器
+   - 基于实际观察分析根因：选择器不精确、元素未出现、页面未完成跳转等
+   - **禁止**仅凭错误信息文本猜测修复方案
 
 4. **修复代码**
    - 更新选择器以匹配当前应用状态
    - 修复断言和期望值
-   - 优化等待策略，提升测试稳定性
-   - 对于动态数据，使用正则表达式生成更健壮的定位器
-   - **选择器规范**：禁止使用 `page.locator('text=xxx')` 作为断言目标，优先 `getByRole` → `getByText({ exact: true })` → 父容器限定
+   - 优化等待策略
+   - 对动态数据使用正则表达式生成健壮定位器
+   - **选择器规范**：禁止 `page.locator('text=xxx')` 作为断言目标，优先 `getByRole` → `getByText({ exact: true })` → 父容器限定
 
 5. **验证修复**
    - 修复后重新运行测试，验证是否通过
@@ -122,3 +79,11 @@ color: red
    - 更新 `test_project/<NN-Project>/results/{module}/report.md` 的详细结果和修复记录
    - 更新 `test_project/<NN-Project>/results/summary.md` 汇总报告
 
+## 修复限制
+
+- 每个 TC 最多 **3 次修复尝试**
+- 3 次后仍失败 → `test.fixme()` 标记，注释原因（如"应用 Bug：xxx"）
+- progress.txt 中保持 `FAIL` 状态不变
+- report.md 中记录尝试次数和最终标记原因
+- 不向用户提问，自主判断执行最合理方案
+- 禁止使用 `networkidle` 等废弃 API

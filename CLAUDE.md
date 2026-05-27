@@ -42,6 +42,7 @@ pm/
 |------|------|
 | `playwright.config.ts` | 项目级 Playwright 配置（独立 baseURL、outputDir） |
 | `test-config/environment.json` | 环境配置（端口、凭据、技术栈、中间件、启动命令、healthCheck） |
+| `tests/seed.spec.ts` | 登录种子文件（Planner/Generator 共享，自动登录） |
 | `start.sh` | 一键启动脚本（端口检查 + 健康检查） |
 | `SETUP.md` | 环境启动报告（实际验证结果） |
 

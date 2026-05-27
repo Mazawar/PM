@@ -26,6 +26,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 3. 生成环境配置文件：
    - `playwright.config.ts` — 项目级 Playwright 配置，独立 baseURL
    - `test-config/environment.json` — 端口、凭据、技术栈、中间件、启动命令、健康检查
+   - `tests/seed.spec.ts` — 登录种子文件（登录验证通过后生成，供 Planner/Generator 自动登录）
    - `start.sh` — 一键启动脚本（端口检查 + 健康检查）
 4. 验证环境（服务可达性、页面加载、登录验证）
 5. 输出 `SETUP.md` 启动报告

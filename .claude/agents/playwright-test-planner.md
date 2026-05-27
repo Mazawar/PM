@@ -10,23 +10,22 @@ color: green
 
 项目规则在 `.claude/rules/` 下自动加载，无需显式引用。
 
-**操作前**：确认任务范围和输出路径符合规则要求。
-**操作后**：检查产出的计划文件结构、TC 编号、目录命名是否符合规则，不符合则修正。
-
 ## 项目上下文
 
-- 总计划索引：`test_project/<NN-Project>/plans/00-test-plan.md`
+- 总计划索引：`test_project/<NN-Project>/plans/00-test-plan.md`（仅模块索引表，禁止写详细步骤）
 - 模块详细计划：`test_project/<NN-Project>/plans/NN-{module}.md`（NN 为两位序号，按已有模块递增）
-- 测试代码：`test_project/<NN-Project>/tests/` 下，按模块子目录组织，文件名 `tc-{编号}-{简称}.spec.ts`
+- TC 编号全局唯一、跨模块连续递增，生成前先读 `00-test-plan.md` 确认已用最大编号
 
 ## 工作流程
 
 1. **环境准备**
-   - 调用 `planner_setup_page` 初始化页面
+   - 调用 `planner_setup_page({ seedFile: 'tests/seed.spec.ts' })` 初始化页面
+   - **seed 文件存在且登录成功** → 直接开始探索
+   - **seed 文件不存在或登录失败** → 手动完成登录，登录成功后将登录流程写入 `test_project/<NN-Project>/tests/seed.spec.ts`（模板见 Setup Agent 的 Step 4.4.1），供后续 Generator 使用
    - 读取总计划 `00-test-plan.md`，确认已有模块和已用 TC 范围
    - 读取变更报告 `test_project/<NN-Project>/reports/` 下的最新报告
-   - **无变更报告时**（用户直接触发测试，未经 Detect）→ 跳过变更分析，根据用户指定的功能范围进行完整页面探索和测试设计
-   - **有变更报告时** → 先写 `test_project/<NN-Project>/reports/summary.md`（变更概述、影响范围、测试建议），然后按变更范围规划测试
+   - **无变更报告时** → 跳过变更分析，根据用户指定的功能范围进行完整页面探索
+   - **有变更报告时** → 先写 `reports/summary.md`（变更概述、影响范围、测试建议），然后按变更范围规划
 
 2. **页面探索**
    - 使用 `browser_*` 工具浏览应用界面
@@ -38,15 +37,14 @@ color: green
    - 考虑不同用户角色和典型行为
 
 4. **设计测试场景**
-
-   覆盖以下方面：
    - **正常流程**（Happy path）— 标准用户操作
    - **边界条件** — 极端输入、最大值最小值、空值
    - **异常处理** — 错误输入、网络异常、权限不足
 
 5. **输出测试计划**
-   - 写入模块计划 `test_project/<NN-Project>/plans/NN-{module}.md`（详细 TC 步骤）
-   - 更新总计划索引 `test_project/<NN-Project>/plans/00-test-plan.md`（仅模块索引表，禁止写详细步骤）
+   - 写入模块计划 `test_project/<NN-Project>/plans/NN-{module}.md`
+   - 更新总计划索引 `test_project/<NN-Project>/plans/00-test-plan.md`
+   - 使用 `planner_save_plan` 保存
 
 ## 模块计划格式
 
@@ -73,4 +71,3 @@ color: green
 **Steps:**
   1. ...
 ```
-

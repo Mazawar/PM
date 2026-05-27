@@ -21,7 +21,8 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 
 ### 页面状态确认
 
-- 每次关键操作前用 `browser_snapshot` 确认当前页面状态
+- 在关键操作前用 `browser_snapshot` 确认当前页面状态（页面跳转后、弹窗出现/关闭后、操作结果不确定时）
+- 不需要每步操作都 snapshot，避免不必要的开销
 - 如果页面 URL 与预期不符，先 `browser_navigate` 修正再继续
 - 遇到 about:blank → 立即 navigate 到目标 URL，不要尝试其他操作
 
@@ -99,7 +100,7 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 
 1. 调用 `generator_setup_page` 初始化新录制会话
 2. 逐步骤执行 MCP 浏览器操作（navigate/click/fill/type/selectOption 等）
-3. 每步操作后调 `browser_snapshot` 确认页面状态
+3. **snapshot 策略**：不需要每步都 snapshot，仅在页面跳转后、弹窗出现/关闭后、操作结果不确定时 snapshot
 4. 操作失败时调整选择器重试（最多 3 次）
 5. **此阶段只执行浏览器操作，不写测试代码**
 
