@@ -44,9 +44,9 @@ test_project/<NN-Project>/
 | 测试文件 | `tc-{编号}-{简称}.spec.ts` | `tc-001-add-member.spec.ts` |
 | 截图文件 | `tc-{编号}-{简称}.png` | `tc-001-login-page.png` |
 | 模块目录 | kebab-case | `user-management/` |
-| 模块名 | 与 `plans/` 文件名一致 | `role-management` |
+| 模块名 | 与 `plans/` 文件名去掉序号前缀后一致 | `01-role-management` → `role-management` |
 
-测试文件必须写入 `tests/e2e/` 或 `tests/ui/` 子目录。
+测试文件必须写入 `test_project/<NN-Project>/tests/e2e/` 或 `test_project/<NN-Project>/tests/ui/` 子目录，禁止写入项目根目录的 `tests/` 或 `e2e/`。
 
 ## 测试文件头部（强制）
 
@@ -140,9 +140,9 @@ TC-003:PASS
 test_project/<NN-Project>/results/{module}/screenshots/tc-{编号}-{简称}.png
 ```
 
-示例：`test_project/02-oa-llm/results/annual-project-setup/screenshots/tc-001-login-page.png`
+示例：`test_project/<NN-Project>/results/{module}/screenshots/tc-001-login-page.png`
 
-**禁止**使用缺少 `test_project/<NN>/` 前缀的相对路径（如 `results/screenshots/...`），这会导致截图写入错误位置。
+**禁止**使用缺少 `test_project/<NN-Project>/` 前缀的相对路径（如 `results/screenshots/...`），这会导致截图写入错误位置。
 
 ### 报告中引用截图（强制）
 

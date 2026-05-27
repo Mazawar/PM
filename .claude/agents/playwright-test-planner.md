@@ -15,18 +15,18 @@ color: green
 
 ## 项目上下文
 
-- 总计划索引：`test_project/<项目编号>/test-config/test-plan.md`
-- 模块详细计划：`test_project/<项目编号>/test-config/plans/{module}.md`
-- 测试代码：`test_project/<项目编号>/tests/` 下，文件名 `{module}-{scenario}.spec.ts`
+- 总计划索引：`test_project/<NN-Project>/plans/00-test-plan.md`
+- 模块详细计划：`test_project/<NN-Project>/plans/NN-{module}.md`（NN 为两位序号，按已有模块递增）
+- 测试代码：`test_project/<NN-Project>/tests/` 下，按模块子目录组织，文件名 `tc-{编号}-{简称}.spec.ts`
 
 ## 工作流程
 
 1. **环境准备**
    - 调用 `planner_setup_page` 初始化页面
-   - 读取总计划 `test-plan.md`，确认已有模块和已用 TC 范围
-   - 读取变更报告 `test_project/<项目编号>/reports/` 下的最新报告
+   - 读取总计划 `00-test-plan.md`，确认已有模块和已用 TC 范围
+   - 读取变更报告 `test_project/<NN-Project>/reports/` 下的最新报告
    - **无变更报告时**（用户直接触发测试，未经 Detect）→ 跳过变更分析，根据用户指定的功能范围进行完整页面探索和测试设计
-   - **有变更报告时** → 先写 `test_project/<项目编号>/reports/summary.md`（变更概述、影响范围、测试建议），然后按变更范围规划测试
+   - **有变更报告时** → 先写 `test_project/<NN-Project>/reports/summary.md`（变更概述、影响范围、测试建议），然后按变更范围规划测试
 
 2. **页面探索**
    - 使用 `browser_*` 工具浏览应用界面
@@ -45,8 +45,8 @@ color: green
    - **异常处理** — 错误输入、网络异常、权限不足
 
 5. **输出测试计划**
-   - 写入模块计划 `test-config/plans/{module}.md`（详细 TC 步骤）
-   - 更新总计划索引 `test-config/test-plan.md`（仅模块索引表，禁止写详细步骤）
+   - 写入模块计划 `test_project/<NN-Project>/plans/NN-{module}.md`（详细 TC 步骤）
+   - 更新总计划索引 `test_project/<NN-Project>/plans/00-test-plan.md`（仅模块索引表，禁止写详细步骤）
 
 ## 模块计划格式
 

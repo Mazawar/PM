@@ -21,8 +21,8 @@ test_project/<NN-Project>/
 ├── playwright.config.ts       # 项目级 Playwright 配置（必须）
 ├── vitest.config.ts           # 项目级 Vitest 配置（L2 API 测试，Setup Agent 生成）
 ├── plans/                     # 测试计划
-│   ├── test-plan.md           # 总计划索引（仅模块索引表）
-│   └── {module}.md            # 模块详细计划
+│   ├── 00-test-plan.md        # 总计划索引（仅模块索引表）
+│   └── NN-{module}.md         # 模块详细计划（NN 为两位序号，按模块递增）
 ├── start.sh                   # 一键启动脚本（Setup Agent 生成）
 ├── test-config/
 │   └── environment.json       # 环境配置（技术栈、端口、凭据、中间件、启动命令）
@@ -30,7 +30,13 @@ test_project/<NN-Project>/
 │   ├── unit/                 # L1
 │   ├── api/                  # L2
 │   ├── e2e/                  # L3
+│   │   └── {module}/         # 按模块分子目录
+│   │       ├── tc-{编号}-{简称}.spec.ts
+│   │       └── ...
 │   └── ui/                   # L4
+│       └── {module}/
+│           ├── tc-{编号}-{简称}.spec.ts
+│           └── ...
 ├── results/
 │   ├── summary.md
 │   └── {module}/
@@ -111,7 +117,7 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 
 ### 触发时机
 
-每次测试前，主会话检查 `test_project/<NN>/playwright.config.ts` 是否存在：
+每次测试前，主会话检查 `test_project/<NN-Project>/playwright.config.ts` 是否存在：
 - **不存在** → 启动 Setup Agent 分析源码并生成配置
 - **已存在** → 检查服务是否运行，跳过配置步骤
 

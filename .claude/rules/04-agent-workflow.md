@@ -13,7 +13,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 4. **Plan** — planner agent 生成测试计划，**用户确认**
 5. **Generate** — generator agent 生成测试代码，**用户确认**
 6. **Execute** — 运行测试，失败交 healer agent
-7. **Report** — 主会话汇总结果（生成/更新 `progress.txt`、`report.md`、`results/summary.md`），向用户汇报
+7. **Report** — 主会话汇总结果（生成/更新 `test_project/<NN-Project>/results/` 下的 progress.txt、report.md、summary.md），向用户汇报
 8. **Publish** — Report 阶段全部通过后，主会话**必须主动询问**用户是否发布；用户确认后启动 publisher agent，编译打包项目并上传附件到 Gitee Release
 
 ## 流程阶段可见性（强制）
@@ -40,7 +40,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 1. 接收任务 → 环境检查（无配置启动 Setup Agent，已配置则跳过）
 2. 启动 planner → planner 同时负责 Analyze（读变更报告）和 Plan → 审阅计划 → 确认后启动 generator
 3. 首次运行测试 → 有失败则启动 healer
-4. 汇总结果 → 生成/更新 `progress.txt`、`report.md`、`results/summary.md` → 向用户汇报
+4. 汇总结果 → 生成/更新 `test_project/<NN-Project>/results/` 下的 progress.txt、report.md、summary.md → 向用户汇报
 5. **Publish 询问** — 测试**全部通过**后，必须主动询问"是否发布到 Git Release"，不可等待用户提出；有失败时询问"是否修复后发布"
 
 **关键**：测试生成后运行若出现 **TimeoutError**，**必须委托 healer**，禁止主会话逐步排查。
@@ -49,7 +49,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 
 每次测试前，主会话**必须**检查目标项目环境：
 
-1. 检查 `test_project/<NN>/playwright.config.ts` 和 `test-config/environment.json` 是否存在
+1. 检查 `test_project/<NN-Project>/playwright.config.ts` 和 `test_project/<NN-Project>/test-config/environment.json` 是否存在
 2. **不存在**（未配置）→ 启动 Setup Agent（`Agent(subagent_type="project-manage-setup")`）
    - Agent 分析源码、推断端口和凭据
    - 生成 `playwright.config.ts`、`environment.json`、`start.sh`、`SETUP.md`
@@ -66,9 +66,9 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 
 ### 结果文件生成（每次测试后）
 
-1. **`results/{module}/progress.txt`** — 根据 Playwright 输出填写每条 TC 状态（PASS/FAIL/SKIP）
-2. **`results/{module}/report.md`** — 按规则 03 格式填写（含截图引用）
-3. **`results/summary.md`** — 聚合所有模块通过率
+1. **`test_project/<NN-Project>/results/{module}/progress.txt`** — 根据 Playwright 输出填写每条 TC 状态（PASS/FAIL/SKIP）
+2. **`test_project/<NN-Project>/results/{module}/report.md`** — 按规则 03 格式填写（含截图引用）
+3. **`test_project/<NN-Project>/results/summary.md`** — 聚合所有模块通过率
 
 ### 结果来源
 
@@ -77,7 +77,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 
 ### 禁止空结果
 
-**不允许**测试运行后 `results/` 目录下没有 progress.txt 和 report.md。即使全部通过也必须生成。
+**不允许**测试运行后 `test_project/<NN-Project>/results/` 目录下没有 progress.txt 和 report.md。即使全部通过也必须生成。
 
 ### 测试报告通知（可选）
 
@@ -111,7 +111,7 @@ Report → 用户询问 ┤                  构建 → 确认发布 → 打 Tag
 
 - Agent 始终 **先提议，等用户确认** 后再执行
 - 未经用户批准不自动执行测试
-- **项目编号传递**：主会话启动 Agent 时，**必须**在 prompt 中传递项目编号（如 `02-oa-llm`）和关键路径信息
+- **项目编号传递**：主会话启动 Agent 时，**必须**在 prompt 中传递项目编号（如 `01-xxx`）和关键路径信息
 - **项目编号验证**：Agent 启动后必须首先确认项目编号有效（检查 `test_project/<NN-Project>/` 目录存在），无效则立即报错退出，不继续执行
 - 启动命令：
   - planner: `Agent(subagent_type="playwright-test-planner")`
@@ -140,10 +140,10 @@ Report → 用户询问 ┤                  构建 → 确认发布 → 打 Tag
 - `.claude/rules/` 规则文件
 - `repository/` 下的源码
 
-**例外**：`test_project/<NN>/playwright.config.ts` 和 `test-config/environment.json` 由 Setup Agent 和 `healer` agent 管理。
+**例外**：`test_project/<NN-Project>/playwright.config.ts` 和 `test_project/<NN-Project>/test-config/environment.json` 由 Setup Agent 和 `healer` agent 管理。
 
 ### `.last_hash` 保护（强制）
 
-- `test_project/<NN>/.last_hash` 是扫描脚本的变更追踪基准，**任何 Agent 禁止删除或清空**
+- `test_project/<NN-Project>/.last_hash` 是扫描脚本的变更追踪基准，**任何 Agent 禁止删除或清空**
 - Setup Agent 创建目录时，若 `.last_hash` 已存在必须保留原内容
 - 仅 `scan.sh` 有权写入 `.last_hash`

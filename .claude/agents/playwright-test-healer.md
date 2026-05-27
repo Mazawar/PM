@@ -44,29 +44,29 @@ color: red
 - **修复次数限制**（05-agent-behavior.md）：每个 TC 最多 3 次修复尝试，超限则 `test.fixme()` 标记
 - **固定等待**（05-agent-behavior.md）：修复后代码仍须保持 `waitForTimeout(1000)` 等待
 - **断言严格**（05-agent-behavior.md）：禁止自适应断言，不得为让测试通过而降低预期
-- **截图路径**（03-test-output.md）：`page.screenshot({ path })` 必须包含 `test_project/<项目编号>/` 前缀
+- **截图路径**（03-test-output.md）：`page.screenshot({ path })` 必须包含 `test_project/<NN-Project>/` 前缀
 - **报告截图引用**（03-test-output.md）：`report.md` 中截图列不得留空，必须填写 `![](screenshots/tc-xxx-xxx.png)`
 
 ## 项目上下文
 
-- 测试代码位于 `test_project/<项目编号>/tests/` 下
-- 测试结果按模块分目录：`test_project/<项目编号>/results/{module}/`
+- 测试代码位于 `test_project/<NN-Project>/tests/` 下
+- 测试结果按模块分目录：`test_project/<NN-Project>/results/{module}/`
 
 ## 路径约束（强制 — 最高优先级）
 
-**所有文件修改必须限定在 `test_project/<项目编号>/` 目录内。**
+**所有文件修改必须限定在 `test_project/<NN-Project>/` 目录内。**
 
-- 测试代码 → `test_project/<项目编号>/tests/` 下对应层级
-- 结果输出 → `test_project/<项目编号>/results/{module}/`
-- 截图 → `test_project/<项目编号>/results/{module}/screenshots/tc-{编号}-{简称}.png`
-- 可修改配置 → `test_project/<项目编号>/playwright.config.ts`、`test-config/environment.json`
+- 测试代码 → `test_project/<NN-Project>/tests/` 下对应层级
+- 结果输出 → `test_project/<NN-Project>/results/{module}/`
+- 截图 → `test_project/<NN-Project>/results/{module}/screenshots/tc-{编号}-{简称}.png`
+- 可修改配置 → `test_project/<NN-Project>/playwright.config.ts`、`test_project/<NN-Project>/test-config/environment.json`
 - **禁止**修改项目根目录的任何文件
 - **禁止**修改 `repository/` 下任何文件
 - **禁止**在 `test_project/` 以外创建或修改文件
 
 ### 截图路径（强制）
 
-修复测试时，`page.screenshot({ path })` 的路径相对于 CWD（`pm/`），**必须包含 `test_project/<项目编号>/` 前缀**。禁止使用缺少前缀的相对路径。
+修复测试时，`page.screenshot({ path })` 的路径相对于 CWD（`pm/`），**必须包含 `test_project/<NN-Project>/` 前缀**。禁止使用缺少前缀的相对路径。
 
 ### report.md 截图引用（强制）
 
@@ -118,7 +118,7 @@ color: red
    - 逐个修复，每次修复后重新测试
 
 6. **更新输出**
-   - 更新 `results/{module}/progress.txt` 中对应 TC 的状态
-   - 更新 `results/{module}/report.md` 的详细结果和修复记录
-   - 更新 `results/summary.md` 汇总报告
+   - 更新 `test_project/<NN-Project>/results/{module}/progress.txt` 中对应 TC 的状态
+   - 更新 `test_project/<NN-Project>/results/{module}/report.md` 的详细结果和修复记录
+   - 更新 `test_project/<NN-Project>/results/summary.md` 汇总报告
 

@@ -82,14 +82,15 @@ color: purple
 
 #### 3.1 environment.json
 
-写入 `test_project/<NN>/test-config/environment.json`：
+写入 `test_project/<NN-Project>/test-config/environment.json`：
 
 ```json
 {
   "project": "<NN-Project>",
   "url": "<仓库地址>",
-  "baseURL": "http://localhost:<端口>",
-  "port": <端口>,
+  "baseURL": "http://localhost:<前端端口>",
+  "port": <前端端口>,
+  "backendPort": <后端端口>,
   "credentials": {
     "username": "<账号>",
     "password": "<密码>"
@@ -102,19 +103,33 @@ color: purple
   "middleware": ["<中间件列表>"],
   "startCommand": {
     "frontend": "<前端启动命令>",
-    "backend": "<后端启动命令>"
+    "backend": "<后端启动命令>",
+    "full": "<一键启动命令>"
   },
   "healthCheck": {
-    "url": "http://localhost:<端口>",
+    "url": "http://localhost:<前端端口>",
     "method": "GET",
     "expectedStatus": 200
+  },
+  "dbConfig": {
+    "url": "<数据库连接串>",
+    "note": "<连接说明>"
+  },
+  "login": {
+    "url": "/login",
+    "usernamePlaceholder": "<账号输入框 placeholder>",
+    "passwordPlaceholder": "<密码输入框 placeholder>",
+    "submitButton": "<登录按钮文字>"
+  },
+  "notification": {
+    "recipients": ["<通知邮箱>"]
   }
 }
 ```
 
 #### 3.2 playwright.config.ts
 
-写入 `test_project/<NN>/playwright.config.ts`：
+写入 `test_project/<NN-Project>/playwright.config.ts`：
 
 ```typescript
 import { defineConfig } from '@playwright/test';
@@ -137,7 +152,7 @@ export default defineConfig({
 
 #### 3.3 start.sh（一键启动脚本）
 
-写入 `test_project/<NN>/start.sh`：
+写入 `test_project/<NN-Project>/start.sh`：
 
 ```bash
 #!/bin/bash
@@ -199,8 +214,8 @@ exit 1
 
 **在进入 Step 4 之前，必须验证 start.sh 能否正常执行。**
 
-1. **语法检查** — 运行 `bash -n test_project/<NN>/start.sh`，确保无语法错误
-2. **试运行** — 运行 `bash test_project/<NN>/start.sh`，观察输出：
+1. **语法检查** — 运行 `bash -n test_project/<NN-Project>/start.sh`，确保无语法错误
+2. **试运行** — 运行 `bash test_project/<NN-Project>/start.sh`，观察输出：
    - 端口检测逻辑是否正确识别当前状态（已运行 / 未运行）
    - 健康检查是否能正常完成
    - 脚本是否因命令不存在（如 Windows 下 `lsof`）而报错
@@ -219,7 +234,7 @@ exit 1
 #### 4.1 执行启动
 
 1. **检查端口占用** — 如果目标端口已有服务运行，跳过启动
-2. **执行 `start.sh`** — 运行 `bash test_project/<NN>/start.sh` 启动服务
+2. **执行 `start.sh`** — 运行 `bash test_project/<NN-Project>/start.sh` 启动服务
    - 如果 start.sh 启动失败，分析错误原因
    - 常见问题：依赖未安装 → 在仓库目录执行 `pnpm install` / `npm install` / `mvn install`
    - 端口冲突 → 调整端口配置
@@ -290,7 +305,7 @@ exit 1
 
 ### Step 5: 输出启动报告
 
-写入 `test_project/<NN>/SETUP.md`：
+写入 `test_project/<NN-Project>/SETUP.md`：
 
 ```markdown
 # <NN-Project> 环境启动报告
@@ -307,7 +322,7 @@ exit 1
 | ... | ✅/❌ | ... |
 
 ## 启动方式
-一键启动: `bash test_project/<NN>/start.sh`
+一键启动: `bash test_project/<NN-Project>/start.sh`
 手动启动:
 - 前端: `<命令>`
 - 后端: `<命令>`
@@ -328,13 +343,13 @@ exit 1
 - <特殊配置要求>
 
 ## 测试执行命令
-npx playwright test --config=test_project/<NN>/playwright.config.ts
+npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
 ```
 
 ## 约束
 
-- 所有文件写入 `test_project/<NN>/` 下，禁止修改 `repository/` 或全局配置
-- `test_project/<NN>/.last_hash` 是变更追踪文件，禁止删除或清空
+- 所有文件写入 `test_project/<NN-Project>/` 下，禁止修改 `repository/` 或全局配置
+- `test_project/<NN-Project>/.last_hash` 是变更追踪文件，禁止删除或清空
 - 端口信息优先从配置文件推断，推断不了再询问用户
-- 启动脚本仅包含检查和启动逻辑，不包含安装依赖（假设用户已安装）
+- 启动脚本优先检查依赖，缺失时自动安装（`pnpm install` / `npm install`）
 - **验证必须通过**：不允许在服务未运行或验证失败时报告"配置完成"

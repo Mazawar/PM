@@ -9,7 +9,7 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 
 ### 不假设浏览器状态
 
-- Agent 启动时**必须**先调用 `browser_navigate` 导航到目标 URL（完整路径如 `http://localhost:5173/login`）
+- Agent 启动时**必须**先调用 `browser_navigate` 导航到目标 URL（完整路径如 `http://localhost:{port}/login`，端口从 environment.json 获取）
 - **禁止**假设浏览器处于任何特定页面（可能是 about:blank、登录页、或上一次操作的残留页）
 - 即使 `setup_page` 已调用，也要在后续操作前确认页面 URL 正确
 
@@ -69,14 +69,14 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 ### TC 编号管理（强制）
 
 - TC 编号 **全局唯一**，跨模块连续递增
-- 生成前先读取 `test-plan.md`，确认已用最大编号，从下一个开始
+- 生成前先读取 `00-test-plan.md`，确认已用最大编号，从下一个开始
 - 每个模块分配编号范围，记录在总计划索引
 - 预留编号间隙便于后续新增
 
 ### 计划分层（强制）
 
-- `plans/test-plan.md` — **仅** Application Overview + 模块索引表
-- `plans/{module}.md` — **所有**详细内容（TC 步骤、expect）
+- `test_project/<NN-Project>/plans/00-test-plan.md` — **仅** Application Overview + 模块索引表
+- `test_project/<NN-Project>/plans/NN-{module}.md` — **所有**详细内容（TC 步骤、expect），NN 为两位序号
 - 禁止在总计划中写详细步骤，禁止在模块计划中省略步骤
 
 ### 行为约束
@@ -111,9 +111,7 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
    - `expect()` 断言 — 按测试计划预期
    - `await page.waitForTimeout(1000)` — 每次 click 类操作后
    - `page.screenshot({ path: ... })` — 关键节点
-9. 组装 `test()` 块，调用 `generator_write_test` 立即写入文件
-   - 第一个用例：写入完整文件（头部 + imports + describe + 当前 test() 块）
-   - 后续用例：读已有文件 → 追加新 test() 块到 describe 内 → 整体写回
+9. 组装 `test()` 块，调用 `generator_write_test` 立即写入文件（每个 TC 一个独立文件，不加 describe 包裹）
 
 **阶段三：下一个用例**
 
@@ -127,10 +125,10 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 
 ### 代码生成（强制）
 
-- 文件头部必须包含完整元信息注释（TEST-ID, MODULE, TC 编号）
+- 文件头部必须包含完整元信息注释（TEST-ID, TEST-NAME, TEST-LEVEL, TEST-TARGET, MODULE, TC）
 - 每个 TC 一个独立文件，使用 `test.step('TC-XXX-N: ...')` 结构，**不加** `describe` 包裹
 - 文件命名：`{module}/tc-{编号}-{简称}.spec.ts`（如 `member/tc-001-add-member.spec.ts`）
-- 写入 `tests/e2e/` 或 `tests/ui/` 子目录下的模块子文件夹
+- 写入 `test_project/<NN-Project>/tests/e2e/` 或 `test_project/<NN-Project>/tests/ui/` 子目录下的模块子文件夹（`<NN-Project>` 由主会话传递，禁止省略）
 - 用 `page.screenshot()` 主动截图，不依赖自动截图
 - 代码中的选择器必须来自 `generator_read_log` 的录制输出，禁止凭记忆重构
 
@@ -170,7 +168,7 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 
 ### 修复范围
 
-- `test_project/<NN-Project>/tests/`、`results/`、`playwright.config.ts`、`test-config/environment.json`
+- `test_project/<NN-Project>/tests/`、`test_project/<NN-Project>/results/`、`test_project/<NN-Project>/playwright.config.ts`、`test_project/<NN-Project>/test-config/environment.json`
 - 从测试文件头 `// MODULE: xxx` 确定模块目录
 - 截图只更新对应模块目录，禁止跨模块操作
 

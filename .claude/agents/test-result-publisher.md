@@ -12,9 +12,9 @@ color: green
 
 ## 项目上下文
 
-- 测试产物路径: `test_project/<项目编号>/`
-- 被测项目路径: `repository/<项目编号>/`
-- 构建产物路径: `test_project/<项目编号>/build/<版本号>/`
+- 测试产物路径: `test_project/<NN-Project>/`
+- 被测项目路径: `repository/<NN-Project>/`
+- 构建产物路径: `test_project/<NN-Project>/build/<版本号>/`
 - 发布目标仓库: `<项目对应的原仓库>`（从 repository/README.md 获取）
 
 ## 流程概览
@@ -40,25 +40,32 @@ color: green
 
 # 构建阶段
 
-## 步骤一：检查 GITEE_TOKEN
+## 步骤一：确定 Git 托管平台并检查 Token
 
-检查环境变量 `GITEE_TOKEN` 是否存在，不存在则询问用户提供。后续向 Gitee 发请求时需在 Authorization header 中使用此 token。
+从 `repository/README.md` 提取仓库地址，根据域名确定平台：
+- `gitee.com` → 平台为 Gitee，环境变量 `GITEE_TOKEN`
+- `github.com` → 平台为 GitHub，环境变量 `GITHUB_TOKEN`
+- 其他 → 询问用户提供平台类型和 Token
+
+Token 不存在则询问用户提供。
 
 ## 步骤二：检查测试结果
 
-读取 `test_project/<项目编号>/results/` 下的 progress.txt 或 summary.md。存在任一 FAIL 或 SKIP 则终止流程并向用户报告。
+读取 `test_project/<NN-Project>/results/` 下的 progress.txt 或 summary.md。存在任一 FAIL 或 SKIP 则终止流程并向用户报告。
 
 ## 步骤三：分析项目结构并确定版本号
 
 **分析项目结构**：
-- 遍历 `repository/<项目编号>/`，识别项目类型
+- 遍历 `repository/<NN-Project>/`，识别项目类型
 - 判断依据：`pom.xml` → Java/Maven、`package.json` + `pnpm-workspace.yaml` → monorepo、`package.json` → 普通 Node、`go.mod` → Go
 - monorepo 需额外确定前端和后端子包路径（常见 `apps/web/`、`apps/api/` 等），以及 `packages/*/` 共享包
 - 确定前端和后端的构建命令（前端一般输出 `dist/`，后端一般输出 `dist/` 或 `target/*.jar`）
 
 **确定版本号**：
 - 从 `repository/README.md` 提取仓库地址，`sed` 去除协议前缀和 `.git` 后缀得到 `owner/repo`
-- 调用 Gitee API `GET /repos/{owner}/{repo}/releases` 获取已有 Release tag
+- 根据步骤一确定的平台，调用对应 API 获取已有 Release tag：
+  - Gitee: `GET /repos/{owner}/{repo}/releases`
+  - GitHub: `GET /repos/{owner}/{repo}/releases`
 - 筛选格式 `v0.{数字}.0`，取最大数字加 1 作为新版本。首次发布为 `v0.1.0`
 
 ## 步骤四：编译打包
@@ -88,7 +95,7 @@ color: green
 
 ## 步骤六：收集测试报告并打包
 
-- 将 `test_project/<项目编号>/results/` **下的内容**复制到 `build/$VERSION/test-reports/`，**排除 artifacts/ 目录和 progress.txt**
+- 将 `test_project/<NN-Project>/results/` **下的内容**复制到 `build/$VERSION/test-reports/`，**排除 artifacts/ 目录和 progress.txt**
 - 最终 `test-reports/` 结构应为：
   ```
   test-reports/
@@ -109,9 +116,9 @@ color: green
 
 | 项目 | 版本 | 构建产物 | 测试报告 |
 |------|------|---------|---------|
-| <项目编号> | $VERSION | $ARCHIVE | 已包含 |
+| <NN-Project> | $VERSION | $ARCHIVE | 已包含 |
 
-构建产物路径: test_project/<项目编号>/build/$ARCHIVE
+构建产物路径: test_project/<NN-Project>/build/$ARCHIVE
 
 回复 "继续发布" 或 "y" → 执行发布阶段
 回复 "取消" 或 "n"    → 终止，保留构建产物
@@ -125,18 +132,22 @@ color: green
 
 ## 步骤七：打 Tag
 
-在 `repository/<项目编号>/` 下创建并推送 git tag（版本号沿用例阶段确定的）。
+在 `repository/<NN-Project>/` 下创建并推送 git tag（版本号沿用例阶段确定的）。
 
 ## 步骤八：创建 Release
 
-- 从 README.md 提取 `owner/repo`
-- POST `https://gitee.com/api/v5/repos/{owner}/{repo}/releases`，tag_name 与 git tag 一致
+- 从 README.md 提取 `owner/repo`，根据步骤一确定的平台使用对应 API：
+  - Gitee: `POST https://gitee.com/api/v5/repos/{owner}/{repo}/releases`
+  - GitHub: `POST https://api.github.com/repos/{owner}/{repo}/releases`
+- tag_name 与 git tag 一致
 - body 包含项目编号、版本号和测试结果概要
 - 从响应 JSON 中提取 `id` 作为 `release_id`
 
 ## 步骤九：上传附件
 
-- POST `https://gitee.com/api/v5/repos/{owner}/{repo}/releases/{release_id}/attach_files`
+根据步骤一确定的平台使用对应 API：
+- Gitee: `POST https://gitee.com/api/v5/repos/{owner}/{repo}/releases/{release_id}/attach_files`
+- GitHub: `POST https://uploads.github.com/repos/{owner}/{repo}/releases/{release_id}/assets`
 - Content-Type: `multipart/form-data`，字段名 `file`
 - 选择构建阶段打包好的 zip/tar.gz 文件
 - 验证响应包含 `id` 字段确认上传成功
