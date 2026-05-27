@@ -6,6 +6,7 @@ export default defineConfig({
   outputDir: '.claude/test-artifacts',
   use: {
     baseURL: 'http://localhost:80',
+    actionTimeout: 3000,
     headless: true,
     screenshot: 'on',
     trace: 'on-first-retry',

@@ -140,6 +140,7 @@ export default defineConfig({
   outputDir: './artifacts',
   use: {
     baseURL: 'http://localhost:<端口>',
+    actionTimeout: 3000,
     headless: true,
     screenshot: 'on',
     trace: 'on-first-retry',
