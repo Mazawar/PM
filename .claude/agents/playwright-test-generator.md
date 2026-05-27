@@ -14,7 +14,8 @@ color: blue
 
 每完成一个用例的录制后，立即提取日志、组装代码，调用 `generator_write_test` 写入模块子文件夹下的独立文件。
 
-- **每个用例**：写入单独文件 `test_project/<NN-Project>/tests/e2e/{module}/tc-{编号}-{简称}.spec.ts`
+- **每个用例**：写入单独文件 `test_project/<NN-Project>/tests/{level}/{module}/tc-{编号}-{简称}.spec.ts`
+  - `{level}` 为 `unit`（L1）、`api`（L2）、`e2e`（L3）或 `ui`（L4）
 - `<NN-Project>` 由主会话在 prompt 中传递（如 `01-oa-llm`），禁止省略
 - 模块子文件夹由 `generator_write_test` 自动创建，无需手动创建目录
 - 每个文件包含完整的头部注释 + imports + test() 块（不含 describe 包裹，因每个文件只有一个 TC）
@@ -64,6 +65,8 @@ async (page) => {
 从录制日志提取操作代码，组装成完整的测试文件代码（含头部注释、imports、test() 块、step 包裹、断言、截图、等待）。
 
 每个 TC 写入独立的文件，`generator_write_test` 的 `fileName` 格式为：
+- L1: `test_project/<NN-Project>/tests/unit/{module}/tc-{编号}-{简称}.spec.ts`
+- L2: `test_project/<NN-Project>/tests/api/{module}/tc-{编号}-{简称}.spec.ts`
 - L3: `test_project/<NN-Project>/tests/e2e/{module}/tc-{编号}-{简称}.spec.ts`
 - L4: `test_project/<NN-Project>/tests/ui/{module}/tc-{编号}-{简称}.spec.ts`
 

@@ -19,7 +19,8 @@ pm/
 │       ├── playwright.config.ts # 项目级 Playwright 配置（独立 baseURL）
 │       ├── start.sh           # 一键启动脚本（Setup Agent 生成）
 │       ├── test-config/       # 测试计划、环境配置（environment.json）
-│       ├── tests/             # 测试代码（{module}-{scenario}.spec.ts）
+│       ├── tests/             # 测试代码（unit/api/e2e/ui 各层级按模块分子目录）
+│       │   └── {level}/{module}/tc-{编号}-{简称}.spec.ts
 │       ├── SETUP.md          # 环境启动报告（Setup Agent 生成）
 │       ├── reports/           # 变更报告
 │       └── results/           # 测试执行结果（按模块分目录）
@@ -55,14 +56,14 @@ pm/
 | `01-project-invariants.md` | 项目结构、目录规范、注册表双写、Git 规则 |
 | `02-testing-framework.md` | 测试层级定义、框架选择、覆盖要求、测试数据安全 |
 | `03-test-output.md` | 结果目录结构、文件命名、progress/report 格式、截图规范 |
-| `04-agent-workflow.md` | 七阶段流程、主会话职责、调度管线、环境检查、用户确认点、禁止修改列表 |
+| `04-agent-workflow.md` | 八阶段流程、主会话职责、调度管线、环境检查、用户确认点、禁止修改列表 |
 | `05-agent-behavior.md` | planner/generator/healer 各 Agent 行为约束 |
 
-## Agent Pipeline 与七阶段流程
+## Agent Pipeline 与八阶段流程
 
 ```
-Detect → Setup → Analyze → Plan → Generate → Execute → Report
- 扫描     配置     分析      规划    生成      执行      汇报
+Detect → Setup → Analyze → Plan → Generate → Execute → Report → Publish
+ 扫描     配置     分析      规划    生成      执行      汇报      发布
 ```
 
 测试执行管线：`planner → generator → healer（按需）`
@@ -73,6 +74,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report
 2. 启动 planner → 审阅计划 → 确认后启动 generator
 3. 首次运行测试 → 有失败则启动 healer
 4. 汇总结果 → 向用户汇报
+5. 测试全部通过后 **必须主动询问** 用户是否发布到 Git Release
 
 - **Setup** 在每次测试前检查环境：无配置时启动 Setup Agent 分析源码、推断端口；已配置且服务运行则跳过
 - 每次测试前**必须**检查目标服务是否运行（读取 environment.json 的 healthCheck）
@@ -96,7 +98,10 @@ bash .claude/scripts/scan.sh          # 扫描所有项目变更
 ### 测试执行
 
 ```bash
+# L3/L4 E2E 测试
 npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
+# L2 API 测试
+npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 ```
 
 ### 测试报告邮件通知

@@ -28,7 +28,11 @@ test_project/<NN-Project>/
 │   └── environment.json       # 环境配置（技术栈、端口、凭据、中间件、启动命令）
 ├── tests/
 │   ├── unit/                 # L1
+│   │   └── {module}/
+│   │       └── tc-{编号}-{简称}.spec.ts
 │   ├── api/                  # L2
+│   │   └── {module}/
+│   │       └── tc-{编号}-{简称}.spec.ts
 │   ├── e2e/                  # L3
 │   │   └── {module}/         # 按模块分子目录
 │   │       ├── tc-{编号}-{简称}.spec.ts

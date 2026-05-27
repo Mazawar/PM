@@ -21,6 +21,12 @@ results/
 ```
 test_project/<NN-Project>/
 └── tests/
+    ├── unit/
+    │   └── {module}/
+    │       └── tc-{编号}-{简称}.spec.ts   # L1 单元测试
+    ├── api/
+    │   └── {module}/
+    │       └── tc-{编号}-{简称}.spec.ts   # L2 API 测试
     ├── e2e/
     │   └── {module}/
     │       ├── tc-{编号}-{简称}.spec.ts   # L3 E2E 每个 TC 一个文件
@@ -46,7 +52,7 @@ test_project/<NN-Project>/
 | 模块目录 | kebab-case | `user-management/` |
 | 模块名 | 与 `plans/` 文件名去掉序号前缀后一致 | `01-role-management` → `role-management` |
 
-测试文件必须写入 `test_project/<NN-Project>/tests/e2e/` 或 `test_project/<NN-Project>/tests/ui/` 子目录，禁止写入项目根目录的 `tests/` 或 `e2e/`。
+测试文件必须写入 `test_project/<NN-Project>/tests/` 对应层级（unit/api/e2e/ui）下的模块子目录，禁止写入项目根目录的 `tests/` 或 `e2e/`。
 
 ## 测试文件头部（强制）
 

@@ -77,7 +77,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 
 **Agent 职责**:
 1. 使用 `playwright-test-generator` agent 按计划生成测试代码
-2. 测试代码写入 `test_project/<NN-Project>/tests/e2e/` 或 `tests/ui/` 对应模块子目录
+2. 测试代码写入 `test_project/<NN-Project>/tests/` 对应层级（unit/api/e2e/ui）下的模块子目录
 3. 向用户展示用例概览
 
 **失败处理**: 生成后首次运行若有失败，委托 `playwright-test-healer` 修复，不在主会话手动调试。

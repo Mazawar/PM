@@ -59,7 +59,11 @@ test_project/<NN-Project>/
 │   └── NN-{module}.md          # 模块详细计划（NN 为两位序号）
 ├── tests/                      # 测试脚本代码
 │   ├── unit/                   # L1 单元测试
+│   │   └── {module}/
+│   │       └── tc-{编号}-{简称}.spec.ts
 │   ├── api/                    # L2 接口/集成测试
+│   │   └── {module}/
+│   │       └── tc-{编号}-{简称}.spec.ts
 │   ├── e2e/                    # L3 E2E 流程测试
 │   │   └── {module}/           # 按模块分子目录
 │   │       └── tc-{编号}-{简称}.spec.ts

@@ -128,7 +128,7 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 - 文件头部必须包含完整元信息注释（TEST-ID, TEST-NAME, TEST-LEVEL, TEST-TARGET, MODULE, TC）
 - 每个 TC 一个独立文件，使用 `test.step('TC-XXX-N: ...')` 结构，**不加** `describe` 包裹
 - 文件命名：`{module}/tc-{编号}-{简称}.spec.ts`（如 `member/tc-001-add-member.spec.ts`）
-- 写入 `test_project/<NN-Project>/tests/e2e/` 或 `test_project/<NN-Project>/tests/ui/` 子目录下的模块子文件夹（`<NN-Project>` 由主会话传递，禁止省略）
+- 写入 `test_project/<NN-Project>/tests/` 对应层级（unit/api/e2e/ui）下的模块子文件夹（`<NN-Project>` 由主会话传递，禁止省略）
 - 用 `page.screenshot()` 主动截图，不依赖自动截图
 - 代码中的选择器必须来自 `generator_read_log` 的录制输出，禁止凭记忆重构
 
