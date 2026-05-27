@@ -32,27 +32,52 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 
 ## generator 约束
 
-### 录制流程（强制）
+### 录制流程（强制 — Playwright 调试录制模式，每用例独立会话）
 
-1. 调用 `generator_setup_page` 初始化
-2. 按计划逐步在浏览器执行操作
-3. 每个工具调用的 intent 使用步骤描述
-4. 每步骤前加注释
-5. 调用 `generator_read_log` 获取日志
-6. 调用 `generator_write_test` 写入文件
+**核心原则：每个测试用例独立一个录制会话。录制时只操作不写代码，操作完后从日志提取代码，加断言/等待/截图后写入。然后开始下一个用例的新会话。**
+
+**阶段一：录制操作（只操作，不写代码）**
+
+1. 调用 `generator_setup_page` 初始化新录制会话
+2. 逐步骤执行 MCP 浏览器操作（navigate/click/fill/type/selectOption 等）
+3. 每步操作后调 `browser_snapshot` 确认页面状态
+4. 操作失败时调整选择器重试（最多 3 次）
+5. **此阶段只执行浏览器操作，不写测试代码**
+
+**阶段二：生成代码（从录制日志提取 + 组装）**
+
+6. 当前用例操作完成后，调 `generator_read_log` 获取 Playwright 自动生成的代码
+7. 从日志提取各步骤的操作代码，直接使用其中的选择器
+8. 在操作代码间插入：
+   - `expect()` 断言 — 按测试计划预期
+   - `await page.waitForTimeout(1000)` — 每次 click 类操作后
+   - `page.screenshot({ path: ... })` — 关键节点
+9. 组装完整文件（头部注释 + imports + describe 包裹 + test.step 结构）
+10. 调用 `generator_write_test` 写入文件
+
+**阶段三：下一个用例**
+
+11. 重复阶段一和阶段二，开始新的录制会话（新的 `generator_setup_page`）
+
+**禁止**：一个录制会话做多个测试用例的操作后再统一生成代码。
+
+### 选择器（强制）
+
+选择器全部来自 Playwright 调试录制自动生成的代码，不自行构造、不凭记忆写选择器。
 
 ### 代码生成（强制）
 
 - 文件头部必须包含完整元信息注释（TEST-ID, MODULE, TC 映射）
-- 使用 `test.describe()` + `test.step('TC-XXX: ...')` 结构
-- 文件命名：`{module}-{scenario}.spec.ts`
+- 使用 `test.describe()` + `test.step('TC-XXX: ...')` 结构，一个文件包含多个 `test()` 块
+- 文件命名：`{module}.spec.ts`（一个模块所有 TC 写入同一个文件，如 `member.spec.ts` 包含全部增删改查搜索分页测试）
 - 写入 `tests/e2e/` 或 `tests/ui/` 子目录
 - 用 `page.screenshot()` 主动截图，不依赖自动截图
+- 代码中的选择器必须来自 `generator_read_log` 的录制输出，禁止凭记忆重构
 
 ### 测试数据
 
 - 使用 `test_` 前缀
-- 文件开头添加 cleanup 步骤
+- 文件开头添加 cleanup 步骤，清理残留数据
 - 只新增，不修改/删除已有数据
 
 ## 固定等待约束（强制）

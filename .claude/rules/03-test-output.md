@@ -20,7 +20,7 @@ results/
 
 | 类型 | 格式 | 示例 |
 |------|------|------|
-| 测试文件 | `{module}-{scenario}.spec.ts` | `user-lifecycle.spec.ts` |
+| 测试文件 | `{module}.spec.ts`（一个模块所有 TC 写入同一文件） | `member.spec.ts` |
 | 截图文件 | `tc-{编号}-{简称}.png` | `tc-001-login-page.png` |
 | 模块目录 | kebab-case | `user-management/` |
 | 模块名 | 与 `plans/` 文件名一致 | `role-management` |
