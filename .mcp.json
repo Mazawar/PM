@@ -1,12 +1,12 @@
 {
   "mcpServers": {
     "playwright-test": {
-      "command": "cmd",
-      "args": ["/c", "npx", "playwright", "run-test-mcp-server"]
+      "command": "npx",
+      "args": ["playwright", "run-test-mcp-server"]
     },
     "ssh-manager": {
-      "command": "cmd",
-      "args": ["/c", "npx", "mcp-ssh-manager"]
+      "command": "npx",
+      "args": ["mcp-ssh-manager"]
     }
   }
 }

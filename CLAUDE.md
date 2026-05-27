@@ -1,5 +1,25 @@
 # CLAUDE.md
 
+## Quick Start
+
+新环境首次使用请按顺序执行：
+
+```bash
+# 1. 安装项目依赖
+npm install
+
+# 2. 安装 Playwright 浏览器
+npx playwright install chromium
+
+# 3. 配置 SSH（可选，如需远程管理）
+cp .env.example .env
+# 编辑 .env 填写 SSH_SERVER_* 变量
+
+# 4. 启动 Claude Code，智能体会自动加载 .mcp.json 中的 MCP Server
+```
+
+详细环境说明见 [SETUP.md](SETUP.md)。
+
 ## Project Overview
 
 PM (Project Manager) 是自动化测试智能体中枢。监控外部项目仓库、检测代码变更、生成测试计划、执行测试、反馈问题。
