@@ -28,13 +28,10 @@ color: green
 
 ## 通用约束（所有步骤适用）
 
-1. **只打包编译产物**，不包含 `node_modules` 等依赖目录。部署方自行 `pnpm install --prod` 安装依赖
-2. **Dockerignore 原则**：禁止将 `.env`、`*.log`、`node_modules`、`.git/` 等环境文件打包
-3. **lock 文件必须包含**：`pnpm-lock.yaml` / `package-lock.json` 复制到构建根目录，确保可复现安装
-4. **数据库初始化文件**：检查根目录是否有 `.sql` dump 文件，有则复制到 `database/`，DEPLOY.md 中说明导入方式
-5. **workspace 本地包**：monorepo 中 `packages/*/` 的 `dist/` 和 `package.json` 需一并打包，否则部署方无法解析 `workspace:` 协议
-6. **环境配置**：项目中已有的 `.env` 文件（如 `apps/api/.env`）需复制到产物对应位置，部署方直接修改其中的连接信息。不存在则跳过
-7. **每次发布必须重新构建**，不复用旧产物
+1. **只打包编译产物**，不包含 `node_modules/`、`vendor/` 等依赖目录。部署方自行安装依赖
+2. **排除部署无关文件**：`.git/`、`*.log`、`.gitignore` 等版本控制/日志文件不打包
+3. **环境配置文件保留**：项目中已有的 `.env` / `.env.production` / `application.yml` 等环境配置文件需复制到产物对应位置，部署方直接修改其中的连接信息。不存在则跳过
+4. **每次发布必须重新构建**，不复用旧产物
 
 ---
 
@@ -55,11 +52,29 @@ Token 不存在则询问用户提供。
 
 ## 步骤三：分析项目结构并确定版本号
 
-**分析项目结构**：
-- 遍历 `repository/<NN-Project>/`，识别项目类型
-- 判断依据：`pom.xml` → Java/Maven、`package.json` + `pnpm-workspace.yaml` → monorepo、`package.json` → 普通 Node、`go.mod` → Go
-- monorepo 需额外确定前端和后端子包路径（常见 `apps/web/`、`apps/api/` 等），以及 `packages/*/` 共享包
-- 确定前端和后端的构建命令（前端一般输出 `dist/`，后端一般输出 `dist/` 或 `target/*.jar`）
+**分析项目结构**（参照 Setup Agent 的代码仓库分析方式）：
+
+1. **前端识别**
+   - 检查 `package.json` → dependencies 中的框架（vue, react, angular 等）
+   - 检查 `vite.config.*` / `webpack.config.*` / `next.config.*` → 构建工具和输出目录
+   - 检查 `nuxt.config.*` / `.env` / `.env.development` 
+
+2. **后端识别**
+   - Java: `pom.xml` → Maven 构建，产物为 `target/*.jar`
+   - Node.js: `package.json` → 检查 scripts 中的 build/start 命令，产物通常为 `dist/`
+   - Python: `requirements.txt` / `pyproject.toml` → 检查是否有构建步骤
+   - Go: `go.mod` → `go build` 输出二进制
+
+3. **构建和启动命令**
+   - 检查 `package.json` 的 scripts 字段中的 build 命令
+   - 检查根目录 `Makefile` 或 `docker-compose.yml`（如有）
+   - 对比 `dev` 和 `build` 脚本区别，确保构建命令包含编译步骤
+
+4. **识别数据库脚本**
+   - 检查根目录是否有 `.sql` 文件（如 `init.sql`、`schema.sql`、`dump.sql` 等）
+   - 检查 `sql/`、`database/`、`db/`、`doc/sql/` 等常见目录下是否有 `.sql` 文件
+   - 检查 `docker-compose.yml` 中是否引用了数据库初始化脚本路径
+   - 记录数据库脚本路径和导入顺序（如存在多个 `.sql` 文件时按文件名排序）
 
 **确定版本号**：
 - 从 `repository/README.md` 提取仓库地址，`sed` 去除协议前缀和 `.git` 后缀得到 `owner/repo`
@@ -70,28 +85,57 @@ Token 不存在则询问用户提供。
 
 ## 步骤四：编译打包
 
-根据步骤三的分析结果，对每个组件（前端、后端、共享包）执行：
+根据步骤三的分析结果，对每个组件执行：
 
-**前端**：执行构建命令，将产物（通常是 `dist/`）复制到 `build/$VERSION/frontend/`
+**前端**（如有）：执行构建命令，将产物（路径由步骤三分析确定，常见 `dist/`）复制到 `build/$VERSION/frontend/`
 
 **后端**：
-- 执行构建命令，将编译产物复制到 `build/$VERSION/backend/dist/`
+- 执行构建命令，将编译产物（路径由步骤三分析确定）复制到 `build/$VERSION/backend/`
 - 复制 `package.json`、lock 文件
 - 检查根目录是否有 `.sql` dump 文件，有则复制到 `build/$VERSION/database/`
-- **monorepo 共享包**：遍历 `packages/*/`，对有 `dist/` 的包复制其 `dist/` + `package.json` 到 `build/$VERSION/packages/<包名>/`
+- **Prisma 项目**：若复制后的 `package.json` 中 `prisma` 在 `devDependencies` 里，**必须**将其移到 `dependencies`。因为部署时执行 `pnpm install --prod` 和 `npx prisma generate` 需要 prisma CLI 可用
 
 **Java 后端**：执行 Maven 构建，将 `target/*.jar` 复制到 `build/$VERSION/backend/`
 
 **单体项目**：根据识别的构建工具执行对应命令，产物复制到 `build/$VERSION/`
 
-**monorepo 特殊处理**：根目录下创建或复制 `pnpm-workspace.yaml`，使其能解析 `packages/*` 和 `backend` 的 `workspace:` 协议
+**Monorepo 项目（pnpm workspace）**：保持构建产物自包含，解压后按部署说明的步骤能直接部署运行。必须确保以下四项完整：
 
-## 步骤五：生成部署说明文档和环境配置
+1. **workspace 配置文件完整**：复制 `pnpm-workspace.yaml`、`pnpm-lock.yaml`、根 `package.json`，缺一不可。复制后确认每个文件都存在
+2. **workspace packages 对齐**：检查 `pnpm-workspace.yaml` 的 `packages` 列表，确保构建产物目录结构与之匹配（如 api 在 `api/` 则 packages 必须包含 `'api'`，而非 `apps/*`）。**自动修正**使其与实际目录一致
+3. **内部依赖包自包含**：检查后端 `package.json` 的 `dependencies`，对每个 `workspace:*` 引用的内部包（如 `@new-oa/types`），将其编译产物复制到 `build/$VERSION/` 下对应位置。**关键：确认每个内部包目录存在 `package.json`**（name/version/main/types 字段完整），缺则从源码补。修正 pnpm-workspace.yaml 使其覆盖所有内部包目录
+4. **Prisma schema 打包**：若项目使用 Prisma，将源码中的 `prisma/` 目录（含 `schema.prisma` 和 `migrations/`）复制到构建产物中后端能直接引用的位置。复制后确认 `schema.prisma` 文件存在
+5. **Prisma 依赖修正**：若后端 `package.json` 中 `prisma` 在 `devDependencies` 里，**必须**将其移到 `dependencies`。这是为了让部署方按 `pnpm install --prod` + `npx prisma generate` 流程操作时 prisma CLI 可用，无需额外安装
 
-在 `build/$VERSION/` 下生成：
+## 步骤五：生成部署文档和版本说明（必须两个独立文件）
 
-1. **DEPLOY.md** — 包含：环境要求、目录结构、部署步骤（安装依赖 → 导入 SQL 初始化数据库 → 启动）
-2. **.env** — 项目源码中已有的 `.env` 文件（如 `apps/api/.env`）复制到 `backend/.env`，部署方直接修改连接参数。不存在则跳过
+**必须在 `build/$VERSION/` 下创建两个独立的 .md 文件。创建后必须运行 `ls` 确认文件名完全匹配，缺一不可。以下是两个文件的规定，不允许改名、合并或省略。**
+
+### 文件一：`部署说明.md`
+
+必须使用 `部署说明.md` 作为文件名。参照 `repository/<NN-Project>/version/update_readme.md` 的格式和章节结构生成。内容包含：
+- 构建环境声明（OS、架构、Node.js 版本等）
+- 目录结构（各目录和文件用途）
+- 部署步骤（环境准备、安装依赖、启动服务等完整流程）
+- 工具包变更清单（如 Node.js、MySQL、Nginx 等）
+- 健康检查端点（API 和前端的关键检查 URL、方法、预期响应）
+
+### 文件二：`版本说明.md`
+
+必须使用 `版本说明.md` 作为文件名。参照 `repository/<NN-Project>/version/update_readme.md` 的格式和章节结构生成。内容包含：
+- 更新内容（本次版本变更的功能、修复、优化）— 写业务影响，禁止写代码级描述（文件名、函数名、注解）
+- 环境变量与配置变更（新增/修改/删除的环境变量或配置文件）
+- 数据库变更（Schema 变更、数据迁移脚本、回滚脚本、兼容性风险）
+- 版本依赖关系（组件版本匹配矩阵、升级路径、回滚限制）
+- 已知问题与限制（未解决的问题、已知缺陷、回滚限制）
+
+### 步骤五自检
+
+两个文件写完后，运行以下命令确认：
+```bash
+ls test_project/<NN-Project>/build/$VERSION/部署说明.md test_project/<NN-Project>/build/$VERSION/版本说明.md
+```
+两个文件都必须存在。缺一即视为步骤五未完成，需补全后再继续。
 
 ## 步骤六：收集测试报告并打包
 
@@ -132,7 +176,7 @@ Token 不存在则询问用户提供。
 
 ## 步骤七：打 Tag
 
-在 `repository/<NN-Project>/` 下创建并推送 git tag（版本号沿用例阶段确定的）。
+在 `repository/<NN-Project>/` 下创建并推送 git tag（版本号沿用步骤三确定的）。
 
 ## 步骤八：创建 Release
 
