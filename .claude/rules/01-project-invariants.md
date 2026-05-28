@@ -24,6 +24,7 @@ test_project/<NN-Project>/
 │   ├── 00-test-plan.md        # 总计划索引（仅模块索引表）
 │   └── NN-{module}.md         # 模块详细计划（NN 为两位序号，按模块递增）
 ├── start.sh                   # 一键启动脚本（Setup Agent 生成）
+├── remote-start.sh            # 远程启动脚本（远程服务器上执行，不归档到 build/）
 ├── test-config/
 │   └── environment.json       # 环境配置（技术栈、端口、凭据、中间件、启动命令）
 ├── tests/
@@ -48,6 +49,13 @@ test_project/<NN-Project>/
 │       ├── report.md
 │       └── screenshots/
 ├── SETUP.md                # 环境启动报告（Setup Agent 生成）
+├── build/                  # 构建部署产物（Remote Setup Agent 生成）
+│   ├── version-log.json    # 构建版本追踪总表（每次构建追加一条记录）
+│   ├── deploy-config.json  # 部署配置快照（可复用）
+│   ├── nginx.conf          # Nginx 配置文件
+│   └── artifacts/          # 构建归档（不可删除）
+│       ├── <timestamp>-<commit>.tar.gz
+│       └── <timestamp>-<commit>.manifest.json
 └── reports/
     ├── summary.md            # 变更分析汇总（定时扫描写入）
     └── {timestamp}.md        # 变更报告（scan.sh 生成）
@@ -134,6 +142,11 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 | `vitest.config.ts` | Setup Agent | L2 API 测试配置 |
 | `start.sh` | Setup Agent | 一键启动脚本（端口检查 + 健康检查） |
 | `SETUP.md` | Setup Agent | 环境启动报告（含实际验证结果，非假设） |
+| `remote-start.sh` | Remote Setup Agent | 远程启动脚本（远程服务器上执行，不归档到 build/） |
+| `build/version-log.json` | Remote Setup Agent | 构建版本追踪总表（每次构建追加一条记录） |
+| `build/deploy-config.json` | Remote Setup Agent | 部署配置快照（可复用，下次构建跳过已安装组件） |
+| `build/nginx.conf` | Remote Setup Agent | Nginx 配置文件 |
+| `build/artifacts/` | Remote Setup Agent | 构建归档目录（tar.gz + manifest.json，不可删除） |
 
 ### 环境检查（每次测试前）
 

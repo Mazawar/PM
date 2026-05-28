@@ -1,20 +1,21 @@
 # Agent 调度与工作流规则
 
-## 七阶段流程 + 发布阶段
+## 九阶段流程
 
 ```
-Detect → Setup → Analyze → Plan → Generate → Execute → Report → Publish
- 扫描     配置     分析      规划    生成      执行      汇报      发布
+Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute → Report → Publish
+ 扫描     配置    远程部署(可选)   分析      规划    生成      执行      汇报      发布
 ```
 
 1. **Detect** — `scan.sh` 检测变更，生成报告到 `test_project/<NN-Project>/reports/`
 2. **Setup** — 每次测试前检查环境，无配置时启动 Setup Agent 分析项目环境
-3. **Analyze** — planner Agent 读变更报告，写 `test_project/<NN-Project>/reports/summary.md`（变更概述、影响范围、测试建议）；无变更报告时跳过此步骤，直接进入 Plan
-4. **Plan** — planner agent 生成测试计划，**用户确认**
-5. **Generate** — generator agent 生成测试代码，**用户确认**
-6. **Execute** — 运行测试，失败交 healer agent
-7. **Report** — 主会话汇总结果（生成/更新 `test_project/<NN-Project>/results/` 下的 progress.txt、report.md、summary.md），向用户汇报
-8. **Publish** — Report 阶段全部通过后，主会话**必须主动询问**用户是否发布；用户确认后启动 publisher agent，编译打包项目并上传附件到 Gitee Release
+3. **Remote Setup** — Setup 完成后询问用户构建方式：本地构建（跳过）或远程构建（启动 Remote Setup Agent 在远程服务器部署环境）
+4. **Analyze** — planner Agent 读变更报告，写 `test_project/<NN-Project>/reports/summary.md`（变更概述、影响范围、测试建议）；无变更报告时跳过此步骤，直接进入 Plan
+5. **Plan** — planner agent 生成测试计划，**用户确认**
+6. **Generate** — generator agent 生成测试代码，**用户确认**
+7. **Execute** — 运行测试，失败交 healer agent
+8. **Report** — 主会话汇总结果（生成/更新 `test_project/<NN-Project>/results/` 下的 progress.txt、report.md、summary.md），向用户汇报
+9. **Publish** — Report 阶段全部通过后，主会话**必须主动询问**用户是否发布；用户确认后启动 publisher agent，编译打包项目并上传附件到 Gitee Release
 
 ## 流程阶段可见性（强制）
 
@@ -24,6 +25,7 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 |------|-----------|-----------|
 | Detect | `## Detect — 扫描项目变更` | `## Detect — 跳过（无变更检测需求）` |
 | Setup | `## Setup — 检查环境配置` | `## Setup — 跳过（环境已配置，服务运行中）` |
+| Remote Setup | `## Remote Setup — 配置远程环境` | `## Remote Setup — 跳过（用户选择本地构建）` |
 | Analyze | `## Analyze — 分析变更报告` | `## Analyze — 跳过（无变更报告）` |
 | Plan | `## Plan — 创建测试计划` | -（不可跳过） |
 | Generate | `## Generate — 生成测试代码` | -（不可跳过） |
@@ -38,10 +40,20 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 主会话 **不直接编写或调试测试代码**，只做：
 
 1. 接收任务 → 环境检查（无配置启动 Setup Agent，已配置则跳过）
-2. 启动 planner → planner 同时负责 Analyze（读变更报告）和 Plan → 审阅计划 → 确认后启动 generator
-3. 首次运行测试 → 有失败则启动 healer
-4. 汇总结果 → 生成/更新 `test_project/<NN-Project>/results/` 下的 progress.txt、report.md、summary.md → 向用户汇报
-5. **Publish 询问** — 测试**全部通过**后，必须主动询问"是否发布到 Git Release"，不可等待用户提出；有失败时询问"是否修复后发布"
+2. **构建方式选择** — Setup 完成后，使用 `AskUserQuestion` 询问用户"本地构建 or 远程构建？"
+   - **本地构建** → 继续，服务已在本地运行
+   - **远程构建** → 启动 Remote Setup Agent（`Agent(subagent_type="remote-env-setup")`）
+     - Agent 读取 environment.json，通过 SSH 在远程服务器部署
+     - 更新 environment.json 的 baseURL 为远程 URL（需用户确认）
+     - 同步更新 playwright.config.ts
+     - 完成后继续测试流程
+   - **切换服务器** → 清空 remoteConfig，启动 Remote Setup Agent 执行重绑定
+     - 用 `AskUserQuestion` 提供选项：继续当前服务器 / 切换到其他已配置服务器
+     - 切换后 Agent 执行完整部署流程，覆盖写入 build/ 产物（deploy-config.json、nginx.conf、artifacts/）
+3. 启动 planner → planner 同时负责 Analyze（读变更报告）和 Plan → 审阅计划 → 确认后启动 generator
+4. 首次运行测试 → 有失败则启动 healer
+5. 汇总结果 → 生成/更新 `test_project/<NN-Project>/results/` 下的 progress.txt、report.md、summary.md → 向用户汇报
+6. **Publish 询问** — 测试**全部通过**后，必须主动询问"是否发布到 Git Release"，不可等待用户提出；有失败时询问"是否修复后发布"
 
 **关键**：测试生成后运行若出现 **TimeoutError**，**必须委托 healer**，禁止主会话逐步排查。
 
@@ -118,6 +130,7 @@ Report → 用户询问 ┤                  构建 → 确认发布 → 打 Tag
   - generator: `Agent(subagent_type="playwright-test-generator")`
   - healer: `Agent(subagent_type="playwright-test-healer")`
   - publisher: `Agent(subagent_type="test-result-publisher")`
+  - remote-setup: `Agent(subagent_type="remote-env-setup")`
 - 测试运行必须使用项目级配置：
   ```bash
   npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
@@ -127,6 +140,7 @@ Report → 用户询问 ┤                  构建 → 确认发布 → 打 Tag
 
 | 阶段 | 确认内容 |
 |------|---------|
+| Remote Setup 后 | 确认 environment.json 的 baseURL 变更（远程 IP） |
 | Plan 后 | 测试计划的模块覆盖和 TC 编号分配 |
 | Generate 后 | 生成的测试代码 |
 | Report 后 | 全部通过 → 是否发布到 Git Release / 跳过；有失败 → 是否修复后发布 / 提交 issue / 进一步测试 |

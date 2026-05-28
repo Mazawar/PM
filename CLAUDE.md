@@ -37,11 +37,21 @@ pm/
 │   ├── README.md             # 测试项目注册表
 │   └── <NN-Project>/
 │       ├── playwright.config.ts # 项目级 Playwright 配置（独立 baseURL）
+│       ├── vitest.config.ts   # 项目级 Vitest 配置（L2 API 测试）
+│       ├── plans/             # 测试计划（00-test-plan.md + 模块详细计划）
 │       ├── start.sh           # 一键启动脚本（Setup Agent 生成）
+│       ├── remote-start.sh    # 远程启动脚本（远程服务器上执行，不归档到 build/）
 │       ├── test-config/       # 测试计划、环境配置（environment.json）
 │       ├── tests/             # 测试代码（unit/api/e2e/ui 各层级按模块分子目录）
 │       │   └── {level}/{module}/tc-{编号}-{简称}.spec.ts
 │       ├── SETUP.md          # 环境启动报告（Setup Agent 生成）
+│       ├── build/            # 构建部署产物（Remote Setup Agent 生成）
+│       │   ├── version-log.json    # 构建版本追踪总表
+│       │   ├── deploy-config.json  # 部署配置快照（可复用）
+│       │   ├── nginx.conf          # Nginx 配置文件
+│       │   └── artifacts/          # 构建归档（不可删除）
+│       │       ├── <timestamp>-<commit>.tar.gz
+│       │       └── <timestamp>-<commit>.manifest.json
 │       ├── reports/           # 变更报告
 │       └── results/           # 测试执行结果（按模块分目录）
 ├── docs/                      # 项目文档
@@ -56,15 +66,21 @@ pm/
 
 ## Project Configuration
 
-每个项目（`test_project/<NN-Project>/`）包含以下配置文件，由 Setup Agent 生成：
+每个项目（`test_project/<NN-Project>/`）包含以下配置文件，由 Setup Agent 和 Remote Setup Agent 生成：
 
 | 文件 | 说明 |
 |------|------|
 | `playwright.config.ts` | 项目级 Playwright 配置（独立 baseURL、outputDir） |
+| `vitest.config.ts` | 项目级 Vitest 配置（L2 API 测试） |
 | `test-config/environment.json` | 环境配置（端口、凭据、技术栈、中间件、启动命令、healthCheck） |
 | `tests/seed.spec.ts` | 登录种子文件（Planner/Generator 共享，自动登录） |
 | `start.sh` | 一键启动脚本（端口检查 + 健康检查） |
+| `remote-start.sh` | 远程启动脚本（远程服务器上执行，不归档到 build/） |
 | `SETUP.md` | 环境启动报告（实际验证结果） |
+| `build/version-log.json` | 构建版本追踪总表（每次构建追加一条记录） |
+| `build/deploy-config.json` | 部署配置快照（可复用，下次构建跳过已安装组件） |
+| `build/nginx.conf` | Nginx 配置文件 |
+| `build/artifacts/` | 构建归档目录（tar.gz + manifest.json，不可删除） |
 
 `environment.json` 是环境的唯一真实来源，`playwright.config.ts` 的 `baseURL` 必须与其一致。修改时同步更新两者。
 
@@ -77,14 +93,15 @@ pm/
 | `01-project-invariants.md` | 项目结构、目录规范、注册表双写、Git 规则 |
 | `02-testing-framework.md` | 测试层级定义、框架选择、覆盖要求、测试数据安全 |
 | `03-test-output.md` | 结果目录结构、文件命名、progress/report 格式、截图规范 |
-| `04-agent-workflow.md` | 八阶段流程、主会话职责、调度管线、环境检查、用户确认点、禁止修改列表 |
-| `05-agent-behavior.md` | planner/generator/healer 各 Agent 行为约束 |
+| `04-agent-workflow.md` | 九阶段流程、主会话职责、调度管线、环境检查、构建方式选择、用户确认点、禁止修改列表 |
+| `05-agent-behavior.md` | planner/generator/healer Agent 行为约束 |
+| `06-remote-deployment.md` | 远程部署约束：SSH 操作、服务器绑定、构建方式、Nginx、配置同步、验证、错误处理、产出文件 |
 
-## Agent Pipeline 与八阶段流程
+## Agent Pipeline 与九阶段流程
 
 ```
-Detect → Setup → Analyze → Plan → Generate → Execute → Report → Publish
- 扫描     配置     分析      规划    生成      执行      汇报      发布
+Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute → Report → Publish
+ 扫描     配置    远程部署(可选)   分析      规划    生成      执行      汇报      发布
 ```
 
 测试执行管线：`planner → generator → healer（按需）`
@@ -92,10 +109,11 @@ Detect → Setup → Analyze → Plan → Generate → Execute → Report → Pu
 主会话 **不直接编写或调试测试代码**，只做调度和确认：
 
 1. 接收任务 → 环境检查（无配置启动 Setup Agent，已配置则跳过）
-2. 启动 planner → 审阅计划 → 确认后启动 generator
-3. 首次运行测试 → 有失败则启动 healer
-4. 汇总结果 → 向用户汇报
-5. 测试全部通过后 **必须主动询问** 用户是否发布到 Git Release
+2. **构建方式选择** — 询问用户"本地构建 or 远程构建？"，远程时启动 Remote Setup Agent
+3. 启动 planner → 审阅计划 → 确认后启动 generator
+4. 首次运行测试 → 有失败则启动 healer
+5. 汇总结果 → 向用户汇报
+6. 测试全部通过后 **必须主动询问** 用户是否发布到 Git Release
 
 - **Setup** 在每次测试前检查环境：无配置时启动 Setup Agent 分析源码、推断端口；已配置且服务运行则跳过
 - 每次测试前**必须**检查目标服务是否运行（读取 environment.json 的 healthCheck）

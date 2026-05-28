@@ -44,6 +44,11 @@ color: purple
 
 3. **中间件识别**
    - 数据库：检查配置文件中的数据库连接（MySQL/PostgreSQL/MongoDB）
+   - **数据库初始化方式**：识别项目使用的 ORM/映射工具及对应文件位置
+     - Java: MyBatis (`*Mapper.xml`)、JPA/Hibernate (`@Entity`、`spring.jpa.hibernate.ddl-auto`)、Flyway (`db/migration/`)
+     - Node.js: Prisma (`schema.prisma`)、TypeORM (`*.entity.ts`)、Sequelize (`models/`)
+     - Python: SQLAlchemy (`models.py`)、Django (`migrations/`)
+     - 通用: SQL 脚本文件 (`.sql`)
    - 缓存：Redis/Memcached
    - 消息队列：RabbitMQ/Kafka
    - 搜索引擎：Elasticsearch
@@ -112,8 +117,11 @@ color: purple
     "expectedStatus": 200
   },
   "dbConfig": {
-    "url": "<数据库连接串>",
-    "note": "<连接说明>"
+    "url": "<数据库连接串，统一为 protocol://user:pass@host:port/db 格式>",
+    "note": "<连接说明>",
+    "initMethod": "<Setup Agent 发现的初始化方式，如实记录：prisma-migrate / mybatis-sql / jpa-hibernate / flyway / django-migrate / sql-scripts 等>",
+    "initFiles": ["<建表/迁移/SQL文件路径，相对于仓库根目录>"],
+    "seedFiles": ["<种子数据文件路径，相对于仓库根目录>"]
   },
   "login": {
     "url": "/login",
