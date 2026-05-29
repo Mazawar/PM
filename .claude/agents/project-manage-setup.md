@@ -49,6 +49,11 @@ color: purple
      - Node.js: Prisma (`schema.prisma`)、TypeORM (`*.entity.ts`)、Sequelize (`models/`)
      - Python: SQLAlchemy (`models.py`)、Django (`migrations/`)
      - 通用: SQL 脚本文件 (`.sql`)
+   - **数据库初始化优先级（强制）**：
+     1. **完整 SQL dump 文件优先** — 如果仓库中有数据库导出文件（`.sql`，通常几十MB到几百MB），这是最完整的数据源，必须优先导入
+     2. ORM schema 同步 + seed 脚本 — 仅在没有 SQL dump 时使用
+     3. **禁止用 ORM 建空表 + 手动插几条数据就认为数据库初始化完成** — 如果存在完整 SQL dump，必须导入全量数据
+   - SQL dump 导入注意事项：指定 `--default-character-set=utf8mb4` 防止中文乱码
    - 缓存：Redis/Memcached
    - 消息队列：RabbitMQ/Kafka
    - 搜索引擎：Elasticsearch
@@ -58,6 +63,12 @@ color: purple
    - docker-compose.yml（如有）
    - Makefile（如有）
    - 对比 `dev` 和 `start` 脚本区别，注意 `start` 可能包含必要的预编译步骤
+
+5. **构建依赖分析（强制）**
+   - 分析项目的完整构建链：从源码到可运行状态需要哪些构建步骤
+   - 识别所有需要在启动前完成的预编译/构建步骤（不只是主应用，也包括它依赖的子模块、共享包、类型定义等）
+   - 确定构建顺序（按依赖拓扑排列）
+   - **在启动任何服务前，必须先完成所有必要的构建步骤**
 
 ### Step 2: 自动推断配置
 
@@ -201,6 +212,7 @@ if [ "$PORT_RUNNING" = false ]; then
       exit 1
     fi
   fi
+  # <根据构建依赖分析结果，在此添加必要的预编译步骤>
   # <根据技术栈生成启动命令，使用 cd 子shell 避免工作目录污染>
 fi
 
@@ -267,8 +279,13 @@ exit 1
 1. 浏览器导航到 `baseURL`
 2. 用 `browser_snapshot` 确认页面内容非空白
 3. **检查浏览器控制台错误** — 使用 `browser_console_messages`（level=error）确认无模块解析失败、JS 运行时错误
-4. 记录页面标题和关键元素
-5. 如果页面加载失败或控制台有模块解析错误：
+4. **验证页面实际渲染** — HTTP 200 不代表页面正常，必须确认：
+   - Vite 开发服务器返回 HTML 不代表前端无错误
+   - **必须打开浏览器用 `browser_snapshot` 检查页面是否渲染出实际内容**（不是空白页或错误提示）
+   - **必须检查控制台无 `[plugin:vite:import-analysis]`、`Failed to resolve`、`Cannot find module` 等模块解析错误**
+5. 记录页面标题和关键元素
+6. 如果页面加载失败或控制台有模块解析错误：
+   - **优先检查 workspace 包是否已构建** — monorepo 项目中最常见的原因是共享包（types、shared）未编译
    - 检查前端是否正确启动
    - 检查代理/端口配置是否正确
    - 修正后重新验证
