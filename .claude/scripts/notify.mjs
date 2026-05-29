@@ -30,7 +30,7 @@ if (!existsSync(projectDir)) {
 }
 
 // --- 加载配置 ---
-const configPath = join(import.meta.dirname, 'notify-config.json');
+const configPath = join(import.meta.dirname, '..', 'notify-config.json');
 if (!existsSync(configPath)) {
   console.error(`通知配置不存在: ${configPath}`);
   console.error('请复制 notify-config.example.json 为 notify-config.json 并填写 SMTP 信息');
