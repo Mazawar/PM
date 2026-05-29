@@ -14,39 +14,79 @@ color: blue
 
 禁止：一个录制会话做多个用例、录完再统一写入、多个 TC 写入同一个文件。
 
-## 工作流程
+所有页面导航通过 **`page.goto('/')`** + UI 点击操作实现。
 
-每轮只处理**一个**测试用例：
+## 工作流程（两阶段）
+
+### 阶段零：生成种子文件（仅模块首次）
+
+开始录用例前，先检查 `tests/seed.spec.ts` 是否存在：
+- **已存在** → 跳过，直接进入阶段一
+- **不存在** → 录制登录操作并生成种子文件
+
+种子文件核心流程：**清除cookie → `page.goto('/')` → 登录 → 保存 storageState**。
+
+**A. 录制登录操作**
+
+调用 `generator_setup_page` 初始化录制（无需 seed 参数），逐步骤操作：
+
+1. 调 `browser_run_code_unsafe` 清除 cookie
+2. `browser_navigate` → `page.goto('/')` 
+3. 操作浏览器填写账号、密码、点击登录（选择器全部来自 MCP 工具返回）
+4. 等待 URL 跳离 /login（确认登录成功）后调 `generator_read_log` 获取录制代码
+
+**B. 组装种子文件**
+
+```typescript
+// TEST-ID: TP-<project>-SEED
+// TEST-NAME: 登录种子
+// TEST-LEVEL: SEED
+// MODULE: auth
+
+import { test as setup } from '@playwright/test';
+
+setup('登录并保存认证状态', async ({ page }) => {
+  await page.context().clearCookies();
+  await page.goto('/');
+  // 来自录制日志的登录操作代码
+  await page.context().storageState({ path: 'test_project/<NN-Project>/test-config/auth.json' });
+});
+```
+
+**C. 更新 playwright.config.ts**
+
+`storageState` 不可放全局 `use`（setup 项目会读不存在的 auth.json），只放 `chromium` project。路径相对于 CWD：
+
+```typescript
+projects: [
+  { name: 'setup', testMatch: 'tests/seed.spec.ts' },
+  {
+    name: 'chromium',
+    use: { browserName: 'chromium', storageState: 'test_project/<NN-Project>/test-config/auth.json' },
+    dependencies: ['setup'],
+  },
+],
+```
+
+### 阶段一至N：逐用例生成测试代码
+
+每轮只处理**一个**测试用例，重复阶段一~五直到模块所有用例生成完毕。
 
 ### 阶段一：读取计划
 
 从 `test_project/<NN-Project>/plans/NN-{module}.md` 获取当前用例的步骤和预期。
 
-### 阶段二：初始化录制 + 超时防护
+### 阶段二：初始化录制
 
-1. 调用 `generator_setup_page({ seedFile: 'tests/seed.spec.ts', plan: <当前用例计划> })`（自动登录）
-2. **立即**调用 `browser_run_code_unsafe` 设置页面超时：
-
-```javascript
-async (page) => {
-  page.setDefaultTimeout(15000);
-  page.setDefaultNavigationTimeout(30000);
-}
-```
+1. 调用 `generator_setup_page({ seedFile: 'tests/seed.spec.ts', plan: <当前用例计划> })`
+2. 调用 `browser_run_code_unsafe` 设置页面超时
+3. `generator_setup_page` 会自动执行 seed 登录，录制会话**已处于登录状态**
 
 ### 阶段三：执行操作（只操作，不写代码）
 
-逐步骤执行 MCP 浏览器操作（navigate/click/fill/type/selectOption 等）：
+逐步骤执行 MCP 浏览器操作（click/fill/type/selectOption 等）：
 - 操作失败时调整重试（最多 3 次）
 - **此阶段只操作，绝对不写测试代码**
-- **MCP 工具调用超时**：超过 60 秒未返回视为失败，触发退避规则
-
-**snapshot 策略**：不需要每步都 snapshot。只在以下场景确认页面状态：
-- 页面跳转后（navigate、点击导航菜单）
-- 弹窗/对话框出现或关闭后
-- 操作结果不确定，需要确认再继续
-
-**选择器**：全部来自 MCP 工具返回的 `### Ran Playwright code` 片段。**禁止自行构造任何选择器**。
 
 ### 阶段四：读取录制日志
 
@@ -54,18 +94,7 @@ async (page) => {
 
 ### 阶段五：组装并写入文件
 
-从录制日志提取操作代码，组装成完整的测试文件。每个 TC 写入独立文件，`fileName` 格式：
-
-- L1: `test_project/<NN-Project>/tests/unit/{module}/tc-{编号}-{简称}.spec.ts`
-- L2: `test_project/<NN-Project>/tests/api/{module}/tc-{编号}-{简称}.spec.ts`
-- L3: `test_project/<NN-Project>/tests/e2e/{module}/tc-{编号}-{简称}.spec.ts`
-- L4: `test_project/<NN-Project>/tests/ui/{module}/tc-{编号}-{简称}.spec.ts`
-
-**禁止**省略 `test_project/<NN-Project>/` 前缀。模块子文件夹由 `generator_write_test` 自动创建。
-
-### 重复阶段一至五，直到当前模块所有用例都生成完毕
-
-## 代码结构
+从录制日志提取操作代码，组装成完整的测试文件：
 
 ```typescript
 // TEST-ID: TP-<project>-L<level>-<序号>
@@ -79,13 +108,17 @@ import { test, expect } from '@playwright/test';
 
 test('TC-XXX: 测试名称', async ({ page }) => {
   await test.step('TC-XXX-1: 步骤描述', async () => {
-    // 操作代码（来自录制日志）
+    await page.goto('/');
+    // 来自录制日志的操作代码
     // 断言
     // 截图
   });
 });
 ```
 
-- 每个文件只有一个 `test()` 块，不加 `describe` 包裹
-- 截图路径：`test_project/<NN-Project>/results/{module}/screenshots/tc-{编号}-{简称}.png`
-- `<NN-Project>` 由主会话在 prompt 中传递（如 `01-oa-llm`），禁止省略
+- **每个 TC 以 `page.goto('/')` 开始**，从首页通过 UI 操作到达目标页面
+- 种子文件已处理登录，录制会话直接处于已登录状态
+- 文件头部必须包含完整元信息注释
+- 每个 TC 一个独立文件，不加 `describe` 包裹
+- `test.step('TC-XXX-N: 步骤描述', ...)` 标注步骤
+- 使用 `expect()` 断言，`page.screenshot()` 截图

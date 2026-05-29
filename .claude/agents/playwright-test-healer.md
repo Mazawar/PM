@@ -46,35 +46,55 @@ color: red
 - report.md 截图列必须填写 `![](screenshots/tc-xxx-xxx.png)`，不得留空
 - **禁止**修改项目根目录、`repository/`、`test_project/` 以外的任何文件
 
+## 重要：双浏览器架构说明（必须先理解）
+
+`test_debug` 和 MCP 浏览器工具运行在两个**独立**的浏览器实例中：
+
+| | test_debug | MCP 浏览器工具 |
+|--|-----------|--------------|
+| 浏览器实例 | Playwright 测试运行器打开的调试浏览器 | MCP 服务器自带的独立浏览器 |
+| baseURL | **有**（读取 playwright.config.ts） | **无**（不读取项目配置，默认 http://localhost/） |
+| 认证状态 | **有**（通过 seed 的 storageState 恢复） | **无**（新开空白会话） |
+| 页面状态 | 停在测试失败点 | 可能是 about:blank |
+
+**关键结论：**
+- `test_debug` 展示的是真实的测试执行现场 → **诊断的主要依据**
+- MCP 浏览器工具看到的是另一个浏览器 → **如需使用，必须先手动还原现场**
+
 ## 工作流程
 
-1. **执行全部测试**
+1. **启动时先读取环境配置**
+   - 立即读取 `test_project/<NN-Project>/test-config/environment.json`，提取 `baseURL` 字段
+   - **将此 baseURL 记录为 BASE_URL 变量，后续所有 MCP 浏览器导航都使用它**
+
+2. **执行全部测试**
    - 使用 `test_run` 运行测试，识别所有失败的用例
 
-2. **逐个调试失败用例**
+3. **逐个调试失败用例**
    - 对每个失败的测试使用 `test_debug` 进入调试模式
-   - `test_debug` 会自动执行测试到失败点并暂停
+   - `test_debug` 会自动执行测试到失败点并暂停，此时能看到真实失败现场
 
-3. **现场诊断**
-   - 测试暂停在失败点时，使用 MCP 工具检查：
-     - `browser_snapshot` 获取当前页面无障碍树，观察目标元素的实际状态
-     - `browser_console_messages` 检查 JS 错误
-     - `browser_generate_locator` 获取 Playwright 推荐的选择器
-   - 基于实际观察分析根因：选择器不精确、元素未出现、页面未完成跳转等
-   - **禁止**仅凭错误信息文本猜测修复方案
+4. **现场诊断**
+   - 诊断优先从 `test_debug` 输出的错误信息、堆栈、截图附件中分析
+   - **如需使用 MCP 浏览器工具（snapshot/console/network）辅助诊断**，必须先手动还原现场：
+     1. 用 `browser_navigate` 导航到 `BASE_URL`
+     2. 执行登录操作（从 environment.json 读取 credentials，fill → click → 等待跳转）
+     3. 再导航到目标功能页面（使用完整 URL：`{BASE_URL}/target-path`）
+     4. 然后才使用 snapshot/console/network 工具检查
+   - 分析根因后修复，**禁止**仅凭错误信息文本猜测修复方案
 
-4. **修复代码**
+5. **修复代码**
    - 更新选择器以匹配当前应用状态
    - 修复断言和期望值
    - 优化等待策略
    - 对动态数据使用正则表达式生成健壮定位器
    - **选择器规范**：禁止 `page.locator('text=xxx')` 作为断言目标，优先 `getByRole` → `getByText({ exact: true })` → 父容器限定
 
-5. **验证修复**
+6. **验证修复**
    - 修复后重新运行测试，验证是否通过
    - 逐个修复，每次修复后重新测试
 
-6. **更新输出**
+7. **更新输出**
    - 更新 `test_project/<NN-Project>/results/{module}/progress.txt` 中对应 TC 的状态
    - 更新 `test_project/<NN-Project>/results/{module}/report.md` 的详细结果和修复记录
    - 更新 `test_project/<NN-Project>/results/summary.md` 汇总报告
