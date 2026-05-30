@@ -17,7 +17,7 @@
  *   node .claude/scripts/generate-report.mjs --project <NN-Project> --report path/to/report.json
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, copyFileSync } from 'fs';
 import { resolve, join, dirname, basename, relative } from 'path';
 
 // --- 参数解析 ---
@@ -74,7 +74,7 @@ const report = JSON.parse(readFileSync(jsonPath, 'utf-8'));
  * 从测试文件内容提取 MODULE 和 TC 信息
  */
 function parseFileHeader(filePath) {
-  const absPath = join(projectDir, filePath);
+  const absPath = join(projectDir, 'tests', filePath);
   if (!existsSync(absPath)) return { module: null, tcIds: [] };
 
   const content = readFileSync(absPath, 'utf-8');
@@ -94,7 +94,11 @@ function moduleFromPath(filePath) {
   const parts = filePath.replace(/\\/g, '/').split('/');
   const testsIdx = parts.findIndex(p => p === 'tests');
   if (testsIdx >= 0 && testsIdx + 2 < parts.length) {
-    return parts[testsIdx + 2]; // module dir
+    return parts[testsIdx + 2];
+  }
+  // path relative to tests/: e2e/auth/tc-001.spec.ts -> auth
+  if (parts.length >= 3 && /^(e2e|ui|api|unit)$/.test(parts[0])) {
+    return parts[1];
   }
   return null;
 }
@@ -130,7 +134,7 @@ function collectTests(specs, parentFile) {
     // 提取截图附件
     const screenshots = (lastResult?.attachments || [])
       .filter(a => a.contentType?.startsWith('image/') || a.path?.endsWith('.png'))
-      .map(a => a.path ? relative(resultsDir, a.path).replace(/\\/g, '/') : null)
+      .map(a => a.path ? a.path : null)
       .filter(Boolean);
 
     testResults.push({
@@ -308,6 +312,31 @@ for (const [mod, tests] of Object.entries(modules)) {
   const modDir = join(resultsDir, mod);
   mkdirSync(modDir, { recursive: true });
   mkdirSync(join(modDir, 'screenshots'), { recursive: true });
+
+  // resolve screenshots: copy artifacts screenshots to screenshots/, resolve test screenshots as relative
+  for (const t of tests) {
+    const resolved = [];
+    for (const shot of t.screenshots) {
+      if (!shot) continue;
+      const shotAbs = resolve(shot);
+      // already in module screenshots dir
+      if (shotAbs.startsWith(resolve(join(modDir, 'screenshots')))) {
+        resolved.push(`screenshots/${basename(shotAbs)}`);
+      } else if (shotAbs.includes('artifacts')) {
+        // copy from artifacts to screenshots with TC-based name
+        const ext = shotAbs.endsWith('.png') ? '.png' : '.jpg';
+        const newName = `${t.tcId.toLowerCase()}-${basename(shotAbs)}`;
+        const dest = join(modDir, 'screenshots', newName);
+        if (existsSync(shotAbs)) {
+          copyFileSync(shotAbs, dest);
+          resolved.push(`screenshots/${newName}`);
+        }
+      } else if (existsSync(shotAbs)) {
+        resolved.push(`screenshots/${basename(shotAbs)}`);
+      }
+    }
+    t.screenshots = resolved;
+  }
 
   writeFileSync(join(modDir, 'progress.txt'), generateProgress(mod, tests));
   writeFileSync(join(modDir, 'report.md'), generateReport(mod, tests, env));
