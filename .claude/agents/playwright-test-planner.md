@@ -46,6 +46,45 @@ color: green
    - 更新总计划索引 `test_project/<NN-Project>/plans/00-test-plan.md`
    - 使用 `planner_save_plan` 保存
 
+## UI Map（核心交接产物，强制）
+
+Planner 探索页面时积累的 UI 认知必须记录到模块计划中，供 Generator 直接消费，避免重复探索。
+
+每个模块计划**必须**包含一个 `## UI Map` 章节，格式如下：
+
+```markdown
+## UI Map
+
+### 导航路径
+首页 > 系统管理 > 角色管理
+
+### 页面 URL
+/system/role
+
+### 关键元素
+| 元素 | 定位方式 | 备注 |
+|------|---------|------|
+| 新增按钮 | `getByRole('button', { name: '新增' })` | 页面顶部 |
+| 搜索框 | `getByPlaceholder('请输入角色名称')` | 与搜索按钮配合 |
+| 数据表格 | `getByRole('table')` | el-table, 含分页 |
+| 编辑按钮(行内) | `getByRole('button', { name: '编辑' })` | 每行一个 |
+| 确认弹窗 | `getByRole('dialog')` | 删除/提交后弹出 |
+| 表单-角色名称 | `getByPlaceholder('请输入角色名称')` | 新增/编辑弹窗内 |
+
+### 注意事项
+- 表格分页在底部，数据多时需翻页
+- 删除操作有二次确认弹窗
+- 弹窗内表单项使用 el-form，label 在左侧
+```
+
+### UI Map 填写规范
+
+- **定位方式**必须来自实际 `browser_snapshot` 观察，不是猜测
+- 优先使用 `getByRole` / `getByPlaceholder` / `getByText`，不用 CSS selector
+- 如果同一类元素有多个（如行内按钮），标注"第 N 行"或"配合 `.first()`"
+- 记录动态行为：哪些操作会触发弹窗、页面跳转、loading 状态
+- 这些信息直接减少 Generator 的探索成本
+
 ## 模块计划格式
 
 ```markdown
@@ -55,6 +94,22 @@ color: green
 - 功能入口: <导航路径>
 - 核心功能: <列举>
 - 优先级: P0/P1/P2
+
+## UI Map
+
+### 导航路径
+<从首页到该模块的点击路径>
+
+### 页面 URL
+<模块页面的相对路径>
+
+### 关键元素
+| 元素 | 定位方式 | 备注 |
+|------|---------|------|
+| ... | ... | ... |
+
+### 注意事项
+- <动态行为、弹窗、分页等>
 
 ## Test Scenarios
 

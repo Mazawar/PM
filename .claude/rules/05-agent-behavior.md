@@ -40,11 +40,12 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 ### 策略切换要求
 
 - 元素定位失败时，必须按以下顺序尝试不同策略，**禁止连续两次使用相同策略**：
-  1. ref 精确引用（如 `e16`）
-  2. role + name（如 `getByRole('textbox', { name: '...' })`）
-  3. CSS selector（如 `input[placeholder="..."]`）
-  4. text content 定位（如 `getByText('...')`）
-  5. 跳过该步骤，在输出中标记为"未能定位"
+  1. role + name（如 `getByRole('textbox', { name: '...' })`）— 语义定位，最稳定
+  2. placeholder / label（如 `getByPlaceholder('...')`）— 表单元素首选
+  3. text content（如 `getByText('...', { exact: true })`）— 按钮/链接适用
+  4. CSS selector（如 `input[data-testid="..."]`）— 前三种都不行时使用
+  5. ref 精确引用（如 `e16`）— **最后手段**，ref 在页面刷新后会变化
+  6. 跳过该步骤，在输出中标记为"未能定位"
 
 ### 操作超时
 
@@ -111,7 +112,7 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 7. 从日志提取各步骤的操作代码，直接使用其中的选择器
 8. 在操作代码间插入：
    - `expect()` 断言 — 按测试计划预期
-   - `await page.waitForTimeout(1000)` — 每次 click 类操作后
+   - 智能等待 — 按下方"等待策略"选择合适的等待方式
    - `page.screenshot({ path: ... })` — 关键节点
 9. 组装 `test()` 块，调用 `generator_write_test` 立即写入文件（每个 TC 一个独立文件，不加 describe 包裹）
 
@@ -138,15 +139,34 @@ Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件
 
 - 使用 `test_` 前缀
 - 文件开头添加 cleanup 步骤，清理残留数据
-- 只新增，不修改/删除已有数据
+- 优先新增，避免修改/删除已有数据
+- **例外**：healer 修复数据冲突时允许修改测试数据值（如加 `Date.now()` 后缀保证唯一），但不得删除其他 TC 的数据
 
-## 固定等待约束（强制）
+## 等待策略（强制，优先信号等待）
 
-- 每次 `page.click()` 或 `page.locator().click()` 后必须跟 `await page.waitForTimeout(1000)`
+**原则**：优先使用 Playwright 的智能等待机制，只在确实无法用信号等待时才用固定等待。
 
-- 表单提交、登录、弹窗确认等操作后**必须**等待
-- 页面跳转操作后**必须**等待
-- 任何用户点击类操作后**必须**等待
+### 等待策略选择顺序
+
+| 场景 | 首选策略 | 示例 |
+|------|---------|------|
+| 页面跳转 | `await page.waitForURL('**/target')` | 登录后跳转、菜单导航 |
+| API 响应 | `await page.waitForResponse('**/api/xxx')` | 表单提交、数据加载 |
+| DOM 元素出现 | `await locator.waitFor({ state: 'visible' })` | 弹窗、加载完成 |
+| DOM 元素消失 | `await loadingLocator.waitFor({ state: 'hidden' })` | loading 遮罩消失 |
+| 网络空闲 | `await page.waitForLoadState('domcontentloaded')` | 页面初始加载 |
+| 以上都不适用 | `await page.waitForTimeout(500)` | 兜底，时间缩短至 500ms |
+
+### 何时用固定等待（兜底）
+
+- 无法预判等待目标（如动画持续时间不确定）
+- 混合信号（多个条件组合，信号等待反而不稳定）
+- **固定等待时间建议 500ms**，最长不超过 2000ms
+
+### 禁止
+
+- 禁止使用 `waitForLoadState('networkidle')`（已废弃）
+- 禁止在每个 click 后都加固定等待 — 优先让 Playwright 的 auto-wait 机制处理
 
 ## 断言与验证约束（强制）
 

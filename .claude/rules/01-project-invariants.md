@@ -125,33 +125,7 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 - `environment.json` 是环境的**唯一真实来源**，`playwright.config.ts` 的 `baseURL` 必须与 `environment.json` 的 `baseURL` 一致
 - Setup Agent 同时生成两个文件时确保值同步；修改时必须同步更新两者
 
-## 项目环境分析（约定）
+## 项目环境分析
 
-### 触发时机
-
-每次测试前，主会话检查 `test_project/<NN-Project>/playwright.config.ts` 是否存在：
-- **不存在** → 启动 Setup Agent 分析源码并生成配置
-- **已存在** → 检查服务是否运行，跳过配置步骤
-
-### 产出文件
-
-| 文件 | 生成者 | 内容 |
-|------|--------|------|
-| `test-config/environment.json` | Setup Agent | 端口、凭据、技术栈、中间件、启动命令 |
-| `playwright.config.ts` | Setup Agent | L3/L4 baseURL 指向正确端口 |
-| `vitest.config.ts` | Setup Agent | L2 API 测试配置 |
-| `start.sh` | Setup Agent | 一键启动脚本（端口检查 + 健康检查） |
-| `SETUP.md` | Setup Agent | 环境启动报告（含实际验证结果，非假设） |
-| `remote-start.sh` | Remote Setup Agent | 远程启动脚本（远程服务器上执行，不归档到 build/） |
-| `build/version-log.json` | Remote Setup Agent | 构建版本追踪总表（每次构建追加一条记录） |
-| `build/deploy-config.json` | Remote Setup Agent | 部署配置快照（可复用，下次构建跳过已安装组件） |
-| `build/nginx.conf` | Remote Setup Agent | Nginx 配置文件 |
-| `build/artifacts/` | Remote Setup Agent | 构建归档目录（tar.gz + manifest.json，不可删除） |
-
-### 环境检查（每次测试前）
-
-主会话在启动测试前，检查 `environment.json` 中的 `healthCheck`：
-- 服务是否运行在指定端口
-- 健康检查 URL 是否返回预期状态码
-- **未通过** → 启动 Setup Agent，由 Agent 负责启动服务并验证（不是仅提示用户）
+环境检查、Setup 触发条件、产出文件定义详见 `04-agent-workflow.md` 的「测试前环境检查」章节。本节仅定义配置模板和约束。
 

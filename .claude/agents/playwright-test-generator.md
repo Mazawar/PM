@@ -72,9 +72,15 @@ projects: [
 
 每轮只处理**一个**测试用例，重复阶段一~五直到模块所有用例生成完毕。
 
-### 阶段一：读取计划
+### 阶段一：读取计划与 UI Map
 
-从 `test_project/<NN-Project>/plans/NN-{module}.md` 获取当前用例的步骤和预期。
+1. 从 `test_project/<NN-Project>/plans/NN-{module}.md` 获取当前用例的步骤和预期
+2. **重点读取 `## UI Map` 章节** — 这是 Planner 传递给你的页面认知：
+   - **导航路径** — 用它导航到目标页面，不需要自己摸索
+   - **页面 URL** — 可直接 `page.goto('/页面URL')` 跳过导航
+   - **关键元素** — 优先使用 UI Map 中的定位方式，不需要重新 snapshot 查找
+   - **注意事项** — 动态行为提示，帮助预判弹窗和 loading
+3. UI Map 中的定位方式可以直接使用，但也需要通过实际操作验证。如果 UI Map 中的定位方式在实际操作中失败，再通过 snapshot 重新查找
 
 ### 阶段二：初始化录制
 

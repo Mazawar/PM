@@ -1,5 +1,14 @@
 # Agent 调度与工作流规则
 
+## 管线状态持久化
+
+九阶段流程是**可中断、可恢复**的状态机。详细定义见 `00-pipeline-state.md`。
+
+**核心规则**：
+- 主会话在每个阶段**开始和结束时**更新 `test_project/<NN-Project>/.pipeline-state.json`
+- 新会话启动时先读取状态文件，从断点继续
+- Agent 不读写状态文件，仅主会话负责状态管理
+
 ## 九阶段流程
 
 ```
@@ -74,18 +83,26 @@ Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute 
 
 ## Report 阶段（强制）
 
-测试运行完成后，无论通过或失败，**主会话**必须生成/更新以下结果文件：
+测试运行完成后，无论通过或失败，**必须**生成结果文件。
 
-### 结果文件生成（每次测试后）
+### 结果文件生成（自动化优先）
 
-1. **`test_project/<NN-Project>/results/{module}/progress.txt`** — 根据 Playwright 输出填写每条 TC 状态（PASS/FAIL/SKIP）
-2. **`test_project/<NN-Project>/results/{module}/report.md`** — 按规则 03 格式填写（含截图引用）
-3. **`test_project/<NN-Project>/results/summary.md`** — 聚合所有模块通过率
+使用自动化脚本从 Playwright JSON 报告生成结果文件：
+
+```bash
+node .claude/scripts/generate-report.mjs --project <NN-Project>
+```
+
+脚本自动解析 Playwright 输出，生成：
+1. **`results/{module}/progress.txt`** — 每条 TC 的 PASS/FAIL/SKIP 状态
+2. **`results/{module}/report.md`** — 模块详细报告（含截图引用、步骤详情）
+3. **`results/summary.md`** — 聚合所有模块通过率
 
 ### 结果来源
 
-- **healer 已运行** → healer 更新了 progress.txt 和 report.md，主会话只需更新 summary.md
-- **healer 未运行**（全通过或用户未批准 healer）→ 主会话根据 Playwright 输出生成全部结果文件
+- **healer 已运行** → healer 更新了 progress.txt 和 report.md，主会话运行脚本更新 summary.md
+- **healer 未运行**（全通过或用户未批准 healer）→ 主会话运行脚本生成全部结果文件
+- **脚本失败** → 主会话根据 Playwright 文本输出手动生成（兜底方案）
 
 ### 禁止空结果
 
@@ -156,8 +173,10 @@ Report → 用户询问 ┤                  构建 → 确认发布 → 打 Tag
 
 **例外**：`test_project/<NN-Project>/playwright.config.ts` 和 `test_project/<NN-Project>/test-config/environment.json` 由 Setup Agent 和 `healer` agent 管理。
 
-### `.last_hash` 保护（强制）
+### `.last_hash` 和 `.pipeline-state.json` 保护（强制）
 
 - `test_project/<NN-Project>/.last_hash` 是扫描脚本的变更追踪基准，**任何 Agent 禁止删除或清空**
-- Setup Agent 创建目录时，若 `.last_hash` 已存在必须保留原内容
-- 仅 `scan.sh` 有权写入 `.last_hash`
+- `test_project/<NN-Project>/.pipeline-state.json` 是管线状态文件，**任何 Agent 禁止删除**（主会话可重置）
+- Setup Agent 创建目录时，若上述文件已存在必须保留原内容
+- `.last_hash` 仅 `scan.sh` 有权写入
+- `.pipeline-state.json` 仅主会话有权写入
