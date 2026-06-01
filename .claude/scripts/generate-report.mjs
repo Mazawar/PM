@@ -104,6 +104,47 @@ function moduleFromPath(filePath) {
 }
 
 /**
+ * 读取已有 progress.txt，返回 Map<TC-ID, status>
+ */
+function readExistingProgressMap(modDir) {
+  const progPath = join(modDir, 'progress.txt');
+  if (!existsSync(progPath)) return new Map();
+  const content = readFileSync(progPath, 'utf-8').trim();
+  const map = new Map();
+  for (const line of content.split('\n')) {
+    const idx = line.indexOf(':');
+    if (idx < 0) continue;
+    const tcId = line.substring(0, idx).trim();
+    const status = line.substring(idx + 1).trim();
+    if (tcId && status) map.set(tcId, status);
+  }
+  return map;
+}
+
+/**
+ * 读取已有 report.md，提取每个 TC 的详细结果段落和标题
+ * 返回 Map<TC-ID, { title, section }>
+ */
+function readExistingTcData(modDir) {
+  const reportPath = join(modDir, 'report.md');
+  if (!existsSync(reportPath)) return new Map();
+  const content = readFileSync(reportPath, 'utf-8');
+  const map = new Map();
+  const regex = /### (TC-\d+:[\s\S]*?)(?=### TC-|## 缺陷|## 环境|## 修复|$)/g;
+  let m;
+  while ((m = regex.exec(content)) !== null) {
+    const headerLine = m[1].split('\n')[0]; // "TC-XXX: title - PASS"（无 ### 前缀）
+    const tcId = headerLine.match(/(TC-\d+)/)?.[1];
+    const titleMatch = headerLine.match(/^TC-\d+:\s*(.+?)\s*-\s*(PASS|FAIL|SKIP)$/);
+    const title = titleMatch ? titleMatch[1] : tcId;
+    const section = m[0].trimEnd();
+    const screenshots = [...section.matchAll(/!\[\]\((screenshots\/[^)]+)\)/g)].map(sm => sm[1]);
+    if (tcId) map.set(tcId, { title, section, screenshots });
+  }
+  return map;
+}
+
+/**
  * 从测试标题提取 TC 编号
  * "TC-001: 登录测试" -> TC-001
  */
@@ -221,6 +262,12 @@ function generateReport(module, tests, env) {
   // 详细结果
   md += `## 详细结果\n\n`;
   for (const t of tests) {
+    // 陈旧 TC：直接复用已有段落
+    if (t._existingSection) {
+      md += t._existingSection + '\n\n';
+      continue;
+    }
+
     const status = t.status === 'passed' ? 'PASS' : t.status === 'skipped' ? 'SKIP' : 'FAIL';
     md += `### ${t.tcId}: ${t.title} - ${status}\n`;
 
@@ -338,9 +385,40 @@ for (const [mod, tests] of Object.entries(modules)) {
     t.screenshots = resolved;
   }
 
-  writeFileSync(join(modDir, 'progress.txt'), generateProgress(mod, tests));
-  writeFileSync(join(modDir, 'report.md'), generateReport(mod, tests, env));
-  console.log(`  ✓ ${mod}/progress.txt + report.md (${tests.length} TC)`);
+  // --- 合并已有结果：JSON 覆盖/追加，已有 TC 保留 ---
+  const existingProgress = readExistingProgressMap(modDir);
+  const existingTcData = readExistingTcData(modDir);
+  const newTcIds = new Set(tests.map(t => t.tcId));
+
+  // 构建陈旧 TC（已有但本次 JSON 中没有的）
+  const staleTests = [];
+  for (const [tcId, status] of existingProgress) {
+    if (!newTcIds.has(tcId)) {
+      const data = existingTcData.get(tcId);
+      staleTests.push({
+        tcId,
+        title: data?.title || tcId,
+        status: status === 'PASS' ? 'passed' : status === 'SKIP' ? 'skipped' : 'failed',
+        duration: 0,
+        error: null,
+        steps: [],
+        screenshots: data?.screenshots || [],
+        _existingSection: data?.section || null,
+      });
+    }
+  }
+
+  // 合并并按 TC 编号排序
+  const mergedTests = [...staleTests, ...tests].sort((a, b) => {
+    const na = parseInt(a.tcId.match(/\d+/)?.[0] || '0');
+    const nb = parseInt(b.tcId.match(/\d+/)?.[0] || '0');
+    return na - nb;
+  });
+
+  writeFileSync(join(modDir, 'progress.txt'), generateProgress(mod, mergedTests));
+  writeFileSync(join(modDir, 'report.md'), generateReport(mod, mergedTests, env));
+  const staleInfo = staleTests.length > 0 ? ` (+${staleTests.length} 保留)` : '';
+  console.log(`  ✓ ${mod}/progress.txt + report.md (${mergedTests.length} TC${staleInfo})`);
 }
 
 writeFileSync(join(resultsDir, 'summary.md'), generateSummary(modules, filtered, env));

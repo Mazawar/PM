@@ -164,11 +164,30 @@ export default defineConfig({
     screenshot: 'on',
     trace: 'on-first-retry',
   },
+  reporter: [['json', { outputFile: './playwright-report.json' }], ['line']],
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
+    {
+      name: 'setup',
+      testMatch: /seed\.spec\.ts$/,
+    },
+    {
+      name: 'chromium',
+      use: {
+        browserName: 'chromium',
+        storageState: 'test_project/<NN-Project>/test-config/auth.json',
+      },
+      dependencies: ['setup'],
+      testIgnore: /seed\.spec\.ts$/,
+    },
   ],
 });
 ```
+
+**关键配置说明**：
+- `reporter` — JSON 报告输出到 `playwright-report.json`，供 `generate-report.mjs` 解析生成 progress.txt、report.md、summary.md；line reporter 同时在终端显示进度
+- `setup` project — 匹配 `seed.spec.ts`，先于其他测试运行，完成登录并保存认证状态
+- `storageState` — chromium 项目依赖 setup，自动加载 seed 保存的认证状态，测试无需重复登录
+- `dependencies: ['setup']` — 确保 seed 先执行，认证状态就绪后再跑测试
 
 #### 3.3 start.sh（一键启动脚本）
 
@@ -311,21 +330,29 @@ test_project/<NN-Project>/tests/seed.spec.ts
 
 模板：
 ```typescript
-import { test, expect } from '@playwright/test';
+// TEST-ID: TP-<NN-Project>-SEED
+// TEST-NAME: 登录种子
+// TEST-LEVEL: SEED
+// MODULE: auth
 
-test('seed - login', async ({ page }) => {
+import { test as setup } from '@playwright/test';
+
+setup('登录并保存认证状态', async ({ page }) => {
   await page.goto('<login.url>');
-  await page.getByRole('textbox', { name: '<usernamePlaceholder>' }).fill('<username>');
-  await page.getByRole('textbox', { name: '<passwordPlaceholder>' }).fill('<password>');
+  await page.getByPlaceholder('<usernamePlaceholder>').fill('<username>');
+  await page.getByPlaceholder('<passwordPlaceholder>').fill('<password>');
   await page.getByRole('button', { name: '<submitButton>' }).click();
   await page.waitForURL('**/<登录后路径>**');
+  await page.context().storageState({ path: 'test_project/<NN-Project>/test-config/auth.json' });
 });
 ```
 
-- 选择器必须来自 Step 4.4 中实际验证成功的方式（`getByRole` 优先）
+- 选择器必须来自 Step 4.4 中实际验证成功的方式
+- 使用 `getByPlaceholder` 定位输入框（比 `getByRole('textbox', { name })` 更稳定）
 - `<username>` 和 `<password>` 取自 `environment.json` 的 `credentials`
 - `<usernamePlaceholder>` 等取自 `environment.json` 的 `login` 配置
 - `waitForURL` 的路径根据实际登录后跳转填写（从 Step 4.4 观察得到）
+- `storageState` 保存认证状态到 `test-config/auth.json`，供 chromium 项目复用
 - 如果登录验证未通过或无凭据，跳过此步骤
 
 #### 4.5 任务完成条件
