@@ -116,7 +116,33 @@ planner 规划时，输入来源按以下优先级处理：
 
 ## generator 约束
 
-### 录制流程（强制 — Playwright 调试录制模式，每用例独立会话）
+### 生成模式选择（强制）
+
+Generator 启动时，**必须**先检查计划文件是否包含完整 UI Map：
+
+1. 读取模块计划文件（`plans/NN-{module}.md`），查找 `UI Map` 章节
+2. **有 UI Map**（包含元素定位方式表 + 导航路径 + 关键元素描述）→ **直接生成模式**（见下方）
+3. **无 UI Map** → **录制模式**（见下方）
+
+### 模式 A：直接生成（有 UI Map 时，强制）
+
+**前提**：planner 已通过浏览器探索生成完整的 UI Map，包含每个元素的定位方式（role、placeholder、CSS selector 等）和页面结构。Generator 直接从 UI Map 提取选择器生成代码，**不再重复浏览器操作**。
+
+**流程**：
+
+1. 读取计划文件中的 UI Map 和 TC 步骤
+2. 将 UI Map 中的定位方式直接转为 Playwright locator：
+   - `getByRole('button', { name: '查询' })` → `page.getByRole('button', { name: '查询' })`
+   - `getByPlaceholder('角色名称/权限字符')` → `page.getByPlaceholder('角色名称/权限字符')`
+   - CSS selector（`page.locator('.el-table')`）→ 直接使用
+3. 将 TC 步骤转为 Playwright 操作代码
+4. 插入 `expect()` 断言、智能等待、`page.screenshot()` — 同录制模式的组装规则
+5. 调用 `generator_write_test` 写入文件
+6. **不调用** `generator_setup_page`、`generator_read_log`，不执行浏览器操作
+
+**优势**：消除 planner 和 generator 的重复浏览器操作，生成速度提升数倍。
+
+### 模式 B：录制模式（无 UI Map 时，回退）
 
 **核心原则：每个测试用例独立一个录制会话。录制时只操作不写代码，操作完后从日志提取代码，加断言/等待/截图后写入。然后开始下一个用例的新会话。**
 
@@ -144,9 +170,12 @@ planner 规划时，输入来源按以下优先级处理：
 
 **禁止**：一个录制会话做多个测试用例的操作后再统一生成代码。
 
-### 选择器（强制）
+### 选择器来源（强制）
 
-选择器全部来自 Playwright 调试录制自动生成的代码，不自行构造、不凭记忆写选择器。
+| 生成模式 | 选择器来源 | 规则 |
+|---------|-----------|------|
+| 直接生成（有 UI Map） | 计划文件 UI Map 中的定位方式 | 直接转为 Playwright locator，不自行构造 |
+| 录制模式（无 UI Map） | `generator_read_log` 的录制输出 | 使用录制自动生成的选择器，禁止凭记忆重构 |
 
 ### 代码生成（强制）
 
@@ -155,7 +184,7 @@ planner 规划时，输入来源按以下优先级处理：
 - 文件命名：`{module}/tc-{编号}-{简称}.spec.ts`（如 `member/tc-001-add-member.spec.ts`）
 - 写入 `test_project/<NN-Project>/tests/` 对应层级（unit/api/e2e/ui）下的模块子文件夹（`<NN-Project>` 由主会话传递，禁止省略）
 - 用 `page.screenshot()` 主动截图，不依赖自动截图
-- 代码中的选择器必须来自 `generator_read_log` 的录制输出，禁止凭记忆重构
+- 选择器来源按「选择器来源」规则执行，不凭记忆重构
 
 ### 测试数据
 
