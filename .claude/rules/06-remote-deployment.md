@@ -272,24 +272,110 @@ cp /etc/nginx/sites-available/<NN-Project> <deployPath>/backup/nginx-<timestamp>
 
 ## 构建方式（强制）
 
-**默认：本地编译，远程部署。仅用户明确要求时才远程克隆编译。**
+Agent 支持三种构建模式。主会话在启动 prompt 时通过 `mode=` 参数指定，不指定时默认模式 A（direct-upload，本地编译+上传，远程安装依赖）。
 
-### 本地编译 + 上传（默认）
+| 模式标识 | 名称 | 适用场景 |
+|---------|------|---------|
+| `mode=direct-upload` | 本地编译+上传（默认） | 远程服务器已有所需运行时依赖，只需产物 |
+| `mode=dep-pack` | 本地构建+依赖打包 | 远程缺少运行时/网络受限/减少远程故障点，依赖本地装好后上传 |
+| `mode=remote-build` | 远程克隆编译 | 本地无法构建（架构/OS 差异），用户明确要求 |
+
+### 模式 A：本地编译 + 上传（默认）
 
 1. Agent 根据 `techStack` 确定构建命令，在 `repository/<NN-Project>/` 执行
 2. **构建失败则终止**，不在远程修复
-3. 构建成功 → **立即归档**到 `build/artifacts/`（按「构建产物归档」流程）
-4. 上传到 `remoteConfig.deployPath`：
+3. 构建成功 → 复制产物到 `build/tmp/` → 归档到 `build/artifacts/`（按「构建产物归档」流程）
+4. 上传 `build/artifacts/` 中的归档到 `remoteConfig.deployPath`：
    - 上传：构建产物 + 配置文件 + schema 文件 + 依赖声明文件
    - **不上传**：依赖目录（如 node_modules/、.venv/、.gradle/）、.git/、src/
+5. 在远程服务器安装生产依赖
 
-### 远程克隆编译（仅用户明确要求）
+### 模式 B：本地构建 + 依赖打包
+
+此模式以 `build/tmp/` 为工作区，`build/artifacts/` 是从 tmp/ 取的不含依赖的快照。
+
+1. **阶段一**（构建→复制到 tmp/→从 tmp/ 归档到 artifacts/）：
+   构建后复制产物到 `build/tmp/`，再从 `build/tmp/` 打包不含依赖的归档到 `build/artifacts/`
+2. **阶段二**（在 tmp/ 装依赖→重打包→上传）：
+   在 `build/tmp/` 中安装生产依赖，重打包为自包含包上传
+
+输出的归档包是**自包含**的，远程服务器无需再次安装项目依赖。
+
+#### 适用场景
+
+- 远程服务器 npm registry 不可达或访问慢
+- 远程服务器无编译工具链（无 node/python/go）
+- 希望减少远程部署的步骤和故障点
+- 需要确保本地与远程使用完全相同的依赖版本
+
+#### 完整流程
+
+**阶段一：构建并准备 tmp 工作区**
+
+1. Agent 根据 `techStack` 确定构建命令，在 `repository/<NN-Project>/` 执行
+2. 构建失败则终止
+3. 将构建产物复制到 `build/tmp/`：
+   - 前端产物（dist/、web/dist/）
+   - 后端产物（apps/api/dist/、api/dist/）
+   - 依赖声明文件（package.json、pnpm-lock.yaml）
+   - ORM schema / 迁移文件（prisma/）
+   - .env 模板
+4. 从 `build/tmp/` 打包为不含依赖的归档到 `build/artifacts/`：
+   ```bash
+   tar -czf build/artifacts/<archive>.tar.gz -C build/tmp .
+   ```
+5. 生成 manifest.json，执行归档完整性校验
+6. 此时 `build/artifacts/<archive>.tar.gz` 是**不含项目依赖**的纯构建产物快照，`build/tmp/` 中已有展开的产物
+
+**阶段二：本地依赖打包**
+
+7. 在 `build/tmp/` 中安装项目生产依赖：
+
+   | 技术栈 | 命令 | 验证方式 |
+   |--------|------|---------|
+   | Node.js / npm | `cd build/tmp && npm install --production` | 检查 `node_modules/` 下关键包存在 |
+   | Node.js / pnpm | `cd build/tmp && pnpm install --prod` | 同上 |
+   | Node.js / yarn | `cd build/tmp && yarn install --production` | 同上 |
+   | Python / pip | `cd build/tmp && pip install -r requirements.txt --no-dev` | `pip list` 确认 |
+   | Java | 无需操作（jar 已包含依赖） | — |
+   | Go | 无需操作（二进制已静态编译） | — |
+
+   - 仅安装**生产**依赖，不安装 devDependencies
+   - 如 `build/tmp/` 下已有 `node_modules/` 等依赖目录，则跳过安装（验证即可）
+
+8. 验证依赖安装成功：
+   - Node.js: 检查 `node_modules/.package-lock.json` 或关键入口包文件存在
+   - Python: `pip list` 输出版本号
+   - 如验证失败 → 终止，输出错误原因，不继续部署
+
+9. **重打包并上传**：
+   ```bash
+   # 重打包为自包含部署包（含 node_modules）
+   cd build/tmp && tar -czf <archive>.tar.gz --exclude=node_modules/.cache .
+
+   # 记录重打包 checksum
+   sha256sum build/tmp/<archive>.tar.gz
+   ```
+   - 记录重打包 checksum 到 manifest.json 的 `repackChecksum` 字段
+   - 上传 `build/tmp/<archive>.tar.gz` 到远程 `remoteConfig.deployPath`
+   - 在远程解压即可使用，无需安装项目依赖
+
+#### 与模式 A 的关键差异
+
+| 步骤 | 模式 A | 模式 B |
+|------|--------|--------|
+| 构建 | 构建产物留在 repository/ | 同左 |
+| 准备归档 | 复制产物到 `build/tmp/` 后归档到 artifacts/ | 同左（tmp/ 在阶段二复用） |
+| artifacts/ 内容 | 不含 node_modules | 不含 node_modules（tmp/ 快照） |
+| 依赖安装 | 远程服务器执行 | 本地 `build/tmp/` 执行 |
+| 上传来源 | `build/artifacts/`（不含依赖） | `build/tmp/`（重打包含依赖） |
+| 远程解压后 | 需要 npm install | 直接可用 |
+| 远程运行时要求 | 需要 node+npm | 只需要 node |
+| 部署时长 | 上传快+远程安装慢 | 上传较慢+远程即用 |
+
+### 模式 C：远程克隆编译（仅用户明确要求）
 
 在远程 git clone → 安装依赖 → 构建，命令由 `techStack` 决定。
-
-### 远程安装运行时依赖
-
-上传或克隆完成后，根据 `techStack` 安装生产依赖。
 
 ## 数据库初始化（如 dbConfig 存在）
 
