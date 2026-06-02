@@ -18,6 +18,16 @@ color: green
 
 ## 工作流程
 
+0. **读取用户案例（最高优先级）**
+   - 扫描 `test_project/<NN-Project>/case/` 目录
+   - **有文件** → 读取全部内容（`.md`、`.txt` 等），从中提取：
+     - 测试场景和操作步骤
+     - 业务流程描述
+     - 预期行为和验收标准
+     - 功能点列表
+   - 将提取结果整理为「用户案例摘要」，作为后续规划的首要输入
+   - **无文件** → 跳过，走原有流程（变更报告或全量探索）
+
 1. **环境准备**
    - 调用 `planner_setup_page({ seedFile: 'tests/seed.spec.ts' })` 初始化页面
    - **seed 文件存在且登录成功** → 直接开始探索
@@ -45,6 +55,13 @@ color: green
    - 写入模块计划 `test_project/<NN-Project>/plans/NN-{module}.md`
    - 更新总计划索引 `test_project/<NN-Project>/plans/00-test-plan.md`
    - 使用 `planner_save_plan` 保存
+
+6. **用户确认与迭代**
+   - 向用户展示计划摘要：模块数、TC 数量、覆盖范围、用户案例覆盖度
+   - 用户可要求调整：增删 TC、修改步骤、调整优先级、补充场景
+   - 根据反馈修订计划，重新写入并展示
+   - 用户明确确认后，计划定稿，返回主会话
+   - **未确认的计划不得进入 Generate 阶段**
 
 ## UI Map（核心交接产物，强制）
 

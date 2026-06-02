@@ -20,7 +20,7 @@ Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute 
 2. **Setup** — 每次测试前检查环境，无配置时启动 Setup Agent 分析项目环境
 3. **Remote Setup** — Setup 完成后询问用户构建方式：本地构建（跳过）或远程构建（启动 Remote Setup Agent 在远程服务器部署环境）
 4. **Analyze** — planner Agent 读变更报告，写 `test_project/<NN-Project>/reports/summary.md`（变更概述、影响范围、测试建议）；无变更报告时跳过此步骤，直接进入 Plan
-5. **Plan** — planner agent 生成测试计划，**用户确认**
+5. **Plan** — planner agent 生成测试计划（优先读取 `case/` 目录中的用户案例），**用户多轮确认与调整**后才进入 Generate
 6. **Generate** — generator agent 生成测试代码，**用户确认**
 7. **Execute** — 运行测试，失败交 healer agent
 8. **Report** — 主会话汇总结果（生成/更新 `test_project/<NN-Project>/results/` 下的 progress.txt、report.md、summary.md），向用户汇报
@@ -59,7 +59,7 @@ Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute 
    - **切换服务器** → 清空 remoteConfig，启动 Remote Setup Agent 执行重绑定
      - 用 `AskUserQuestion` 提供选项：继续当前服务器 / 切换到其他已配置服务器
      - 切换后 Agent 执行完整部署流程，覆盖写入 build/ 产物（deploy-config.json、nginx.conf、artifacts/）
-3. 启动 planner → planner 同时负责 Analyze（读变更报告）和 Plan → 审阅计划 → 确认后启动 generator
+3. 启动 planner → 启动前检查 `case/` 目录是否有用户案例文件，在 prompt 中告知 planner → planner 同时负责 Analyze（读变更报告）和 Plan（优先读 case/）→ 审阅计划 → **向用户展示摘要并请求确认** → 用户可要求多轮调整 → 确认后启动 generator
 4. 首次运行测试 → 有失败则启动 healer
 5. 汇总结果 → 生成/更新 `test_project/<NN-Project>/results/` 下的 progress.txt、report.md、summary.md → 向用户汇报
 6. **Publish 询问** — 测试**全部通过**后，必须主动询问"是否发布到 Git Release"，不可等待用户提出；有失败时询问"是否修复后发布"
@@ -158,7 +158,7 @@ Report → 用户询问 ┤                  构建 → 确认发布 → 打 Tag
 | 阶段 | 确认内容 |
 |------|---------|
 | Remote Setup 后 | 确认 environment.json 的 baseURL 变更（远程 IP） |
-| Plan 后 | 测试计划的模块覆盖和 TC 编号分配 |
+| Plan 后 | 测试计划的模块覆盖、TC 编号分配、用户案例覆盖度（可多轮调整） |
 | Generate 后 | 生成的测试代码 |
 | Report 后 | 全部通过 → 是否发布到 Git Release / 跳过；有失败 → 是否修复后发布 / 提交 issue / 进一步测试 |
 | Publish（构建后） | 确认发布到 Git Release（打 Tag + 创建 Release + 上传附件） |
@@ -173,10 +173,11 @@ Report → 用户询问 ┤                  构建 → 确认发布 → 打 Tag
 
 **例外**：`test_project/<NN-Project>/playwright.config.ts` 和 `test_project/<NN-Project>/test-config/environment.json` 由 Setup Agent 和 `healer` agent 管理。
 
-### `.last_hash` 和 `.pipeline-state.json` 保护（强制）
+### `.last_hash`、`.pipeline-state.json` 和 `case/` 保护（强制）
 
 - `test_project/<NN-Project>/.last_hash` 是扫描脚本的变更追踪基准，**任何 Agent 禁止删除或清空**
 - `test_project/<NN-Project>/.pipeline-state.json` 是管线状态文件，**任何 Agent 禁止删除**（主会话可重置）
-- Setup Agent 创建目录时，若上述文件已存在必须保留原内容
+- `test_project/<NN-Project>/case/` 是用户案例目录，**任何 Agent 禁止删除、清空或覆盖其中文件**
+- Setup Agent 创建目录时，若上述文件/目录已存在必须保留原内容
 - `.last_hash` 仅 `scan.sh` 有权写入
 - `.pipeline-state.json` 仅主会话有权写入

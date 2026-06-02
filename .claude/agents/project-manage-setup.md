@@ -96,7 +96,19 @@ color: purple
 
 ### Step 3: 生成环境配置
 
-#### 3.1 environment.json
+#### 3.0 初始化项目目录
+
+运行目录初始化脚本（幂等，已存在的目录和文件不会被覆盖）：
+
+```bash
+node .claude/scripts/init-dirs.mjs --project <NN-Project>
+```
+
+脚本自动创建以下目录结构并写入保护性说明文件：
+- `case/` + `README.md`（用户案例目录）
+- `plans/`、`tests/`、`test-config/`、`results/`、`reports/`、`build/artifacts/`
+
+**禁止手动删除或清空 `case/` 中的用户文件。**
 
 写入 `test_project/<NN-Project>/test-config/environment.json`：
 

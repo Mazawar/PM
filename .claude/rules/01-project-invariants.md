@@ -23,6 +23,10 @@ test_project/<NN-Project>/
 ├── plans/                     # 测试计划
 │   ├── 00-test-plan.md        # 总计划索引（仅模块索引表）
 │   └── NN-{module}.md         # 模块详细计划（NN 为两位序号，按模块递增）
+├── case/                      # 用户提供的业务案例（自由格式，不提交 git）
+│   ├── README.md              # 目录说明（Setup Agent 生成）
+│   └── *.{md,txt,...}         # 任意文件名、任意数量，planner 优先读取
+│                              # ⚠️ 任何 Agent 禁止删除、清空或覆盖用户文件
 ├── start.sh                   # 一键启动脚本（Setup Agent 生成）
 ├── remote-start.sh            # 远程启动脚本（远程服务器上执行，不归档到 build/）
 ├── test-config/
