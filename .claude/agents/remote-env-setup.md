@@ -66,12 +66,12 @@ Agent 支持三种构建模式，由主会话在启动 prompt 中明确指定：
 
 | 模式 | 触发条件 | 流程 |
 |------|---------|------|
-| **本地编译+上传**（A） | prompt 指定 `mode=direct-upload` | 本地 build → 归档 → 上传 |
-| **本地构建+依赖打包**（B） | prompt 未指定或指定 `mode=dep-pack` | 两阶段：① 构建→复制到 tmp/ → 从 tmp/ 归档到 artifacts/ ② 在 tmp/ 装依赖→重打包→上传 |
+| **本地构建+全量打包**（A，默认） | prompt 未指定或指定 `mode=local-pack` | 三阶段：① 构建→归档到 artifacts/ ② 组装部署包（build/dev/）→ 安装依赖 → 重打包 ③ 上传部署 |
+| **本地编译+远程安装**（B） | prompt 指定 `mode=direct-upload` | 本地 build → 归档 → 上传 → 远程安装生产依赖 |
 | **远程克隆编译**（C） | prompt 指定 `mode=remote-build` | 远程 clone → 安装依赖 → 远程 build |
 
-- 模式 A：构建产物直接归档到 `build/artifacts/`（不含项目依赖），上传后在远程安装项目依赖。
-- 模式 B（默认）：**分两阶段**。第一阶段：构建后复制产物到 `build/tmp/`，从 `tmp/` 打包不含依赖的归档到 `artifacts/`。第二阶段：在 `tmp/` 里本地安装项目生产依赖，重打包为自包含包上传。远程解压即用。
+- 模式 A（默认）：完整三阶段流程。构建后归档到 artifacts/，再在 build/dev/ 组装完整部署包（含 node_modules），打包上传。远程解压即用。
+- 模式 B：远程服务器已有所需运行时，只上传纯产物（不含依赖），远程安装生产依赖。
 - 模式 C（用户明确要求时才用）：完全在远程编译。
 - 构建失败则终止，不在远程修复。
 
@@ -122,52 +122,56 @@ Agent 支持三种构建模式，由主会话在启动 prompt 中明确指定：
      - 构建命令参考 environment.json 的 `startCommand`，将 dev 命令转为 build 命令
      - 构建失败则终止，不在远程修复
 
-6. **复制到 tmp/ 并归档到 artifacts/**
-   - 两种模式统一走 `build/tmp/` 作为中间工作区（区别在于后续用途）：
-     ```bash
-     # 创建临时工作区
-     mkdir -p build/tmp
-
-     # 复制构建产物到临时工作区（内容参考 environment.json 的构建产出文件类型）
-     cp -r dist/ build/tmp/
-     cp -r apps/api/dist/ build/tmp/apps/api/dist/
-     cp package.json pnpm-lock.yaml build/tmp/
-     cp -r prisma/ build/tmp/ 2>/dev/null
-
-     # 从 tmp/ 打包为不含依赖的归档（快照）
-     tar -czf build/artifacts/<archive>.tar.gz -C build/tmp .
-     ```
-   - 归档内容：构建产物 + 依赖声明文件 + schema/迁移文件，不含 node_modules
+6. **归档到 artifacts/**
+   - 将构建产物打包归档到 `build/artifacts/<timestamp>-<commit>.tar.gz`
+   - 归档内容：编译产物 + 依赖声明文件 + schema/迁移文件，不含 node_modules
    - 生成 manifest.json（含 commitHash、branch、checksums、source、deployTarget）
-   - 执行归档完整性校验
-   - **模式 A → 上传归档到远程 → 在远程安装项目依赖 → 进入阶段三**
-   - **模式 B → 进入阶段二（tmp/ 中已有产物，直接装依赖）**
+   - 执行归档完整性校验（按 `08-remote-deployment.md` 的归档完整性校验流程）
+   - **模式 B（direct-upload）→ 上传归档到远程 → 在远程安装生产依赖 → 进入阶段三**
+   - **模式 A（local-pack）→ 进入阶段二（组装完整部署包）**
 
-### 阶段二：本地依赖打包（仅模式 B）
+### 阶段二：组装部署包（仅模式 A local-pack）
 
-7. **安装项目生产依赖**
-   - 在 `build/tmp/` 中安装（产物已在步骤 6 中就位）：
-     - Node.js：`cd build/tmp && npm install --production` 或 `pnpm install --prod`
-     - Python：`cd build/tmp && pip install -r requirements.txt`
-     - Java：无需操作（jar 已包含依赖）
-     - Go：无需操作（二进制已静态编译）
-   - 验证依赖安装成功（检查关键文件/目录是否存在）
-   - **不安装 devDependencies**
+7. **组装完整目录（在 build/dev/ 下）**
 
-8. **重打包上传**
-   - 将 `build/tmp/`（含 node_modules）重打包为自包含部署包：
-     ```bash
-     cd build/tmp && tar -czf <archive>.tar.gz --exclude=node_modules/.cache .
-     ```
-   - 记录重打包 checksum 到 manifest 的 `repackChecksum` 字段
-   - 上传 `build/tmp/<archive>.tar.gz` 到远程 `remoteConfig.deployPath`
-   - 远程解压即用，无需安装项目依赖
-   - **→ 进入阶段三**
+   组装后的目录结构（按 `08-remote-deployment.md` 模式 A 阶段二规范）：
+   ```
+   dev/
+   ├── software/             # workspace 根目录（含 node_modules）
+   │   ├── apps/api/
+   │   ├── apps/web/
+   │   └── package.json
+   ├── database/             # 数据库脚本（从仓库复制）
+   ├── sh/                   # 部署脚本（从仓库复制，无则空目录）
+   └── deploy.md             # 自动生成的部署说明
+   ```
+
+8. **安装依赖（hoisted 模式）**
+   ```bash
+   cd build/dev/software
+   pnpm install --config.node-linker=hoisted
+   ```
+   验证 `node_modules/` 下为实体目录（无 `.pnpm/` store 符号链接）
+
+9. **Prisma 项目处理**（如 `prisma/schema.prisma` 存在）
+   - 修改 schema 添加 Linux 引擎目标：`binaryTargets = ["native", "debian-openssl-3.0.x"]`
+   - 生成 Prisma Client，验证引擎文件齐全
+
+10. **复制辅助目录并生成部署说明**
+    - `database/` — 从仓库复制数据库脚本到 `build/dev/database/`
+    - `sh/` — 从仓库复制部署脚本到 `build/dev/sh/`（不存在则创建空目录）
+    - 自动生成 `build/dev/deploy.md`（环境配置表、目录结构、部署步骤、凭据信息）
+
+11. **打包上传**
+    - 将 `dev/` 重命名为 `<NN-Project>`，打包为最终部署包
+    - 上传到远程 `remoteConfig.deployPath`
+    - **→ 进入阶段三**
 
 ### 阶段三：远程部署与验证（所有模式）
 
 9. **上传归档并安装远程依赖**
-   - **模式 A**：从 `build/artifacts/` 上传归档到远程 → 在远程安装生产依赖
+   - **模式 A（local-pack）**：已在上一步（步骤 11）完成上传，`build/dev/` 中已含依赖，直接跳过
+   - **模式 B（direct-upload）**：从 `build/artifacts/` 上传归档到远程 → 在远程安装生产依赖
      ```bash
      # 上传归档
      ssh_upload <archive>.tar.gz remoteConfig.deployPath
@@ -176,7 +180,7 @@ Agent 支持三种构建模式，由主会话在启动 prompt 中明确指定：
      # 远程安装生产依赖（技术栈对应方式）
      ssh_execute "cd <deployPath> && npm install --production"
      ```
-   - **模式 B**：已在上一步（步骤 8）完成上传，`build/tmp/` 中已含依赖，直接跳过
+   - **模式 C（remote-build）**：远程 clone + build + install 已在远程完成，跳过
    - 验证依赖安装成功（检查关键入口文件存在）
 
 10. **操作前备份**

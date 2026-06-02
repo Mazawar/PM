@@ -118,7 +118,7 @@ pm/
 │           └── <module>/          # progress.txt + report.md + screenshots/
 │
 ├── .claude/
-│   ├── rules/                     # 项目规则（00-06，自动加载）
+│   ├── rules/                     # 项目规则（00-08，自动加载）
 │   ├── agents/                    # Agent 定义
 │   │   ├── project-manage-setup.md      # Setup Agent
 │   │   ├── playwright-test-planner.md   # Planner Agent

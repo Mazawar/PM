@@ -45,7 +45,7 @@ test_project/<NN-Project>/.pipeline-state.json
 
 ### 阶段名称映射
 
-| 规则 04 阶段 | state key | 备注 |
+| 规则 06 阶段 | state key | 备注 |
 |-------------|-----------|------|
 | Detect | `Detect` | scan.sh 执行结果 |
 | Setup | `Setup` | 环境配置 |
@@ -83,7 +83,7 @@ running → failed（附 reason）
 | Execute | 进入 Report（含失败数据）| 不阻断，Report 正常生成 |
 | Report | 不阻断后续 | 必须生成，即使全部失败 |
 
-### 阶段可见性（与规则 04 一致）
+### 阶段可见性（与规则 06 一致）
 
 主会话进入或跳过阶段时，**必须同步更新** `.pipeline-state.json` 并输出标记：
 

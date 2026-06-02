@@ -59,7 +59,7 @@ pm/
 │       └── results/           # 测试执行结果（按模块分目录）
 ├── docs/                      # 项目文档
 ├── .claude/
-│   ├── rules/                 # 项目规则（自动加载，00-06）
+│   ├── rules/                 # 项目规则（自动加载，00-08）
 │   ├── agents/                # Agent 定义（setup/planner/generator/healer/publisher/remote-setup）
 │   ├── skills/pm/             # 项目注册管理 skill
 │   └── scripts/

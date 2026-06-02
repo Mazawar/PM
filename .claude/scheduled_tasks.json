@@ -1,15 +1,14 @@
 {
   "tasks": [
     {
-      "id": "95cec240",
+      "id": "f94570be",
       "cron": "*/30 * * * *",
       "prompt": "第一步（自动续签）：用 CronList 检查当前定时任务。找到 cron 为 \"*/30 * * * *\" 的扫描任务，检查其 createdAt。如果距今超过 6 天，先 CronDelete 删除该任务，再用 CronCreate（cron=\"*/30 * * * *\", durable=true, recurring=true）以本 prompt 原文重新创建，完成续签。\n\n第二步（仓库扫描）：用 Agent 工具（run_in_background: true）后台执行仓库扫描：bash .claude/scripts/scan.sh。如果检测到变更，读取 reports/ 下最新报告，分析后写入 test_project/<NN-Project>/reports/summary.md（变更概述、影响范围、测试建议、潜在风险），然后向用户汇报。无变更则不输出。",
-      "createdAt": 1780381122566,
+      "createdAt": 1780384425303,
       "recurring": true,
       "createdBySessionId": "71febadc-f6fb-4be9-8795-7b69ea323d44",
       "createdByPid": 11052,
-      "createdByProcStart": "639159967002818050",
-      "lastFiredAt": 1780382346744
+      "createdByProcStart": "639159967002818050"
     }
   ]
 }

@@ -15,10 +15,10 @@
 
 - Java/Spring → JUnit5 + Mockito / Spring Boot Test + REST Assured
 - Python → pytest + unittest.mock / pytest + requests
-- Node.js/Vue/React → Jest + Testing Library / Supertest / Playwright
+- Node.js/Vue/React → **Vitest**（L2 API 测试）+ Jest + Testing Library / Supertest / Playwright
 - Go → testing + testify
 
-UI 测试统一使用 Playwright。
+UI 测试统一使用 Playwright。L2 API 测试统一使用 Vitest（项目级 `vitest.config.ts` 由 Setup Agent 生成）。
 
 ## 覆盖要求
 
