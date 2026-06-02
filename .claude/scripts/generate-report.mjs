@@ -385,6 +385,34 @@ for (const [mod, tests] of Object.entries(modules)) {
     t.screenshots = resolved;
   }
 
+  // scan screenshots/ directory for historical screenshots matching TC IDs
+  const screenshotsDir = join(modDir, 'screenshots');
+  if (existsSync(screenshotsDir)) {
+    const allScreenshots = readdirSync(screenshotsDir).filter(f => /\.(png|jpg|jpeg)$/i.test(f));
+    const tcIdPattern = /^[tT][cC]-?(\d+)/;
+    const tcScreenshotMap = new Map();
+    for (const f of allScreenshots) {
+      const match = f.match(tcIdPattern);
+      if (match) {
+        const num = match[1];
+        const key = `TC-${num.padStart(3, '0')}`;
+        if (!tcScreenshotMap.has(key)) tcScreenshotMap.set(key, []);
+        tcScreenshotMap.get(key).push(`screenshots/${f}`);
+      }
+    }
+    // merge historical screenshots: add any not already present from Playwright attachments
+    for (const t of tests) {
+      if (tcScreenshotMap.has(t.tcId)) {
+        const existing = new Set(t.screenshots.map(s => basename(s)));
+        for (const shot of tcScreenshotMap.get(t.tcId)) {
+          if (!existing.has(basename(shot))) {
+            t.screenshots.push(shot);
+          }
+        }
+      }
+    }
+  }
+
   // --- 合并已有结果：JSON 覆盖/追加，已有 TC 保留 ---
   const existingProgress = readExistingProgressMap(modDir);
   const existingTcData = readExistingTcData(modDir);

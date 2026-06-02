@@ -174,7 +174,7 @@ export default defineConfig({
       name: 'chromium',
       use: {
         browserName: 'chromium',
-        storageState: 'test_project/<NN-Project>/test-config/auth.json',
+        storageState: path.resolve(__dirname, 'test-config', 'auth.json'),
       },
       dependencies: ['setup'],
       testIgnore: /seed\.spec\.ts$/,
@@ -336,6 +336,8 @@ test_project/<NN-Project>/tests/seed.spec.ts
 // MODULE: auth
 
 import { test as setup } from '@playwright/test';
+import path from 'path';
+import fs from 'fs';
 
 setup('登录并保存认证状态', async ({ page }) => {
   await page.goto('<login.url>');
@@ -343,7 +345,9 @@ setup('登录并保存认证状态', async ({ page }) => {
   await page.getByPlaceholder('<passwordPlaceholder>').fill('<password>');
   await page.getByRole('button', { name: '<submitButton>' }).click();
   await page.waitForURL('**/<登录后路径>**');
-  await page.context().storageState({ path: 'test_project/<NN-Project>/test-config/auth.json' });
+  const authPath = path.resolve(__dirname, '..', 'test-config', 'auth.json');
+  fs.mkdirSync(path.dirname(authPath), { recursive: true });
+  await page.context().storageState({ path: authPath });
 });
 ```
 
@@ -352,7 +356,7 @@ setup('登录并保存认证状态', async ({ page }) => {
 - `<username>` 和 `<password>` 取自 `environment.json` 的 `credentials`
 - `<usernamePlaceholder>` 等取自 `environment.json` 的 `login` 配置
 - `waitForURL` 的路径根据实际登录后跳转填写（从 Step 4.4 观察得到）
-- `storageState` 保存认证状态到 `test-config/auth.json`，供 chromium 项目复用
+- `storageState` 保存认证状态到 `test-config/auth.json`（使用 `path.resolve(__dirname)` 绝对路径），供 chromium 项目复用
 - 如果登录验证未通过或无凭据，跳过此步骤
 
 #### 4.5 任务完成条件

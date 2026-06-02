@@ -44,25 +44,31 @@ color: blue
 // MODULE: auth
 
 import { test as setup } from '@playwright/test';
+import path from 'path';
+import fs from 'fs';
 
 setup('登录并保存认证状态', async ({ page }) => {
   await page.context().clearCookies();
   await page.goto('/');
   // 来自录制日志的登录操作代码
-  await page.context().storageState({ path: 'test_project/<NN-Project>/test-config/auth.json' });
+  const authPath = path.resolve(__dirname, '..', 'test-config', 'auth.json');
+  fs.mkdirSync(path.dirname(authPath), { recursive: true });
+  await page.context().storageState({ path: authPath });
 });
 ```
 
 **C. 更新 playwright.config.ts**
 
-`storageState` 不可放全局 `use`（setup 项目会读不存在的 auth.json），只放 `chromium` project。路径相对于 CWD：
+`storageState` 不可放全局 `use`（setup 项目会读不存在的 auth.json），只放 `chromium` project。必须使用 `path.resolve(__dirname, ...)` 绝对路径：
 
 ```typescript
+import path from 'path';
+
 projects: [
   { name: 'setup', testMatch: 'tests/seed.spec.ts' },
   {
     name: 'chromium',
-    use: { browserName: 'chromium', storageState: 'test_project/<NN-Project>/test-config/auth.json' },
+    use: { browserName: 'chromium', storageState: path.resolve(__dirname, 'test-config', 'auth.json') },
     dependencies: ['setup'],
   },
 ],
