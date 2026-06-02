@@ -99,13 +99,15 @@ pm/
 
 | 文件 | 内容 |
 |------|------|
-| `00-pipeline-state.md` | 管线状态持久化：九阶段状态机、可中断恢复、状态转换规则 |
-| `01-project-invariants.md` | 项目结构、目录规范、注册表双写、Git 规则、case/ 保护 |
-| `02-testing-framework.md` | 测试层级定义（L1-L4）、框架选择、覆盖要求、测试数据安全 |
-| `03-test-output.md` | 结果目录结构、文件命名、progress/report 格式、截图规范 |
-| `04-agent-workflow.md` | 九阶段流程、主会话职责、调度管线、环境检查、构建方式选择、用户确认点 |
-| `05-agent-behavior.md` | planner/generator/healer Agent 行为约束、等待策略、循环防护、用户案例优先级 |
-| `06-remote-deployment.md` | 远程部署：SSH 操作、服务器绑定/重绑定、三种构建模式、归档校验、Nginx、验证 |
+| `00-README.md` | 规则索引：分层结构、管线阶段映射、Agent 与规则对应关系 |
+| `01-pipeline-state.md` | 管线状态持久化：九阶段状态机、可中断恢复、状态转换规则 |
+| `02-project-invariants.md` | 项目结构、目录规范、注册表双写、Git 规则、case/ 保护 |
+| `03-setup-environment.md` | 环境配置：数据库初始化优先级、端口推断、脚本验证、页面验证、问题处理策略、完成条件 |
+| `04-testing-framework.md` | 测试层级定义（L1-L4）、框架选择、覆盖要求、测试数据安全 |
+| `05-test-output.md` | 结果目录结构、文件命名、progress/report 格式、截图规范 |
+| `06-agent-workflow.md` | 九阶段流程、主会话职责、调度管线、环境检查、构建方式选择、用户确认点 |
+| `07-agent-behavior.md` | planner/generator/healer Agent 行为约束、等待策略、循环防护、用户案例优先级 |
+| `08-remote-deployment.md` | 远程部署：SSH 操作、服务器绑定/重绑定、三种构建模式、归档校验、Nginx、验证 |
 
 ## Agent Pipeline 与九阶段流程
 

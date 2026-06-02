@@ -131,5 +131,5 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 
 ## 项目环境分析
 
-环境检查、Setup 触发条件、产出文件定义详见 `04-agent-workflow.md` 的「测试前环境检查」章节。本节仅定义配置模板和约束。
+环境检查、Setup 触发条件、产出文件定义详见 `06-agent-workflow.md` 的「测试前环境检查」章节。本节仅定义配置模板和约束。
 

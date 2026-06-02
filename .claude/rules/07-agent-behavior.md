@@ -1,7 +1,7 @@
 # Agent 行为约束规则
 
 本文件定义 planner、generator、healer 的行为约束。
-remote-env-setup 的约束已提取至 `.claude/rules/06-remote-deployment.md`。
+remote-env-setup 的约束已提取至 `.claude/rules/08-remote-deployment.md`。
 Agent 定义文件（`.claude/agents/`）包含职责和工作流程，本文件补充强制约束。
 
 ---

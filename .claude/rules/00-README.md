@@ -1,0 +1,54 @@
+# 项目规则索引
+
+本目录下所有 `.md` 文件由 Claude Code 自动加载，无需显式引用。
+
+## 规则总览
+
+```
+基础层（项目不变量）
+├── 01-pipeline-state       九阶段状态机、可中断恢复、状态转换规则
+├── 02-project-invariants   目录结构、注册表双写、Git 规则、文件保护
+
+Agent 约束层（Setup，管线上游）
+├── 03-setup-environment    Setup Agent — 数据库初始化、端口推断、脚本验证、问题处理
+
+定义层（测试 & 产物规范）
+├── 04-testing-framework    测试层级（L1-L4）、框架选择、覆盖要求、数据安全
+├── 05-test-output          结果目录、文件命名、progress/report/截图规范
+
+流程层（管线总纲）
+├── 06-agent-workflow       主会话职责、调度管线、环境检查、用户确认点
+
+Agent 约束层（测试执行 & 远程部署）
+├── 07-agent-behavior       planner/generator/healer — 录制流程、等待策略、循环防护、用户确认
+├── 08-remote-deployment    Remote Setup Agent — SSH、构建模式、归档校验、Nginx、验证
+```
+
+## 规则与管线阶段映射
+
+| 管线阶段 | 适用规则 | Agent |
+|---------|---------|-------|
+| Detect | 02, 06 | scan.sh |
+| Setup | 02, 06, 03 | project-manage-setup |
+| Remote Setup | 02, 06, 08 | remote-env-setup |
+| Analyze | 06, 07 | planner |
+| Plan | 06, 07 | planner |
+| Generate | 06, 07 | generator |
+| Execute | 06, 07 | healer（按需） |
+| Report | 05, 06 | 主会话 + generate-report.mjs |
+| Publish | 06 | test-result-publisher |
+
+全局规则（所有阶段）：01（管线状态）、02（项目不变量）
+
+## 规则与 Agent 定义的关系
+
+Agent 定义文件（`.claude/agents/`）声明**工作流步骤和模板**，规则文件定义**强制约束**：
+
+| Agent 定义 | 约束规则 |
+|-----------|---------|
+| `project-manage-setup.md` | `03-setup-environment.md` |
+| `playwright-test-planner.md` | `07-agent-behavior.md`（planner 部分） |
+| `playwright-test-generator.md` | `07-agent-behavior.md`（generator 部分） |
+| `playwright-test-healer.md` | `07-agent-behavior.md`（healer 部分） |
+| `remote-env-setup.md` | `08-remote-deployment.md` |
+| `test-result-publisher.md` | `06-agent-workflow.md`（Publish 部分） |

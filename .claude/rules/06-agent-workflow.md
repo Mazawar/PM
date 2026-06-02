@@ -2,7 +2,7 @@
 
 ## 管线状态持久化
 
-九阶段流程是**可中断、可恢复**的状态机。详细定义见 `00-pipeline-state.md`。
+九阶段流程是**可中断、可恢复**的状态机。详细定义见 `01-pipeline-state.md`。
 
 **核心规则**：
 - 主会话在每个阶段**开始和结束时**更新 `test_project/<NN-Project>/.pipeline-state.json`

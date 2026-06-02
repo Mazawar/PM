@@ -229,13 +229,15 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 
 | 编号 | 文档 | 说明 |
 |------|------|------|
-| 00 | `00-pipeline-state.md` | 管线状态持久化：九阶段状态机 |
-| 01 | `01-project-invariants.md` | 项目结构、目录规范、注册表双写 |
-| 02 | `02-testing-framework.md` | 测试层级定义（L1-L4）、框架选择 |
-| 03 | `03-test-output.md` | 结果目录结构、文件命名、截图规范 |
-| 04 | `04-agent-workflow.md` | 九阶段流程、主会话职责、用户确认点 |
-| 05 | `05-agent-behavior.md` | Agent 行为约束、等待策略、循环防护 |
-| 06 | `06-remote-deployment.md` | 远程部署：SSH、构建模式、归档校验 |
+| 00 | `00-README.md` | 规则索引：分层结构、管线阶段映射 |
+| 01 | `01-pipeline-state.md` | 管线状态持久化：九阶段状态机 |
+| 02 | `02-project-invariants.md` | 项目结构、目录规范、注册表双写 |
+| 03 | `03-setup-environment.md` | 环境配置：数据库初始化、端口推断、脚本验证、问题处理 |
+| 04 | `04-testing-framework.md` | 测试层级定义（L1-L4）、框架选择 |
+| 05 | `05-test-output.md` | 结果目录结构、文件命名、截图规范 |
+| 06 | `06-agent-workflow.md` | 九阶段流程、主会话职责、用户确认点 |
+| 07 | `07-agent-behavior.md` | Agent 行为约束、等待策略、循环防护 |
+| 08 | `08-remote-deployment.md` | 远程部署：SSH、构建模式、归档校验 |
 
 ## 许可
 
