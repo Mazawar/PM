@@ -39,12 +39,15 @@ pm/
 │       ├── playwright.config.ts # 项目级 Playwright 配置（独立 baseURL）
 │       ├── vitest.config.ts   # 项目级 Vitest 配置（L2 API 测试）
 │       ├── plans/             # 测试计划（00-test-plan.md + 模块详细计划）
+│       ├── case/              # 用户提供的业务案例（planner 优先读取，禁止覆盖）
 │       ├── start.sh           # 一键启动脚本（Setup Agent 生成）
 │       ├── remote-start.sh    # 远程启动脚本（远程服务器上执行，不归档到 build/）
-│       ├── test-config/       # 测试计划、环境配置（environment.json）
+│       ├── test-config/       # 环境配置（environment.json、auth.json）
 │       ├── tests/             # 测试代码（unit/api/e2e/ui 各层级按模块分子目录）
+│       │   ├── seed.spec.ts  # 登录种子文件（Planner/Generator 共享）
 │       │   └── {level}/{module}/tc-{编号}-{简称}.spec.ts
 │       ├── SETUP.md          # 环境启动报告（Setup Agent 生成）
+│       ├── .pipeline-state.json # 管线状态（九阶段可中断恢复）
 │       ├── build/            # 构建部署产物（Remote Setup Agent 生成）
 │       │   ├── version-log.json    # 构建版本追踪总表
 │       │   ├── deploy-config.json  # 部署配置快照（可复用）
@@ -52,16 +55,20 @@ pm/
 │       │   └── artifacts/          # 构建归档（不可删除）
 │       │       ├── <timestamp>-<commit>.tar.gz
 │       │       └── <timestamp>-<commit>.manifest.json
-│       ├── reports/           # 变更报告
+│       ├── reports/           # 变更报告（scan.sh 生成）
 │       └── results/           # 测试执行结果（按模块分目录）
 ├── docs/                      # 项目文档
 ├── .claude/
-│   ├── rules/                 # 项目规则（自动加载）
-│   ├── agents/                # Playwright Agent 定义
+│   ├── rules/                 # 项目规则（自动加载，00-06）
+│   ├── agents/                # Agent 定义（setup/planner/generator/healer/publisher/remote-setup）
 │   ├── skills/pm/             # 项目注册管理 skill
-│   └── scripts/scan.sh        # 仓库扫描脚本
-├── .mcp.json                  # Playwright MCP Server 配置
-└── playwright.config.ts       # Playwright 全局配置
+│   └── scripts/
+│       ├── scan.sh            # 仓库扫描脚本
+│       ├── init-dirs.mjs      # 项目目录初始化（幂等）
+│       ├── generate-report.mjs # Playwright 报告解析（生成 progress/report/summary）
+│       └── notify.mjs         # 测试报告邮件通知
+├── .mcp.json                  # MCP Server 配置（Playwright + SSH）
+└── playwright.config.ts       # Playwright 全局配置（参考模板）
 ```
 
 ## Project Configuration
@@ -70,13 +77,15 @@ pm/
 
 | 文件 | 说明 |
 |------|------|
-| `playwright.config.ts` | 项目级 Playwright 配置（独立 baseURL、outputDir） |
+| `playwright.config.ts` | 项目级 Playwright 配置（独立 baseURL、JSON reporter、setup/chromium 双 project） |
 | `vitest.config.ts` | 项目级 Vitest 配置（L2 API 测试） |
-| `test-config/environment.json` | 环境配置（端口、凭据、技术栈、中间件、启动命令、healthCheck） |
-| `tests/seed.spec.ts` | 登录种子文件（Planner/Generator 共享，自动登录） |
-| `start.sh` | 一键启动脚本（端口检查 + 健康检查） |
-| `remote-start.sh` | 远程启动脚本（远程服务器上执行，不归档到 build/） |
+| `test-config/environment.json` | 环境唯一真实来源（端口、凭据、技术栈、中间件、启动命令、healthCheck、dbConfig、login） |
+| `test-config/auth.json` | 登录认证状态（seed.spec.ts 生成，chromium project 自动加载） |
+| `tests/seed.spec.ts` | 登录种子文件（Planner/Generator/Healer 共享，自动登录） |
+| `case/` | 用户案例目录（业务案例、测试场景，planner 最高优先读取） |
+| `start.sh` | 一键启动脚本（端口检查 + 依赖安装 + 健康检查） |
 | `SETUP.md` | 环境启动报告（实际验证结果） |
+| `.pipeline-state.json` | 管线状态文件（九阶段可中断、可恢复） |
 | `build/version-log.json` | 构建版本追踪总表（每次构建追加一条记录） |
 | `build/deploy-config.json` | 部署配置快照（可复用，下次构建跳过已安装组件） |
 | `build/nginx.conf` | Nginx 配置文件 |
@@ -90,12 +99,13 @@ pm/
 
 | 文件 | 内容 |
 |------|------|
-| `01-project-invariants.md` | 项目结构、目录规范、注册表双写、Git 规则 |
-| `02-testing-framework.md` | 测试层级定义、框架选择、覆盖要求、测试数据安全 |
+| `00-pipeline-state.md` | 管线状态持久化：九阶段状态机、可中断恢复、状态转换规则 |
+| `01-project-invariants.md` | 项目结构、目录规范、注册表双写、Git 规则、case/ 保护 |
+| `02-testing-framework.md` | 测试层级定义（L1-L4）、框架选择、覆盖要求、测试数据安全 |
 | `03-test-output.md` | 结果目录结构、文件命名、progress/report 格式、截图规范 |
-| `04-agent-workflow.md` | 九阶段流程、主会话职责、调度管线、环境检查、构建方式选择、用户确认点、禁止修改列表 |
-| `05-agent-behavior.md` | planner/generator/healer Agent 行为约束 |
-| `06-remote-deployment.md` | 远程部署约束：SSH 操作、服务器绑定、构建方式、Nginx、配置同步、验证、错误处理、产出文件 |
+| `04-agent-workflow.md` | 九阶段流程、主会话职责、调度管线、环境检查、构建方式选择、用户确认点 |
+| `05-agent-behavior.md` | planner/generator/healer Agent 行为约束、等待策略、循环防护、用户案例优先级 |
+| `06-remote-deployment.md` | 远程部署：SSH 操作、服务器绑定/重绑定、三种构建模式、归档校验、Nginx、验证 |
 
 ## Agent Pipeline 与九阶段流程
 
@@ -106,17 +116,20 @@ Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute 
 
 测试执行管线：`planner → generator → healer（按需）`
 
+构建发布管线：`Report → 用户确认 → publisher（编译打包 + 打 Tag + 上传 Gitee Release）`
+
 主会话 **不直接编写或调试测试代码**，只做调度和确认：
 
 1. 接收任务 → 环境检查（无配置启动 Setup Agent，已配置则跳过）
 2. **构建方式选择** — 询问用户"本地构建 or 远程构建？"，远程时启动 Remote Setup Agent
-3. 启动 planner → 审阅计划 → 确认后启动 generator
+3. 启动 planner → **优先读取 `case/` 用户案例** → 审阅计划 → **用户多轮确认调整** → 确认后启动 generator
 4. 首次运行测试 → 有失败则启动 healer
-5. 汇总结果 → 向用户汇报
+5. 汇总结果（自动运行 `generate-report.mjs`） → 向用户汇报
 6. 测试全部通过后 **必须主动询问** 用户是否发布到 Git Release
 
 - **Setup** 在每次测试前检查环境：无配置时启动 Setup Agent 分析源码、推断端口；已配置且服务运行则跳过
 - 每次测试前**必须**检查目标服务是否运行（读取 environment.json 的 healthCheck）
+- **case/ 优先级**：用户案例 > 变更报告 > 自主探索
 
 ## Commands
 
@@ -134,13 +147,22 @@ cp .env.example .env
 
 - 字段：HOST、USER、PASSWORD、KEYPATH、PORT、PROXYJUMP
 - 示例见 `.env.example`
-- MCP 工具：执行命令、上传下载、健康检查、数据库操作等（共 37 个工具）
 
 ### 仓库扫描
 
 ```bash
 bash .claude/scripts/scan.sh          # 扫描所有项目变更
 ```
+
+定时扫描（每 30 分钟）通过 `CronCreate` 配置，含自动续签机制（7 天过期前自动重建）。
+
+### 项目目录初始化
+
+```bash
+node .claude/scripts/init-dirs.mjs --project <NN-Project>
+```
+
+幂等脚本，自动创建 case/、plans/、tests/、test-config/、results/、reports/、build/artifacts/ 目录。已有文件不覆盖。
 
 ### 项目注册
 
@@ -158,6 +180,14 @@ npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
 # L2 API 测试
 npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 ```
+
+### 测试报告生成
+
+```bash
+node .claude/scripts/generate-report.mjs --project <NN-Project>
+```
+
+从 Playwright JSON 报告自动生成 results/ 下的 progress.txt、report.md、summary.md。
 
 ### 测试报告邮件通知
 
