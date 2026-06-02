@@ -272,106 +272,129 @@ cp /etc/nginx/sites-available/<NN-Project> <deployPath>/backup/nginx-<timestamp>
 
 ## 构建方式（强制）
 
-Agent 支持三种构建模式。主会话在启动 prompt 时通过 `mode=` 参数指定，不指定时默认模式 A（direct-upload，本地编译+上传，远程安装依赖）。
+Agent 支持三种构建模式。主会话在启动 prompt 时通过 `mode=` 参数指定，不指定时默认模式 A（local-pack，本地全量打包）。
 
 | 模式标识 | 名称 | 适用场景 |
 |---------|------|---------|
-| `mode=direct-upload` | 本地编译+上传（默认） | 远程服务器已有所需运行时依赖，只需产物 |
-| `mode=dep-pack` | 本地构建+依赖打包 | 远程缺少运行时/网络受限/减少远程故障点，依赖本地装好后上传 |
+| `mode=local-pack`（默认） | 本地构建+全量打包 | 默认方式。本地编译、安装依赖、生成 Prisma 引擎，打包后上传即用 |
+| `mode=direct-upload` | 本地编译+远程安装 | 远程服务器已有所需运行时依赖，只需产物 |
 | `mode=remote-build` | 远程克隆编译 | 本地无法构建（架构/OS 差异），用户明确要求 |
 
-### 模式 A：本地编译 + 上传（默认）
+### 模式 A：本地构建 + 全量打包（默认）
+
+**阶段一：编译归档（产出 → artifacts/）**
 
 1. Agent 根据 `techStack` 确定构建命令，在 `repository/<NN-Project>/` 执行
 2. **构建失败则终止**，不在远程修复
-3. 构建成功 → 复制产物到 `build/tmp/` → 归档到 `build/artifacts/`（按「构建产物归档」流程）
+3. 构建成功 → 按「构建产物归档」流程将产物归档到 `build/artifacts/<timestamp>-<commit>.tar.gz`
+   - 归档内容：编译产物 + 配置文件 + schema 文件 + 依赖声明文件
+   - **不含** `node_modules/` 等依赖目录
+4. 生成 manifest.json，执行归档完整性校验
+
+**阶段二：组装部署包（在 build/dev/ 下构建完整目录）**
+
+组装后的目录结构：
+```
+dev/
+├── software/             # workspace 根目录（含 node_modules）
+│   ├── apps/api/
+│   ├── apps/web/
+│   └── package.json
+├── database/             # 数据库脚本（从仓库复制）
+├── sh/                   # 部署脚本（从仓库复制，无则空目录）
+└── deploy.md             # 自动生成的部署说明
+```
+
+5. 从归档包解压 workspace 到 `build/dev/software/`：
+   ```bash
+   mkdir -p build/dev
+   tar -xzf build/artifacts/<timestamp>-<commit>.tar.gz -C build/dev/software
+   ```
+
+6. 安装依赖（hoisted 模式）：
+   ```bash
+   cd build/dev/software
+   pnpm install --config.node-linker=hoisted
+   ```
+   > pnpm 11.x 中 `.npmrc` 的 `node-linker=hoisted` 不生效，必须用 `--config.node-linker=hoisted`。
+
+7. 验证 `node_modules/` 下为实体目录（无 `.pnpm/` store 符号链接）
+
+8. **Prisma 项目**：如项目使用 Prisma（`prisma/schema.prisma` 存在），修改 schema 添加 Linux 引擎目标：
+   ```prisma
+   generator client {
+     provider      = "prisma-client-js"
+     binaryTargets = ["native", "debian-openssl-3.0.x"]
+   }
+   ```
+   生成 Prisma Client：
+   ```bash
+   cd apps/api
+   npx prisma generate
+   ```
+   验证 `node_modules/.prisma/client/` 下同时存在 Windows 和 Linux 引擎文件。
+
+9. 复制辅助目录：
+   - `database/` — 从 `repository/<NN-Project>/` 复制数据库脚本（`.sql` 文件及迁移目录）到 `build/dev/database/`
+   - `sh/` — 从 `repository/<NN-Project>/` 复制部署脚本目录到 `build/dev/sh/`（不存在则创建空目录）
+
+10. 自动生成 `build/dev/deploy.md`，根据实际目录结构写入部署说明，包含：
+    - 环境配置表（端口、数据库、Node.js 版本等，从 `environment.json` 读取）
+    - 目录结构（实际组装后的目录树）
+    - 部署步骤（配置 .env → 初始化数据库 → 启动后端 → 配置 Nginx → 验证）
+    - 凭据信息（从 `environment.json` 的 `credentials` 读取，不存在则跳过）
+
+11. 打包 `build/dev/` 为最终部署包（将 `dev/` 重命名为 `<NN-Project>`，使归档根目录为项目名）：
+    ```bash
+    cd build
+    mv dev <NN-Project>
+    tar -czf <NN-Project>.tar.gz <NN-Project>/
+    ```
+
+**阶段三：上传部署**
+
+12. 上传 `<版本>.tar.gz` 到 `remoteConfig.deployPath`
+
+13. SSH 到服务器，解压：
+    ```bash
+    cd <deployPath>
+    tar -xzf <版本>.tar.gz
+    ```
+
+14. 配置环境变量：从 `.env.development` 复制为 `.env`，修改 `DATABASE_URL`、`JWT_SECRET` 等生产配置
+
+15. 数据库初始化（如 `dbConfig` 存在）：
+    - 建库 → 导入基础 SQL → 执行增量迁移 SQL
+    - 导入前按「操作前备份」执行备份
+
+16. 启动后端：
+    ```bash
+    cd <deployPath>/<版本>/software/apps/api
+    mkdir -p logs
+    nohup node dist/src/main.js > logs/backend.log 2>&1 &
+    ```
+    验证 `ss -tlnp | grep <backendPort>`
+
+17. 配置 Nginx（有前端的项目**必须**）：
+    - 根据项目实际结构生成配置，写入 `/etc/nginx/sites-available/<NN-Project>`
+    - `nginx -t` 验证 → `systemctl reload nginx` 生效
+    - 配置副本保存到本地 `build/nginx.conf`
+
+18. 执行「部署验证」（两层验证全部通过才算部署完成）
+
+**临时文件清理**：部署成功后，保留 `build/<版本>/` 目录下的完整部署包（含 deploy.md），下次构建复用。
+
+### 模式 B：本地编译 + 远程安装
+
+远程服务器已有所需运行时，只上传纯产物（不含依赖），远程安装依赖。
+
+1. Agent 根据 `techStack` 确定构建命令，在 `repository/<NN-Project>/` 执行
+2. **构建失败则终止**，不在远程修复
+3. 构建成功 → 复制产物到 `build/tmp/` → 归档到 `build/artifacts/`
 4. 上传 `build/artifacts/` 中的归档到 `remoteConfig.deployPath`：
    - 上传：构建产物 + 配置文件 + schema 文件 + 依赖声明文件
    - **不上传**：依赖目录（如 node_modules/、.venv/、.gradle/）、.git/、src/
 5. 在远程服务器安装生产依赖
-
-### 模式 B：本地构建 + 依赖打包
-
-此模式以 `build/tmp/` 为工作区，`build/artifacts/` 是从 tmp/ 取的不含依赖的快照。
-
-1. **阶段一**（构建→复制到 tmp/→从 tmp/ 归档到 artifacts/）：
-   构建后复制产物到 `build/tmp/`，再从 `build/tmp/` 打包不含依赖的归档到 `build/artifacts/`
-2. **阶段二**（在 tmp/ 装依赖→重打包→上传）：
-   在 `build/tmp/` 中安装生产依赖，重打包为自包含包上传
-
-输出的归档包是**自包含**的，远程服务器无需再次安装项目依赖。
-
-#### 适用场景
-
-- 远程服务器 npm registry 不可达或访问慢
-- 远程服务器无编译工具链（无 node/python/go）
-- 希望减少远程部署的步骤和故障点
-- 需要确保本地与远程使用完全相同的依赖版本
-
-#### 完整流程
-
-**阶段一：构建并准备 tmp 工作区**
-
-1. Agent 根据 `techStack` 确定构建命令，在 `repository/<NN-Project>/` 执行
-2. 构建失败则终止
-3. 将构建产物复制到 `build/tmp/`：
-   - 前端产物（dist/、web/dist/）
-   - 后端产物（apps/api/dist/、api/dist/）
-   - 依赖声明文件（package.json、pnpm-lock.yaml）
-   - ORM schema / 迁移文件（prisma/）
-   - .env 模板
-4. 从 `build/tmp/` 打包为不含依赖的归档到 `build/artifacts/`：
-   ```bash
-   tar -czf build/artifacts/<archive>.tar.gz -C build/tmp .
-   ```
-5. 生成 manifest.json，执行归档完整性校验
-6. 此时 `build/artifacts/<archive>.tar.gz` 是**不含项目依赖**的纯构建产物快照，`build/tmp/` 中已有展开的产物
-
-**阶段二：本地依赖打包**
-
-7. 在 `build/tmp/` 中安装项目生产依赖：
-
-   | 技术栈 | 命令 | 验证方式 |
-   |--------|------|---------|
-   | Node.js / npm | `cd build/tmp && npm install --production` | 检查 `node_modules/` 下关键包存在 |
-   | Node.js / pnpm | `cd build/tmp && pnpm install --prod` | 同上 |
-   | Node.js / yarn | `cd build/tmp && yarn install --production` | 同上 |
-   | Python / pip | `cd build/tmp && pip install -r requirements.txt --no-dev` | `pip list` 确认 |
-   | Java | 无需操作（jar 已包含依赖） | — |
-   | Go | 无需操作（二进制已静态编译） | — |
-
-   - 仅安装**生产**依赖，不安装 devDependencies
-   - 如 `build/tmp/` 下已有 `node_modules/` 等依赖目录，则跳过安装（验证即可）
-
-8. 验证依赖安装成功：
-   - Node.js: 检查 `node_modules/.package-lock.json` 或关键入口包文件存在
-   - Python: `pip list` 输出版本号
-   - 如验证失败 → 终止，输出错误原因，不继续部署
-
-9. **重打包并上传**：
-   ```bash
-   # 重打包为自包含部署包（含 node_modules）
-   cd build/tmp && tar -czf <archive>.tar.gz --exclude=node_modules/.cache .
-
-   # 记录重打包 checksum
-   sha256sum build/tmp/<archive>.tar.gz
-   ```
-   - 记录重打包 checksum 到 manifest.json 的 `repackChecksum` 字段
-   - 上传 `build/tmp/<archive>.tar.gz` 到远程 `remoteConfig.deployPath`
-   - 在远程解压即可使用，无需安装项目依赖
-
-#### 与模式 A 的关键差异
-
-| 步骤 | 模式 A | 模式 B |
-|------|--------|--------|
-| 构建 | 构建产物留在 repository/ | 同左 |
-| 准备归档 | 复制产物到 `build/tmp/` 后归档到 artifacts/ | 同左（tmp/ 在阶段二复用） |
-| artifacts/ 内容 | 不含 node_modules | 不含 node_modules（tmp/ 快照） |
-| 依赖安装 | 远程服务器执行 | 本地 `build/tmp/` 执行 |
-| 上传来源 | `build/artifacts/`（不含依赖） | `build/tmp/`（重打包含依赖） |
-| 远程解压后 | 需要 npm install | 直接可用 |
-| 远程运行时要求 | 需要 node+npm | 只需要 node |
-| 部署时长 | 上传快+远程安装慢 | 上传较慢+远程即用 |
 
 ### 模式 C：远程克隆编译（仅用户明确要求）
 

@@ -28,7 +28,7 @@ color: green
 
 ## 通用约束（所有步骤适用）
 
-1. **只打包编译产物**，不包含 `node_modules/`、`vendor/` 等依赖目录。部署方自行安装依赖
+1. **打包节点包含依赖**：打包产物**包含** `node_modules/`（hoisted 模式安装），服务器解压即用
 2. **排除部署无关文件**：`.git/`、`*.log`、`.gitignore` 等版本控制/日志文件不打包
 3. **环境配置文件保留**：项目中已有的 `.env` / `.env.production` / `application.yml` 等环境配置文件需复制到产物对应位置，部署方直接修改其中的连接信息。不存在则跳过
 4. **每次发布必须重新构建**，不复用旧产物
@@ -93,19 +93,31 @@ Token 不存在则询问用户提供。
 - 执行构建命令，将编译产物（路径由步骤三分析确定）复制到 `build/$VERSION/backend/`
 - 复制 `package.json`、lock 文件
 - 检查根目录是否有 `.sql` dump 文件，有则复制到 `build/$VERSION/database/`
-- **Prisma 项目**：若复制后的 `package.json` 中 `prisma` 在 `devDependencies` 里，**必须**将其移到 `dependencies`。因为部署时执行 `pnpm install --prod` 和 `npx prisma generate` 需要 prisma CLI 可用
 
 **Java 后端**：执行 Maven 构建，将 `target/*.jar` 复制到 `build/$VERSION/backend/`
 
 **单体项目**：根据识别的构建工具执行对应命令，产物复制到 `build/$VERSION/`
 
-**Monorepo 项目（pnpm workspace）**：保持构建产物自包含，解压后按部署说明的步骤能直接部署运行。必须确保以下四项完整：
+**Monorepo 项目（pnpm workspace）**：在 `build/$VERSION/` 下执行以下操作：
 
-1. **workspace 配置文件完整**：复制 `pnpm-workspace.yaml`、`pnpm-lock.yaml`、根 `package.json`，缺一不可。复制后确认每个文件都存在
-2. **workspace packages 对齐**：检查 `pnpm-workspace.yaml` 的 `packages` 列表，确保构建产物目录结构与之匹配（如 api 在 `api/` 则 packages 必须包含 `'api'`，而非 `apps/*`）。**自动修正**使其与实际目录一致
-3. **内部依赖包自包含**：检查后端 `package.json` 的 `dependencies`，对每个 `workspace:*` 引用的内部包（如 `@new-oa/types`），将其编译产物复制到 `build/$VERSION/` 下对应位置。**关键：确认每个内部包目录存在 `package.json`**（name/version/main/types 字段完整），缺则从源码补。修正 pnpm-workspace.yaml 使其覆盖所有内部包目录
-4. **Prisma schema 打包**：若项目使用 Prisma，将源码中的 `prisma/` 目录（含 `schema.prisma` 和 `migrations/`）复制到构建产物中后端能直接引用的位置。复制后确认 `schema.prisma` 文件存在
-5. **Prisma 依赖修正**：若后端 `package.json` 中 `prisma` 在 `devDependencies` 里，**必须**将其移到 `dependencies`。这是为了让部署方按 `pnpm install --prod` + `npx prisma generate` 流程操作时 prisma CLI 可用，无需额外安装
+1. 保持原始目录结构完整，将 workspace 根目录（如 `software/`，含 `apps/`、`pnpm-workspace.yaml`、`package.json`）整体复制到 `build/$VERSION/`
+2. 安装依赖（hoisted 模式）：
+   ```bash
+   cd build/$VERSION/software
+   pnpm install --config.node-linker=hoisted
+   ```
+3. **Prisma 项目**：若项目使用 Prisma，修改 schema 添加 Linux 引擎目标，然后生成：
+   ```prisma
+   generator client {
+     provider      = "prisma-client-js"
+     binaryTargets = ["native", "debian-openssl-3.0.x"]
+   }
+   ```
+   ```bash
+   cd apps/api
+   npx prisma generate
+   ```
+4. 复制 `database/`、`sh/` 等辅助目录到 `build/$VERSION/`
 
 ## 步骤五：生成部署文档和版本说明（必须两个独立文件）
 
@@ -148,7 +160,7 @@ ls test_project/<NN-Project>/build/$VERSION/部署说明.md test_project/<NN-Pro
       ├── report.md
       └── screenshots/
   ```
-- 进入 `build/` 目录，将整个版本目录打包（`.zip` 优先）
+- 进入 `build/` 目录，将整个版本目录打包（`.tar.gz`）
 - 记录最终 ARCHIVE 路径供后续使用
 
 ## 用户确认
