@@ -133,3 +133,51 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 
 环境检查、Setup 触发条件、产出文件定义详见 `06-agent-workflow.md` 的「测试前环境检查」章节。本节仅定义配置模板和约束。
 
+## build/ 目录产物约定（强制）
+
+`build/` 下的产物**必须与构建模式严格匹配**。Setup Agent 完成构建后必须按当前构建模式自检，违规产物需立即删除（不留待主会话清理）。
+
+### 两种构建模式
+
+| 模式 | 触发条件 |
+|------|---------|
+| **本地构建** | 用户选择"本地构建"（不部署到远程） |
+| **远程部署** | 用户选择"远程部署"，且 `build/dev/` 已就绪 + Remote Setup Agent 已执行 |
+
+### 本地构建 — 必含 / 必不含
+
+| 必含 | 必不含（出现即违规，需删除） |
+|------|------|
+| `build/dev/`（完整部署包，含 software/ database/ sh/ deploy-manual.md update_readme.md） | `build/<NN-Project>/`（项目副本，由远程部署前的"组装副本"产生） |
+| `build/artifacts/<timestamp>-<commit>.tar.gz` + `.manifest.json` | `build/<NN-Project>.tar.gz`（远程部署包，本地无需） |
+| `build/tmp/`（可空，预留给远程部署用） | `build/pre-deploy-backup-*.sql.gz`（部署前数据库备份，本地无需） |
+| `build/version-log.json`（含 `archiveVerification` 校验记录） | `build/deploy-config.json`（远程部署配置，本地无需） |
+|  | `build/nginx.conf`（远程部署配置，本地无需） |
+|  | `build/dev/software/**/*.log`（散落日志，统一在 `build/dev/logs/`） |
+
+### 远程部署 — 在本地构建基础上追加
+
+| 追加产物 | 部署后清理策略 |
+|---------|--------------|
+| `build/deploy-config.json` | 保留（下次部署复用） |
+| `build/nginx.conf` | 保留（本地副本） |
+| `build/<NN-Project>.tar.gz`（部署包，部署成功后可清理） | 部署成功后删除，仅保留 artifacts/ 中的源码归档 |
+| `build/pre-deploy-backup-*.sql.gz` | 部署成功后删除 |
+| `build/tmp/` 下的临时文件 | 部署成功后清理，仅保留 `.gitkeep` 占位 |
+
+### 违规示例（已发生事故，本规则为补强）
+
+> 2026-06-03 在 01-oa-llm 项目 Setup 中，本地构建场景下 build/ 误生成 `<NN-Project>/`、`<NN-Project>.tar.gz`、`pre-deploy-backup-*.sql.gz`，并散落 `api.log` / `web.log` 在 `build/dev/software/apps/`。本地构建场景无远程部署需求，违反"按构建模式严格匹配"原则。
+
+### 检查时机
+
+- Setup Agent 完成 Step 7（输出启动报告）前**必须**执行「build/ 自检清单」（定义在 `03-setup-environment.md`）
+- 主会话在 `updateStage('global', null, 'Setup', { status: 'completed' })` 前可触发复核（可选）
+
+### 日志输出规范
+
+- **本地构建**：`nohup ... > build/dev/logs/<service>.log 2>&1 &`
+- **远程部署**：`<deployPath>/logs/<service>.log`
+- **禁止**：`build/`、`build/dev/`、`build/dev/software/` 下任何子目录直接放 `*.log`
+- 启动脚本（`start.sh`）必须将日志输出到 `build/dev/logs/`，避免散落
+

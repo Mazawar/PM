@@ -216,6 +216,116 @@ HTTP 200 不代表页面正常，必须确认：
 | `build/artifacts/<timestamp>-<commit>.tar.gz` | 编译产物归档 |
 | `build/artifacts/<timestamp>-<commit>.manifest.json` | 归档清单 |
 | `build/dev/` | 完整部署包目录（含 node_modules） |
-| `build/<NN-Project>.tar.gz` | 最终部署压缩包 |
+| `build/<NN-Project>.tar.gz` | 最终部署压缩包（仅远程部署） |
 | `build/version-log.json` | 构建版本追踪（追加记录） |
 | `build/dev/deploy.md` | 部署说明文档 |
+
+## build/ 自检清单（Setup Agent 完成时强制执行）
+
+Setup Agent 在 Step 7（输出启动报告）之前**必须**逐项检查 build/ 目录，违规项立即修复。这是任务完成的硬性条件，未通过自检不得向主会话报告"Setup 完成"。
+
+### 必含项
+
+- [ ] `build/dev/` 存在，含 `software/ database/ sh/ deploy-manual.md update_readme.md`
+- [ ] `build/artifacts/<timestamp>-<commit>.tar.gz` 编译产物归档
+- [ ] `build/artifacts/<timestamp>-<commit>.manifest.json` 含 files 列表
+- [ ] `build/tmp/` 存在（可空）
+- [ ] `build/version-log.json` 存在，含 `archiveVerification` 字段
+
+### 必无项（按当前构建模式）
+
+- [ ] `build/<NN-Project>/`（本地构建场景下不应存在）
+- [ ] `build/<NN-Project>.tar.gz`（本地构建场景下不应存在）
+- [ ] `build/pre-deploy-backup-*.sql.gz`（本地构建场景下不应存在）
+- [ ] `build/deploy-config.json`（本地构建场景下不应存在）
+- [ ] `build/nginx.conf`（本地构建场景下不应存在）
+- [ ] `build/dev/software/**/*.log` 散落日志（必须在 `build/dev/logs/`）
+
+### 自检执行命令
+
+```bash
+cd test_project/<NN-Project>
+
+# 必含
+[ -d build/dev ] && echo "[OK] build/dev/" || echo "[FAIL] build/dev 缺失"
+[ -f build/version-log.json ] && echo "[OK] version-log.json" || echo "[FAIL] version-log.json 缺失"
+[ -d build/tmp ] && echo "[OK] build/tmp/" || echo "[FAIL] build/tmp/ 缺失"
+
+# 必无（本地构建）
+for f in build/<NN-Project> build/<NN-Project>.tar.gz; do
+  [ -e "$f" ] && echo "[FAIL] 不应存在: $f" || echo "[OK] 无 $f"
+done
+ls build/*.sql.gz 2>/dev/null && echo "[FAIL] 不应存在 *.sql.gz" || echo "[OK] 无 *.sql.gz"
+
+# 日志散落检查
+find build -name "*.log" -not -path "build/dev/logs/*" 2>/dev/null | head -5
+```
+
+## 日志输出规范（强化）
+
+所有 `nohup ... &` 后台启动的进程，日志**必须**重定向到约定位置，**禁止**散落在项目根或 apps/ 子目录。
+
+### 本地构建
+
+- 日志位置：`build/dev/logs/<service>.log`（如 `backend.log` / `frontend.log`）
+- 启动脚本（`start.sh`）必须**预创建** `build/dev/logs/` 目录
+- 启动命令模板：`nohup <command> > build/dev/logs/<service>.log 2>&1 &`
+
+### 远程部署
+
+- 日志位置：`<deployPath>/logs/<service>.log`
+- 见 `08-remote-deployment.md` 的「远程目录结构规范」
+
+### 违规示例（已发生事故）
+
+> 2026-06-03 在 01-oa-llm 项目中，`api.log` 和 `web.log` 散落在 `build/dev/software/apps/`，违反"日志统一"原则。本规则要求 Setup Agent 启动服务前**先创建 `build/dev/logs/` 目录**，再启动后台进程。
+
+## version-log.json 自动创建（强制）
+
+Setup Agent 完成构建后**必须**自动创建 `build/version-log.json`（即使只一条记录），含全量 `archiveVerification` 校验结果。
+
+### 记录结构
+
+```json
+{
+  "schema": "1.0",
+  "project": "<NN-Project>",
+  "records": [
+    {
+      "id": 1,
+      "time": "<构建完成时间 ISO>",
+      "commit": "<commitShortHash>",
+      "source": "local-build" | "remote-deploy",
+      "target": "local" | "<服务器名称>",
+      "archive": "build/artifacts/<timestamp>-<commit>.tar.gz",
+      "checksum": "sha256:xxx",
+      "build": "成功" | "失败",
+      "status": "deployed" | "completed",
+      "archiveVerification": {
+        "passed": true,
+        "checkedAt": "<ISO>",
+        "checksumMatches": true,
+        "topLevelDirs": ["software", "database", "sh", "deploy-manual.md", "update_readme.md"],
+        "nodeModulesExcluded": true,
+        "keyFilesPresent": [
+          "software/package.json",
+          "software/apps/api/dist/src/main",
+          "software/apps/web/dist/index.html",
+          "database/keyidea_newoa.sql"
+        ],
+        "totalEntries": <N>,
+        "size": "<X>M"
+      }
+    }
+  ]
+}
+```
+
+### 校验项
+
+- `checksumMatches`：sha256 与 manifest.checksum 一致
+- `nodeModulesExcluded`：tar.gz 内无 `node_modules/` 条目
+- `keyFilesPresent`：关键文件（dist 产物、schema、SQL dump）存在
+- `topLevelDirs`：顶层目录与预期一致
+
+`archiveVerification.passed: false` → 禁止继续，必须重建归档。

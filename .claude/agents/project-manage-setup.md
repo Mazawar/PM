@@ -359,6 +359,58 @@ exit 1
 
 验证失败时的处理按 `03-setup-environment.md` 的「问题处理策略」执行。
 
+#### Step 6 前置：日志目录创建（强制）
+
+启动后台进程前**必须**创建 `build/dev/logs/` 目录，所有 `nohup ... &` 日志重定向到该目录：
+
+```bash
+mkdir -p build/dev/logs
+# 启动命令模板
+nohup <command> > build/dev/logs/<service>.log 2>&1 &
+```
+
+**禁止**：日志散落到 `build/dev/software/apps/`、`build/` 根等位置。违规产物在 Step 6.5 自检中会被识别并要求删除。
+
+#### Step 6.5: build/ 自检（强制，Step 7 前必做）
+
+按 `03-setup-environment.md` 的「build/ 自检清单」逐项执行，违规项立即修复：
+
+**必含**：
+- [ ] `build/dev/` 含 `software/ database/ sh/ deploy-manual.md update_readme.md`
+- [ ] `build/artifacts/<timestamp>-<commit>.tar.gz` + manifest.json
+- [ ] `build/tmp/` 存在（可空）
+- [ ] `build/version-log.json` 含 `archiveVerification`
+
+**必无（本地构建场景）**：
+- [ ] `build/<NN-Project>/`（删除）
+- [ ] `build/<NN-Project>.tar.gz`（删除）
+- [ ] `build/pre-deploy-backup-*.sql.gz`（删除）
+- [ ] `build/deploy-config.json`（删除）
+- [ ] `build/nginx.conf`（删除）
+- [ ] `build/dev/software/**/*.log`（移至 `build/dev/logs/`）
+
+**自检执行命令**（参考）：
+
+```bash
+cd test_project/<NN-Project>
+# 必含
+[ -d build/dev ] && echo "[OK] build/dev/" || echo "[FAIL] build/dev 缺失"
+[ -f build/version-log.json ] && echo "[OK] version-log.json" || echo "[FAIL] version-log.json 缺失"
+[ -d build/tmp ] && echo "[OK] build/tmp/" || echo "[FAIL] build/tmp/ 缺失"
+# 必无（本地构建）
+[ ! -e "build/<NN-Project>" ] && echo "[OK] 无 <NN-Project>/" || (echo "[FAIL] 删除 build/<NN-Project>"; rm -rf "build/<NN-Project>")
+[ ! -e "build/<NN-Project>.tar.gz" ] && echo "[OK] 无 *.tar.gz" || (echo "[FAIL] 删除"; rm -f "build/<NN-Project>.tar.gz")
+ls build/*.sql.gz 2>/dev/null | xargs -I{} rm -f {}
+# 日志散落
+find build -name "*.log" -not -path "build/dev/logs/*" 2>/dev/null | while read f; do
+  mkdir -p build/dev/logs
+  mv "$f" build/dev/logs/
+  echo "[FIX] 移动 $f -> build/dev/logs/"
+done
+```
+
+**自检未通过禁止进入 Step 7**。Step 7（输出启动报告）必须包含自检结果摘要。
+
 #### Seed 文件模板
 
 登录验证成功后写入 `test_project/<NN-Project>/tests/seed.spec.ts`：
@@ -425,6 +477,24 @@ setup('登录并保存认证状态', async ({ page }) => {
 - [✅/❌] 健康检查通过 (http://localhost:<端口>)
 - [✅/❌] 前端页面可访问
 - [✅/❌] 登录功能正常
+
+## build/ 自检结果（Step 6.5 强制输出）
+
+按 `03-setup-environment.md` 的「build/ 自检清单」执行结果：
+
+| 检查项 | 结果 |
+|--------|------|
+| build/dev/ 完整性 | ✅/❌ |
+| build/artifacts/ 含 tar.gz + manifest | ✅/❌ |
+| build/tmp/ 存在 | ✅/❌ |
+| build/version-log.json 含 archiveVerification | ✅/❌ |
+| 无 build/<NN-Project>/（本地构建） | ✅/❌ |
+| 无 build/<NN-Project>.tar.gz（本地构建） | ✅/❌ |
+| 无 build/*.sql.gz（本地构建） | ✅/❌ |
+| 无散落日志（build/dev/software/**/*.log） | ✅/❌ |
+| 日志统一在 build/dev/logs/ | ✅/❌ |
+
+如有 ❌ 项，列出修复动作：
 
 ## 遇到的问题及解决（如有）
 | 问题 | 原因 | 解决方式 |
