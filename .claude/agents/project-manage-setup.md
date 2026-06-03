@@ -116,7 +116,7 @@ node .claude/scripts/init-dirs.mjs --project <NN-Project>
     "url": "<数据库连接串，统一为 protocol://user:pass@host:port/db 格式>",
     "note": "<连接说明>",
     "initMethod": "<Setup Agent 发现的初始化方式，如实记录：prisma-migrate / mybatis-sql / jpa-hibernate / flyway / django-migrate / sql-scripts 等>",
-    "initFiles": ["<建表/迁移/SQL文件路径，相对于仓库根目录>"],
+    "initFiles": ["<建表/迁移/SQL文件路径，相对于仓库根目录；如有版本化SQL，先列全量dump，再按版本号升序列各版本迁移SQL>"],
     "seedFiles": ["<种子数据文件路径，相对于仓库根目录>"]
   },
   "login": {
@@ -204,7 +204,8 @@ npm run build
 将编译产物归档到 `build/artifacts/<YYYYMMDD-HHmmss>-<commitShortHash>.tar.gz`：
 
 - **必须包含**：前端编译产物、后端编译产物、依赖声明文件（package.json, pnpm-lock.yaml）、ORM schema/迁移文件、.env 模板、workspace 配置文件
-- **禁止包含**：`node_modules/`、`version/`、`scripts/`、README、数据文件、git 相关文件
+- **禁止包含**：`node_modules/`、`version/`（含版本变更 SQL、部署脚本等）、`scripts/`、README、数据文件、git 相关文件
+  - **重要**：`version/` 目录下的数据库变更 SQL 和部署脚本会在组装阶段（4.3）直接从仓库复制，不通过归档包传递
 - 生成 manifest.json（含 commitHash、branch、checksums、files）
 - 执行归档完整性校验（确认声明的路径在归档内存在且文件数 ≥ 1）
 - 记录到 `version-log.json`
@@ -221,16 +222,11 @@ dev/
 │   │   └── types/
 │   ├── package.json
 │   └── pnpm-workspace.yaml
-├── database/             # 数据库脚本
-│   ├── <全量 SQL>.sql    # 全量初始数据 SQL dump
-│   └── v0.0.1/           # 版本变更 SQL
-│       └── sql/
-│           ├── migrate_*.sql
-│           └── rollback_*.sql
-├── sh/                   # 部署运维脚本（仅 .sh 文件）
-├── deploy-manual.md      # 版本部署手册
-├── update_readme.md       # 版本更新说明
-└── deploy.md             # 自动生成的部署说明
+└── database/             # 数据库脚本
+    ├── <全量 SQL>.sql    # 全量初始数据 SQL dump
+    └── v0.0.1/           # 版本变更 SQL
+        ├── migrate_*.sql
+        └── rollback_*.sql
 ```
 
 组装步骤：
@@ -262,11 +258,22 @@ dev/
    验证 `node_modules/.prisma/client/` 下同时存在 Windows 和 Linux 引擎文件。
 
 4. **复制辅助目录**：
-   - `database/` — 从仓库复制全量 SQL dump（如有）；复制 `version/<version>/` 下各版本的变更 SQL 到 `database/<version>/`
-   - `sh/` — 从 `version/<latest>/` 取 `.sh` 脚本文件复制到 `build/dev/sh/`
-   - `deploy-manual.md` 和 `update_readme.md` — 从 `version/<latest>/` 复制到 `build/dev/` 根目录
+   - `database/` — 按以下步骤从仓库构建：
+     1. 复制仓库根目录下的全量 SQL dump（如 `keyidea_newoa.sql`）到 `build/dev/database/`
+     2. 扫描仓库 `version/` 目录下所有版本子目录（按版本号升序排序），对每个 `<version>/sql/` 下的 `.sql` 文件复制到 `build/dev/database/<version>/`：
+        ```bash
+        # 参考实现
+        for ver_dir in version/v*/; do
+          ver=$(basename "$ver_dir")
+          if [ -d "$ver_dir/sql" ]; then
+            mkdir -p "build/dev/database/$ver"
+            cp "$ver_dir/sql"/*.sql "build/dev/database/$ver/"
+          fi
+        done
+        ```
+     3. 验证 `build/dev/database/` 下存在全量 SQL + 至少一个版本子目录
 
-5. **生成 `build/dev/deploy.md`**：包含环境配置表、目录结构、部署步骤（解压发布包 → 安装依赖 → Prisma 引擎编译 → 配置 .env → 数据库初始化/迁移 → 启动后端 → Nginx 配置 → 验证）、凭据信息。
+5. **生成 `build/dev/deploy.md`**：包含环境配置表、目录结构、部署步骤（上传部署包到服务器 → 远程解压 → 配置 .env → 数据库初始化/迁移 → 启动后端 → Nginx 配置 → 验证）、凭据信息。
 
 6. **打包部署包**（保留 dev/ 目录供后续启动服务和远程部署）：
    ```bash

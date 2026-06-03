@@ -21,6 +21,42 @@
 
 SQL dump 导入注意事项：指定 `--default-character-set=utf8mb4` 防止中文乱码。
 
+### 版本化 SQL 初始化流程（强制）
+
+仓库中存在 `version/` 目录且包含版本子目录时，应按**版本号升序**逐一执行：
+
+```
+初始化顺序：
+1. <全量 SQL dump>.sql              — 初始结构 + 全量数据
+2. version/v0.0.1/sql/migrate_*.sql  — v0.0.1 变更
+3. version/v0.0.2/sql/migrate_*.sql  — v0.0.2 变更
+4. version/v0.0.2/sql/seed_*.sql     — v0.0.2 种子数据（放在该版本 migrate 之后）
+...
+```
+
+执行规则：
+- **全量 SQL dump 必须最先执行**（创建数据库结构和初始数据）
+- 版本迁移按目录名排序（`v0.0.1` → `v0.0.2` → ...），不能跳过中间版本
+- 每个版本内先执行 `migrate_*.sql`，再执行 `seed_*.sql`（如有）
+- Setup Agent 在 `environment.json` 的 `dbConfig.initFiles` 中如实列出**全部** SQL 文件（全量 dump + 各版本 migrate + seed），按执行顺序排列
+- 组装 `build/dev/database/` 时，保持完整的版本目录结构
+
+```json
+// 以 v0.0.2 项目为例的 dbConfig
+"dbConfig": {
+  "url": "mysql://...",
+  "initMethod": "versioned-sql",
+  "initFiles": [
+    "keyidea_newoa.sql",
+    "version/v0.0.1/sql/migrate_v0.1.0.sql",
+    "version/v0.0.2/sql/migrate_v0.0.2.sql"
+  ],
+  "seedFiles": [
+    "version/v0.0.2/sql/seed_v0.0.2.sql"
+  ]
+}
+```
+
 ## 构建依赖分析（强制）
 
 - 分析项目的完整构建链：从源码到可运行状态需要哪些构建步骤
@@ -169,7 +205,7 @@ HTTP 200 不代表页面正常，必须确认：
 1. **从归档解压**到 `dev/software/`（workspace 根目录）
 2. **安装依赖**（hoisted 模式）：`pnpm install --config.node-linker=hoisted`
 3. **Prisma 项目**：schema 添加 Linux 引擎目标 `binaryTargets = ["native", "debian-openssl-3.0.x"]`，`npx prisma generate`，验证双平台引擎文件
-4. **复制辅助目录**：`database/`（全量 SQL + 版本变更 SQL）、`sh/`（.sh 脚本）、文档（deploy-manual.md、update_readme.md）
+4. **复制辅助目录**：`database/`（全量 SQL + 版本变更 SQL）
 5. **生成 deploy.md**：环境配置表、目录结构、完整部署步骤、凭据信息
 6. **打包**：`dev/` → `<NN-Project>/` → `<NN-Project>.tar.gz`
 

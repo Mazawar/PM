@@ -100,8 +100,8 @@ test_project/<NN-Project>/.pipeline-state.json
 | `id` | 自增 | append 时自动生成 |
 | `version` | 用户输入 | SemVer 字符串（如 `v1.0.0`） |
 | `modules` | 当前已完成的模块列表 | 此次发布覆盖的测试模块 |
-| `commit` | `build/artifacts/<archive>.manifest.json` 的 `commitHash` | **不允许用 repository HEAD 代替** |
-| `archive` | 归档文件名 | 格式：`<YYYYMMDD-HHmmss>-<commit>.tar.gz` |
+| `commit` | `repository/<NN-Project>` HEAD 的短 hash（`git rev-parse --short HEAD`） | publisher 获取 |
+| `archive` | 发布包文件名 | 格式：`<VERSION>.tar.gz`（如 `v0.0.2.tar.gz`） |
 | `releasedAt` | 实际发布时间 | ISO 时间戳 |
 | `releaseUrl` | Gitee Release 链接 | publisher 写入 |
 
