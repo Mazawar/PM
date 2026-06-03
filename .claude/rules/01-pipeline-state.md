@@ -5,7 +5,7 @@
 九阶段流程不是一次性执行的线性脚本，而是一个**可中断、可恢复**的状态机。主会话崩溃或用户中断后，新的会话应能从断点继续，而不是从头开始。
 
 v2 schema 把状态拆为三段：
-- **global** — 项目级一次性阶段（Detect/Setup/RemoteSetup），整个项目只跑一次
+- **global** — 项目级一次性阶段（Detect/Analyze/Build/Validate），整个项目只跑一次
 - **modules** — 按测试模块分（每个模块独立 Plan/Generate/Execute/Report），互不覆盖
 - **publishes** — 发布历史（append-only 数组），与阶段正交，记录每次发布覆盖的模块
 
@@ -25,9 +25,10 @@ test_project/<NN-Project>/.pipeline-state.json
   "project": "<NN-Project>",
   "updatedAt": "<ISO 时间戳>",
   "global": {
-    "Detect":      { "status": "pending|running|completed|failed|skipped", "at": "...", "reason": "...", "output": "..." },
-    "Setup":       { "status": "...", "at": "...", "reason": "...", "output": "..." },
-    "RemoteSetup": { "status": "...", "at": "...", "reason": "...", "output": "..." }
+    "Detect":   { "status": "pending|running|completed|failed|skipped", "at": "...", "reason": "...", "output": "..." },
+    "Analyze":  { "status": "...", "at": "...", "reason": "...", "output": "..." },
+    "Build":    { "status": "...", "at": "...", "reason": "...", "output": "..." },
+    "Validate": { "status": "...", "at": "...", "reason": "...", "output": "..." }
   },
   "modules": {
     "<module-name>": {
@@ -55,13 +56,14 @@ test_project/<NN-Project>/.pipeline-state.json
 
 | 作用域 | 阶段 | 备注 |
 |--------|------|------|
-| global | `Detect` | scan.sh 执行结果 |
-| global | `Setup` | 项目环境配置 |
-| global | `RemoteSetup` | 远程部署 |
-| modules | `Plan` | 模块测试计划 |
+| global | `Detect`   | scan.sh 执行结果 |
+| global | `Analyze`  | 项目环境分析（analyzer agent）：源码/端口/凭据/中间件推断，写 environment.json.analyzer.* |
+| global | `Build`    | 生产构建（builder agent）：local 模式产 dev/；remote 模式在 dev/ 基础上 + deploy-config/nginx.conf + 远程运行时 + 部署 |
+| global | `Validate` | 启动验证（validator agent）：local 跑 start.sh / remote 启动后端+Nginx → 健康检查 → 页面验证 → 登录验证 → 写 SETUP.md |
+| modules | `Plan`     | 模块测试计划 |
 | modules | `Generate` | 测试代码生成 |
-| modules | `Execute` | 测试执行 |
-| modules | `Report` | 报告生成 |
+| modules | `Execute`  | 测试执行 |
+| modules | `Report`   | 报告生成 |
 | (独立) | `publishes` | 不是阶段，是发布历史数组 |
 
 ## 模块名约定（强制）
@@ -91,7 +93,7 @@ test_project/<NN-Project>/.pipeline-state.json
 
 ## publishes 段（强制）
 
-**不是阶段** — 是发布历史记录，与 Detect/Setup/Plan/Generate/Execute/Report 正交。
+**不是阶段** — 是发布历史记录，与 Detect/Analyze/Build/Validate/Plan/Generate/Execute/Report 正交。
 
 ### 字段约定
 
@@ -131,8 +133,9 @@ running → failed（附 reason）
 
 | 失败作用域/阶段 | 影响 | 处理 |
 |----------------|------|------|
-| global.Setup | 阻断后续所有阶段 | 主会话向用户报告，等待指示 |
-| global.RemoteSetup | 降级到本地构建或终止 | 询问用户 |
+| global.Analyze  | 阻断后续所有阶段 | 主会话向用户报告，等待指示 |
+| global.Build    | 阻断后续所有阶段 | 主会话向用户报告，等待指示 |
+| global.Validate | 不阻断后续 Plan/Generate/Execute | 提示用户：本地服务未起，可重跑 Validate 或继续测试 |
 | modules.<name>.Plan | 仅阻断该模块的 Generate | 重新规划或调整范围 |
 | modules.<name>.Generate | 仅阻断该模块的 Execute | 修复后重试 |
 | modules.<name>.Execute | 进入该模块的 Report（含失败数据）| 不阻断，Report 正常生成 |
@@ -147,9 +150,10 @@ running → failed（附 reason）
 **global 阶段**：
 
 ```
-## Detect — 扫描项目变更          → status: "running" → "completed"
-## Setup — 跳过（环境已配置）     → status: "skipped"
-## Remote Setup — 跳过（用户选择本地构建）  → status: "skipped"
+## Detect — 扫描项目变更                 → status: "running" → "completed"
+## Analyze — 跳过（已配置）              → status: "skipped"
+## Build — 跳过（已构建）                → status: "skipped"
+## Validate — 跳过（已验证）             → status: "skipped"
 ```
 
 **modules 阶段**（按模块分）：
@@ -177,7 +181,7 @@ running → failed（附 reason）
 3. 输出当前焦点状态：
    ```
    ## Current Focus
-   - Global: <Detect|Setup|RemoteSetup> = <status>（或 all completed）
+   - Global: <Detect|Analyze|Build|Validate> = <status>（或 all completed）
    - Modules:
      - role-management: Plan ✓ / Generate ✓ / Execute [running] / Report
      - user-management: Plan [pending] / Generate / Execute / Report
@@ -193,7 +197,7 @@ running → failed（附 reason）
   1. 备份 v1 文件为 `test_project/<NN-Project>/.pipeline-state.v1.bak.json`
   2. 扫描 `tests/{e2e,ui}/` 子目录，自动填充 `modules` key（仅创建空 stage 模板，**不猜状态**）
   3. `publishes` 初始化为空数组
-  4. `global` 三个阶段都是 `pending`
+  4. `global` 四个阶段都是 `pending`
 - **不还原**：v1 的旧状态不迁移到 v2（用户已确认走破坏性升级）
 
 ### migration 脚本
@@ -226,7 +230,7 @@ import { readState, updateStage, appendPublish } from './migrate-pipeline-state.
 
 ```
 当前管线状态：
-- Global: Setup completed
+- Global: Analyze ✓ / Build ✓ / Validate [running]
 - Current module focus: role-management
   - Plan: completed (approvedBy: user, tcRange: TC-001~TC-018)
   - Generate: completed (mode: direct-generation)

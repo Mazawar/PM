@@ -18,7 +18,7 @@
 - Node.js/Vue/React → **Vitest**（L2 API 测试）+ Jest + Testing Library / Supertest / Playwright
 - Go → testing + testify
 
-UI 测试统一使用 Playwright。L2 API 测试统一使用 Vitest（项目级 `vitest.config.ts` 由 Setup Agent 生成）。
+UI 测试统一使用 Playwright。L2 API 测试统一使用 Vitest（项目级 `vitest.config.ts` 由 analyzer agent 生成）。
 
 ## 覆盖要求
 
