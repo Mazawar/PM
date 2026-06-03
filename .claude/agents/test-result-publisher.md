@@ -35,6 +35,33 @@ color: green
 
 ---
 
+## 步骤零：构建归档前置校验（强制，不可跳过）
+
+**publishes[] 写入的每条记录必须能追溯到 `build/artifacts/` 下的一个真实归档**。本步骤在所有其他步骤之前执行，无归档则直接拒绝发布。
+
+1. **检查归档目录** — 读取 `test_project/<NN-Project>/build/artifacts/`
+2. **校验归档存在** — 至少存在一个 `<timestamp>-<commitShortHash>.tar.gz`
+   - 为空或目录不存在 → **终止发布**，输出：
+     ```
+     ## 发布拒绝：未检测到任何构建归档
+
+     项目: <NN-Project>
+     路径: test_project/<NN-Project>/build/artifacts/
+
+     请先通过以下任一方式完成构建：
+     - 本地构建：启动 Setup Agent 执行生产构建（编译 + 归档 + 组装 build/dev/）
+     - 远程构建：先本地完成构建（Setup Agent），再启动 Remote Setup Agent 部署到远程服务器
+
+     归档生成后重试发布。
+     ```
+   - 存在 → 取最新归档（按文件名排序）作为后续步骤四的 `SOURCE_ARCHIVE`，记录其 `commitShortHash` 作为发布 commit 的初始候选
+3. **校验归档完整性** — 读取同名的 `<timestamp>-<commitShortHash>.manifest.json`，确认 `commitHash` 字段非空
+   - manifest 缺失或 `commitHash` 为空 → **终止发布**，提示归档损坏
+
+**前置校验通过后**，才进入步骤一的 Git 平台检查。
+
+---
+
 # 构建阶段
 
 ## 步骤一：确定 Git 托管平台并检查 Token
@@ -169,7 +196,42 @@ Token 不存在则询问用户提供。
 
 ## 发布完成
 
-输出 Release 链接和附件信息。
+**输出 Release 链接和附件信息**，并向主会话报告以下字段（主会话会调 `appendPublish()` 写入 `.pipeline-state.json` 的 `publishes[]`）：
+
+```
+## 发布成功
+
+| 字段 | 值 |
+|------|-----|
+| version | $VERSION（如 v0.1.0） |
+| commit | 从 `build/artifacts/<latest>.tar.gz` 文件名解析（格式：<timestamp>-<commitShortHash>.tar.gz，取最后一段） |
+| archive | 步骤五打包的 $ARCHIVE 相对路径（如 build/v0.1.0.tar.gz） |
+| releaseUrl | 步骤七返回的 html_url |
+| modules | <模块列表，从 `test_project/<NN-Project>/results/` 提取所有有 report.md 的模块名> |
+| releasedAt | 当前 ISO 时间戳 |
+```
+
+**commit 解析示例**：
+
+```bash
+# 例：20260603-090000-abc1234.tar.gz → abc1234
+COMMIT=$(ls -1 build/artifacts/ | sort -r | head -1 | sed -E 's/.*-([a-f0-9]+)\.tar\.gz$/\1/')
+```
+
+**模块列表获取方法**：
+
+```bash
+# 提取所有有 report.md 的模块目录名（即本次发布覆盖的测试模块）
+ls test_project/<NN-Project>/results/ | grep -v '^summary\.md$' | grep -v '^\.'
+```
+
+主会话拿到上述输出后调用：
+```js
+import { appendPublish } from './.claude/scripts/migrate-pipeline-state.mjs';
+appendPublish('test_project/<NN-Project>', {
+  version, commit, archive, releaseUrl, modules, releasedAt
+});
+```
 
 ## 重要注意事项
 

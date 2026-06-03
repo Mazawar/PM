@@ -47,7 +47,7 @@ pm/
 │       │   ├── seed.spec.ts  # 登录种子文件（Planner/Generator 共享）
 │       │   └── {level}/{module}/tc-{编号}-{简称}.spec.ts
 │       ├── SETUP.md          # 环境启动报告（Setup Agent 生成）
-│       ├── .pipeline-state.json # 管线状态（九阶段可中断恢复）
+│       ├── .pipeline-state.json # 管线状态（v2：global/modules/publishes 三段）
 │       ├── build/            # 构建部署产物（Remote Setup Agent 生成）
 │       │   ├── version-log.json    # 构建版本追踪总表
 │       │   ├── deploy-config.json  # 部署配置快照（可复用）
@@ -65,6 +65,7 @@ pm/
 │   └── scripts/
 │       ├── scan.sh            # 仓库扫描脚本
 │       ├── init-dirs.mjs      # 项目目录初始化（幂等）
+│       ├── migrate-pipeline-state.mjs # 管线状态迁移（v1 → v2）
 │       ├── generate-report.mjs # Playwright 报告解析（生成 progress/report/summary）
 │       └── notify.mjs         # 测试报告邮件通知
 ├── .mcp.json                  # MCP Server 配置（Playwright + SSH）
@@ -85,7 +86,7 @@ pm/
 | `case/` | 用户案例目录（业务案例、测试场景，planner 最高优先读取） |
 | `start.sh` | 一键启动脚本（端口检查 + 依赖安装 + 健康检查） |
 | `SETUP.md` | 环境启动报告（实际验证结果） |
-| `.pipeline-state.json` | 管线状态文件（九阶段可中断、可恢复） |
+| `.pipeline-state.json` | 管线状态文件（v2 schema：global 项目级 + modules 模块级 + publishes 历史，破坏性升级会备份为 .pipeline-state.v1.bak.json） |
 | `build/version-log.json` | 构建版本追踪总表（每次构建追加一条记录） |
 | `build/deploy-config.json` | 部署配置快照（可复用，下次构建跳过已安装组件） |
 | `build/nginx.conf` | Nginx 配置文件 |
@@ -100,7 +101,7 @@ pm/
 | 文件 | 内容 |
 |------|------|
 | `00-README.md` | 规则索引：分层结构、管线阶段映射、Agent 与规则对应关系 |
-| `01-pipeline-state.md` | 管线状态持久化：九阶段状态机、可中断恢复、状态转换规则 |
+| `01-pipeline-state.md` | 管线状态持久化：v2 schema（global/modules/publishes 三段）、可中断恢复、状态转换规则、迁移流程 |
 | `02-project-invariants.md` | 项目结构、目录规范、注册表双写、Git 规则、case/ 保护 |
 | `03-setup-environment.md` | 环境配置：数据库初始化优先级、端口推断、脚本验证、页面验证、问题处理策略、完成条件 |
 | `04-testing-framework.md` | 测试层级定义（L1-L4）、框架选择、覆盖要求、测试数据安全 |
@@ -116,7 +117,11 @@ Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute 
  扫描     配置    远程部署(可选)   分析      规划    生成      执行      汇报      发布
 ```
 
-测试执行管线：`planner → generator → healer（按需）`
+- **Detect / Setup / Remote Setup** 是项目级阶段（`global`），整个项目只跑一次
+- **Analyze / Plan / Generate / Execute / Report** 是模块级阶段（`modules.<name>`），按模块独立追踪
+- **Publish** 不是阶段是操作，成功后追加到 `publishes[]` 历史数组
+
+测试执行管线：`planner → generator → healer（按需）`（按模块串行）
 
 构建发布管线：`Report → 用户确认 → publisher（编译打包 + 打 Tag + 上传 Gitee Release）`
 
@@ -165,6 +170,17 @@ node .claude/scripts/init-dirs.mjs --project <NN-Project>
 ```
 
 幂等脚本，自动创建 case/、plans/、tests/、test-config/、results/、reports/、build/artifacts/ 目录。已有文件不覆盖。
+
+### 管线状态迁移（v1 → v2）
+
+```bash
+node .claude/scripts/migrate-pipeline-state.mjs --project <NN-Project>
+node .claude/scripts/migrate-pipeline-state.mjs --project <NN-Project> --dry-run
+```
+
+- 检测到 v1（无 `schemaVersion` 字段）→ 备份为 `.pipeline-state.v1.bak.json` → 写入 v2 模板
+- v2 文件已存在 → 跳过（幂等）
+- 也可作为 ESM 模块导入，导出 `readState` / `updateStage` / `appendPublish` 供其他脚本使用
 
 ### 项目注册
 

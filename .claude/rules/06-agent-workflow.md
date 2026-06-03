@@ -5,8 +5,9 @@
 九阶段流程是**可中断、可恢复**的状态机。详细定义见 `01-pipeline-state.md`。
 
 **核心规则**：
-- 主会话在每个阶段**开始和结束时**更新 `test_project/<NN-Project>/.pipeline-state.json`
-- 新会话启动时先读取状态文件，从断点继续
+- v2 schema 把状态拆为 `global`（项目级：Detect/Setup/RemoteSetup）/ `modules`（按模块：Plan/Generate/Execute/Report）/ `publishes`（历史）三段
+- 主会话通过 ESM 导入 `migrate-pipeline-state.mjs` 提供的 `readState` / `updateStage` / `appendPublish` 三个函数读写
+- 新会话启动时**先调用 migrate 脚本**读取或迁移状态（v1 → v2 破坏性升级，备份为 `.pipeline-state.v1.bak.json`）
 - Agent 不读写状态文件，仅主会话负责状态管理
 
 ## 九阶段流程
@@ -58,10 +59,10 @@ Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute 
      - 同步更新 playwright.config.ts
      - 完成后可继续在远程环境执行测试
    - **切换服务器** → 清空 remoteConfig，启动 Remote Setup Agent 执行重绑定
-3. 启动 planner → 启动前检查 `case/` 目录是否有用户案例文件，在 prompt 中告知 planner → planner 同时负责 Analyze（读变更报告）和 Plan（优先读 case/）→ 审阅计划 → **向用户展示摘要并请求确认** → 用户可要求多轮调整 → 确认后启动 generator
-4. 首次运行测试 → 有失败则启动 healer
-5. 汇总结果 → 生成/更新 `test_project/<NN-Project>/results/` 下的 progress.txt、report.md、summary.md → 向用户汇报
-6. **Publish 询问** — 测试**全部通过**后，必须主动询问"是否发布到 Git Release"，不可等待用户提出；有失败时询问"是否修复后发布"
+3. 启动 planner → 启动前检查 `case/` 目录是否有用户案例文件，在 prompt 中告知 planner → planner 同时负责 Analyze（读变更报告）和 Plan（优先读 case/）→ 审阅计划 → **向用户展示摘要并请求确认** → 用户可要求多轮调整 → 确认后调用 `updateStage('module', '<name>', 'Plan', { status: 'completed', approvedBy: 'user', tcRange })` → 启动 generator
+4. 首次运行测试 → 调用 `updateStage('module', '<name>', 'Execute', { status: 'running' })` → 跑测试 → 调用 generate-report.mjs 解析结果 → 有失败则启动 healer
+5. 汇总结果 → 调 `updateStage('module', '<name>', 'Execute', { status: 'completed' })` → 调 `updateStage('module', '<name>', 'Report', { status: 'completed' })` → 向用户汇报
+6. **Publish 询问** — 所有模块的 Report 全部通过后，必须主动询问"是否发布到 Git Release"，不可等待用户提出；有失败时询问"是否修复后发布"；用户确认后启动 publisher，发布成功调 `appendPublish({ version, modules, commit, archive, releaseUrl, releasedAt })` 追加到 `publishes[]`
 
 **关键**：测试生成后运行若出现 **TimeoutError**，**必须委托 healer**，禁止主会话逐步排查。
 
@@ -71,15 +72,19 @@ Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute 
 
 ### 基础检查（所有场景）
 
-1. 检查 `test_project/<NN-Project>/playwright.config.ts` 和 `test_project/<NN-Project>/test-config/environment.json` 是否存在
-2. **不存在**（未配置）→ 启动 Setup Agent（`Agent(subagent_type="project-manage-setup")`）
+1. **调用 migrate 脚本**初始化/读取 v2 状态：
+   ```bash
+   node .claude/scripts/migrate-pipeline-state.mjs --project <NN-Project>
+   ```
+2. 检查 `test_project/<NN-Project>/playwright.config.ts` 和 `test_project/<NN-Project>/test-config/environment.json` 是否存在
+3. **不存在**（未配置）→ 启动 Setup Agent（`Agent(subagent_type="project-manage-setup")`）
    - Agent 分析源码、推断端口和凭据
    - 生成 `playwright.config.ts`、`environment.json`、`start.sh`、`SETUP.md`
    - 执行生产构建，组装 `build/dev/` 部署包
-   - 验证环境 → 完成后继续测试流程
-3. **已存在**（已配置）→ 读取 `environment.json` 中的 `healthCheck`
-4. 用 curl 检查服务是否在运行：`curl -s -o /dev/null -w "%{http_code}" <healthCheck.url>`
-5. 检查结果：
+   - 验证环境 → 完成后通过 `updateStage('global', null, 'Setup', { status: 'completed' })` 更新状态
+4. **已存在**（已配置）→ 读取 `environment.json` 中的 `healthCheck`
+5. 用 curl 检查服务是否在运行：`curl -s -o /dev/null -w "%{http_code}" <healthCheck.url>`
+6. 检查结果：
    - **通过** → 继续测试流程
    - **未通过** → 启动 Setup Agent，由 Agent 负责启动服务并验证（不是仅提示用户）
 
