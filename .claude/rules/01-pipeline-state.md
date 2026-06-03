@@ -43,7 +43,8 @@ test_project/<NN-Project>/.pipeline-state.json
       "version": "v1.0.0",
       "modules": ["role-management"],
       "commit": "f59a24c",
-      "archive": "build/artifacts/20260528-170000-f59a24c.tar.gz",
+      "archive": "build/v1.0.0.tar.gz",
+      "parts": ["v1.0.0.tar.gz.part-aa", "v1.0.0.tar.gz.part-ab"],
       "releasedAt": "2026-05-28T17:00:00+08:00",
       "releaseUrl": "https://gitee.com/xxx/releases/tag/v1.0.0"
     }
@@ -101,7 +102,8 @@ test_project/<NN-Project>/.pipeline-state.json
 | `version` | 用户输入 | SemVer 字符串（如 `v1.0.0`） |
 | `modules` | 当前已完成的模块列表 | 此次发布覆盖的测试模块 |
 | `commit` | `repository/<NN-Project>` HEAD 的短 hash（`git rev-parse --short HEAD`） | publisher 获取 |
-| `archive` | 发布包文件名 | 格式：`<VERSION>.tar.gz`（如 `v0.0.2.tar.gz`） |
+| `archive` | 发布包文件名 | 格式：`<VERSION>.tar.gz`（如 `v0.0.2.tar.gz`），不包含分片后缀 |
+| `parts` | 分片文件列表 | publisher 写入，如 `["v0.0.2.tar.gz.part-aa", "v0.0.2.tar.gz.part-ab"]`；单文件（未分包）时为空数组 |
 | `releasedAt` | 实际发布时间 | ISO 时间戳 |
 | `releaseUrl` | Gitee Release 链接 | publisher 写入 |
 

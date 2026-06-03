@@ -25,7 +25,7 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
 6. **Generate** — generator agent 生成测试代码，**用户确认**
 7. **Execute** — 运行测试，失败交 healer agent
 8. **Report** — 主会话汇总结果（生成/更新 `test_project/<NN-Project>/results/` 下的 progress.txt、report.md、summary.md），向用户汇报
-9. **Publish** — Report 阶段全部通过后，主会话**必须主动询问**用户是否发布；用户确认后启动 publisher agent，打包 build/dev 并上传附件到 Gitee Release
+9. **Publish** — Report 阶段全部通过后，主会话**必须主动询问**用户是否发布；用户确认后启动 publisher agent，将 build/dev 复制到 build/release、清理 logs/、以版本号命名打包、分包（每包最大 100M）、打 Tag、创建 Release、上传分包附件
 
 ## 流程阶段可见性（强制）
 
