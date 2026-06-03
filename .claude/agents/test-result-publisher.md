@@ -23,7 +23,7 @@ color: green
 构建阶段 ──→ 用户确认是否发布？ ──→ 发布阶段
  编译打包                       yes    打 Tag + Release + 上传附件
  收集测试报告                           no → 终止，保留构建产物
- 打包 zip
+ 打包 tar.gz
 ```
 
 ## 通用约束（所有步骤适用）
@@ -77,81 +77,33 @@ Token 不存在则询问用户提供。
    - 记录数据库脚本路径和导入顺序（如存在多个 `.sql` 文件时按文件名排序）
 
 **确定版本号**：
-- 从 `repository/README.md` 提取仓库地址，`sed` 去除协议前缀和 `.git` 后缀得到 `owner/repo`
-- 根据步骤一确定的平台，调用对应 API 获取已有 Release tag：
-  - Gitee: `GET /repos/{owner}/{repo}/releases`
-  - GitHub: `GET /repos/{owner}/{repo}/releases`
-- 筛选格式 `v0.{数字}.0`，取最大数字加 1 作为新版本。首次发布为 `v0.1.0`
+- 读取 `repository/<NN-Project>/version/` 目录，列出所有子文件夹
+- 按语义版本号排序，取最新版本作为本次发布版本号（如 `v0.0.2`）
+- 无 `version/` 目录或为空 → 询问用户提供版本号
 
-## 步骤四：编译打包
+## 步骤四：准备发布包
 
-根据步骤三的分析结果，对每个组件执行：
+发布包结构：`software/`（无依赖的编译产物+配置文件）从归档包提取；辅助文件（database/、sh/、文档）从 `build/dev/` 复制。
 
-**前端**（如有）：执行构建命令，将产物（路径由步骤三分析确定，常见 `dist/`）复制到 `build/$VERSION/frontend/`
-
-**后端**：
-- 执行构建命令，将编译产物（路径由步骤三分析确定）复制到 `build/$VERSION/backend/`
-- 复制 `package.json`、lock 文件
-- 检查根目录是否有 `.sql` dump 文件，有则复制到 `build/$VERSION/database/`
-
-**Java 后端**：执行 Maven 构建，将 `target/*.jar` 复制到 `build/$VERSION/backend/`
-
-**单体项目**：根据识别的构建工具执行对应命令，产物复制到 `build/$VERSION/`
-
-**Monorepo 项目（pnpm workspace）**：在 `build/$VERSION/` 下执行以下操作：
-
-1. 保持原始目录结构完整，将 workspace 根目录（如 `software/`，含 `apps/`、`pnpm-workspace.yaml`、`package.json`）整体复制到 `build/$VERSION/`
-2. 安装依赖（hoisted 模式）：
+1. **确定最新归档** — 读取 `build/artifacts/`，取最新 `.tar.gz` 归档
+2. **创建版本目录** — `mkdir -p build/$VERSION/`
+3. **software 从归档包提取** — 将最新归档解压到 `build/$VERSION/software/`
    ```bash
-   cd build/$VERSION/software
-   pnpm install --config.node-linker=hoisted
+   tar -xzf build/artifacts/<latest>.tar.gz -C build/$VERSION/software
    ```
-3. **Prisma 项目**：若项目使用 Prisma，修改 schema 添加 Linux 引擎目标，然后生成：
-   ```prisma
-   generator client {
-     provider      = "prisma-client-js"
-     binaryTargets = ["native", "debian-openssl-3.0.x"]
-   }
-   ```
-   ```bash
-   cd apps/api
-   npx prisma generate
-   ```
-4. 复制 `database/`、`sh/` 等辅助目录到 `build/$VERSION/`
+   （归档包内容为编译产物 + 配置文件 + 依赖声明，不含 `node_modules/`）
+4. **从 build/dev/ 复制辅助文件**：
+   - `cp -r build/dev/database build/$VERSION/`（数据库脚本）
+   - `cp -r build/dev/sh build/$VERSION/`（运维脚本）
+   - `cp build/dev/deploy.md build/$VERSION/`（部署说明）
+   - `cp build/dev/deploy-manual.md build/$VERSION/ 2>/dev/null || true`（部署手册，不存在则跳过）
+   - `cp build/dev/update_readme.md build/$VERSION/ 2>/dev/null || true`（更新说明，不存在则跳过）
+5. 用 `ls` 确认目录结构完整
 
-## 步骤五：生成部署文档和版本说明（必须两个独立文件）
-
-**必须在 `build/$VERSION/` 下创建两个独立的 .md 文件。创建后必须运行 `ls` 确认文件名完全匹配，缺一不可。以下是两个文件的规定，不允许改名、合并或省略。**
-
-### 文件一：`部署说明.md`
-
-必须使用 `部署说明.md` 作为文件名。参照 `repository/<NN-Project>/version/update_readme.md` 的格式和章节结构生成。内容包含：
-- 构建环境声明（OS、架构、Node.js 版本等）
-- 目录结构（各目录和文件用途）
-- 部署步骤（环境准备、安装依赖、启动服务等完整流程）
-- 工具包变更清单（如 Node.js、MySQL、Nginx 等）
-- 健康检查端点（API 和前端的关键检查 URL、方法、预期响应）
-
-### 文件二：`版本说明.md`
-
-必须使用 `版本说明.md` 作为文件名。参照 `repository/<NN-Project>/version/update_readme.md` 的格式和章节结构生成。内容包含：
-- 更新内容（本次版本变更的功能、修复、优化）— 写业务影响，禁止写代码级描述（文件名、函数名、注解）
-- 环境变量与配置变更（新增/修改/删除的环境变量或配置文件）
-- 数据库变更（Schema 变更、数据迁移脚本、回滚脚本、兼容性风险）
-- 版本依赖关系（组件版本匹配矩阵、升级路径、回滚限制）
-- 已知问题与限制（未解决的问题、已知缺陷、回滚限制）
-
-### 步骤五自检
-
-两个文件写完后，运行以下命令确认：
-```bash
-ls test_project/<NN-Project>/build/$VERSION/部署说明.md test_project/<NN-Project>/build/$VERSION/版本说明.md
-```
-两个文件都必须存在。缺一即视为步骤五未完成，需补全后再继续。
-
-## 步骤六：收集测试报告并打包
+## 步骤五：收集测试报告并打包
 
 - 将 `test_project/<NN-Project>/results/` **下的内容**复制到 `build/$VERSION/test-reports/`，**排除 artifacts/ 目录和 progress.txt**
+- 将 `test_project/<NN-Project>/plans/` **下的内容**复制到 `build/$VERSION/test-plans/`
 - 最终 `test-reports/` 结构应为：
   ```
   test-reports/
@@ -159,6 +111,12 @@ ls test_project/<NN-Project>/build/$VERSION/部署说明.md test_project/<NN-Pro
   └── {module}/
       ├── report.md
       └── screenshots/
+  ```
+- 最终 `test-plans/` 结构应为：
+  ```
+  test-plans/
+  ├── 00-test-plan.md
+  └── NN-{module}.md
   ```
 - 进入 `build/` 目录，将整个版本目录打包（`.tar.gz`）
 - 记录最终 ARCHIVE 路径供后续使用
@@ -186,11 +144,11 @@ ls test_project/<NN-Project>/build/$VERSION/部署说明.md test_project/<NN-Pro
 
 仅在用户确认后执行。
 
-## 步骤七：打 Tag
+## 步骤六：打 Tag
 
 在 `repository/<NN-Project>/` 下创建并推送 git tag（版本号沿用步骤三确定的）。
 
-## 步骤八：创建 Release
+## 步骤七：创建 Release
 
 - 从 README.md 提取 `owner/repo`，根据步骤一确定的平台使用对应 API：
   - Gitee: `POST https://gitee.com/api/v5/repos/{owner}/{repo}/releases`
@@ -199,7 +157,7 @@ ls test_project/<NN-Project>/build/$VERSION/部署说明.md test_project/<NN-Pro
 - body 包含项目编号、版本号和测试结果概要
 - 从响应 JSON 中提取 `id` 作为 `release_id`
 
-## 步骤九：上传附件
+## 步骤八：上传附件
 
 根据步骤一确定的平台使用对应 API：
 - Gitee: `POST https://gitee.com/api/v5/repos/{owner}/{repo}/releases/{release_id}/attach_files`

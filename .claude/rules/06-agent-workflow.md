@@ -17,8 +17,8 @@ Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute 
 ```
 
 1. **Detect** — `scan.sh` 检测变更，生成报告到 `test_project/<NN-Project>/reports/`
-2. **Setup** — 每次测试前检查环境，无配置时启动 Setup Agent 分析项目环境
-3. **Remote Setup** — Setup 完成后询问用户构建方式：本地构建（跳过）或远程构建（启动 Remote Setup Agent 在远程服务器部署环境）
+2. **Setup** — 每次测试前检查环境。无配置时启动 Setup Agent 分析项目环境、执行生产构建（编译 + 归档 + 组装 `build/dev/`）；配置存在但 `build/dev/` 缺失时（如远程部署场景），同样启动 Setup Agent 执行生产构建；配置和构建都就绪则跳过
+3. **Remote Setup** — Setup 完成后（`build/dev/` 已就绪），询问用户是否远程部署。部署则启动 Remote Setup Agent，将本地已构建的 `build/dev/` 上传到远程服务器，安装系统运行时，配置环境并启动服务
 4. **Analyze** — planner Agent 读变更报告，写 `test_project/<NN-Project>/reports/summary.md`（变更概述、影响范围、测试建议）；无变更报告时跳过此步骤，直接进入 Plan
 5. **Plan** — planner agent 生成测试计划（优先读取 `case/` 目录中的用户案例），**用户多轮确认与调整**后才进入 Generate
 6. **Generate** — generator agent 生成测试代码，**用户确认**
@@ -48,17 +48,16 @@ Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute 
 
 主会话 **不直接编写或调试测试代码**，只做：
 
-1. 接收任务 → 环境检查（无配置启动 Setup Agent，已配置则跳过）
-2. **构建方式选择** — Setup 完成后，使用 `AskUserQuestion` 询问用户"本地构建 or 远程构建？"
-   - **本地构建** → 继续，服务已在本地运行
-   - **远程构建** → 启动 Remote Setup Agent（`Agent(subagent_type="remote-env-setup")`）
-     - Agent 读取 environment.json，通过 SSH 在远程服务器部署
+1. 接收任务 → 环境检查（两层检查：配置缺失 **或** 构建产物 `build/dev/` 缺失 → 都启动 Setup Agent；两者都就绪才跳过）
+2. **远程部署选择** — Setup 完成后，使用 `AskUserQuestion` 询问用户"是否需要部署到远程服务器？"
+   - **本地测试** → 继续，服务已在本地运行，直接进入测试流程
+   - **远程部署** → 启动 Remote Setup Agent（`Agent(subagent_type="remote-env-setup")`）
+     - Agent 读取 environment.json，将本地 `build/dev/` 上传到远程服务器
+     - 安装系统运行时（Node.js/MySQL/Nginx 等），配置 .env，初始化数据库，启动服务
      - 更新 environment.json 的 baseURL 为远程 URL（需用户确认）
      - 同步更新 playwright.config.ts
-     - 完成后继续测试流程
+     - 完成后可继续在远程环境执行测试
    - **切换服务器** → 清空 remoteConfig，启动 Remote Setup Agent 执行重绑定
-     - 用 `AskUserQuestion` 提供选项：继续当前服务器 / 切换到其他已配置服务器
-     - 切换后 Agent 执行完整部署流程，覆盖写入 build/ 产物（deploy-config.json、nginx.conf、artifacts/）
 3. 启动 planner → 启动前检查 `case/` 目录是否有用户案例文件，在 prompt 中告知 planner → planner 同时负责 Analyze（读变更报告）和 Plan（优先读 case/）→ 审阅计划 → **向用户展示摘要并请求确认** → 用户可要求多轮调整 → 确认后启动 generator
 4. 首次运行测试 → 有失败则启动 healer
 5. 汇总结果 → 生成/更新 `test_project/<NN-Project>/results/` 下的 progress.txt、report.md、summary.md → 向用户汇报
@@ -68,18 +67,30 @@ Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute 
 
 ## 测试前环境检查（强制）
 
-每次测试前，主会话**必须**检查目标项目环境：
+每次测试前，主会话**必须**检查目标项目环境。如果执行远程部署，还需额外检查构建产物：
+
+### 基础检查（所有场景）
 
 1. 检查 `test_project/<NN-Project>/playwright.config.ts` 和 `test_project/<NN-Project>/test-config/environment.json` 是否存在
 2. **不存在**（未配置）→ 启动 Setup Agent（`Agent(subagent_type="project-manage-setup")`）
    - Agent 分析源码、推断端口和凭据
    - 生成 `playwright.config.ts`、`environment.json`、`start.sh`、`SETUP.md`
+   - 执行生产构建，组装 `build/dev/` 部署包
    - 验证环境 → 完成后继续测试流程
 3. **已存在**（已配置）→ 读取 `environment.json` 中的 `healthCheck`
 4. 用 curl 检查服务是否在运行：`curl -s -o /dev/null -w "%{http_code}" <healthCheck.url>`
 5. 检查结果：
    - **通过** → 继续测试流程
    - **未通过** → 启动 Setup Agent，由 Agent 负责启动服务并验证（不是仅提示用户）
+
+### 远程部署前置检查（当用户要求远程部署时追加）
+
+在启动 Remote Setup Agent 之前，额外检查 `build/dev/` 是否存在且结构完整：
+- `build/dev/software/package.json` — workspace 根存在
+- `build/dev/software/apps/*/dist/` — 编译产物存在（按 techStack 检查）
+- `build/dev/deploy.md` — 部署说明存在
+
+**`build/dev/` 不完整 → 先启动 Setup Agent 执行生产构建，再启动 Remote Setup Agent。主会话禁止自行编译打包。**
 
 ## Report 阶段（强制）
 
@@ -147,7 +158,7 @@ Report → 用户询问 ┤                  构建 → 确认发布 → 打 Tag
   - generator: `Agent(subagent_type="playwright-test-generator")`
   - healer: `Agent(subagent_type="playwright-test-healer")`
   - publisher: `Agent(subagent_type="test-result-publisher")`
-  - remote-setup: `Agent(subagent_type="remote-env-setup")`
+  - remote-setup: `Agent(subagent_type="remote-env-setup")` — 将本地已构建的部署包上传到远程服务器
 - 测试运行必须使用项目级配置：
   ```bash
   npx playwright test --config=test_project/<NN-Project>/playwright.config.ts

@@ -174,24 +174,135 @@ export default defineConfig({
 - `storageState` — chromium 项目依赖 setup，自动加载 seed 保存的认证状态，测试无需重复登录
 - `dependencies: ['setup']` — 确保 seed 先执行，认证状态就绪后再跑测试
 
-#### 3.3 start.sh（一键启动脚本）
+#### 3.3 playwright.config.ts 配置说明
 
-写入 `test_project/<NN-Project>/start.sh`：
+**关键配置说明**：
+- `reporter` — JSON 报告输出到 `playwright-report.json`，供 `generate-report.mjs` 解析生成 progress.txt、report.md、summary.md；line reporter 同时在终端显示进度
+- `setup` project — 匹配 `seed.spec.ts`，先于其他测试运行，完成登录并保存认证状态
+- `storageState` — chromium 项目依赖 setup，自动加载 seed 保存的认证状态，测试无需重复登录
+- `dependencies: ['setup']` — 确保 seed 先执行，认证状态就绪后再跑测试
+
+### Step 4: 生产构建与部署包组装
+
+**构建发生在本地的 `repository/` 中，产物组装到 `build/dev/`。后续启动服务也从 dev/ 启动，不依赖仓库原始目录。**
+
+#### 4.1 生产编译
+
+根据 `techStack` 确定构建命令，在 `repository/<NN-Project>/` 执行：
+
+```bash
+# Node.js 项目参考
+cd repository/<NN-Project>
+npm run build
+# 或 pnpm run build（workspace 项目）
+```
+
+**构建失败则终止**，不在远程修复。
+
+#### 4.2 归档产物到 artifacts/
+
+将编译产物归档到 `build/artifacts/<YYYYMMDD-HHmmss>-<commitShortHash>.tar.gz`：
+
+- **必须包含**：前端编译产物、后端编译产物、依赖声明文件（package.json, pnpm-lock.yaml）、ORM schema/迁移文件、.env 模板、workspace 配置文件
+- **禁止包含**：`node_modules/`、`version/`、`scripts/`、README、数据文件、git 相关文件
+- 生成 manifest.json（含 commitHash、branch、checksums、files）
+- 执行归档完整性校验（确认声明的路径在归档内存在且文件数 ≥ 1）
+- 记录到 `version-log.json`
+
+#### 4.3 组装部署包（在 build/dev/ 下）
+
+组装后的目录结构：
+```
+dev/
+├── software/             # workspace 根目录（含 node_modules）
+│   ├── apps/api/
+│   ├── apps/web/
+│   ├── packages/         # workspace 子包
+│   │   └── types/
+│   ├── package.json
+│   └── pnpm-workspace.yaml
+├── database/             # 数据库脚本
+│   ├── <全量 SQL>.sql    # 全量初始数据 SQL dump
+│   └── v0.0.1/           # 版本变更 SQL
+│       └── sql/
+│           ├── migrate_*.sql
+│           └── rollback_*.sql
+├── sh/                   # 部署运维脚本（仅 .sh 文件）
+├── deploy-manual.md      # 版本部署手册
+├── update_readme.md       # 版本更新说明
+└── deploy.md             # 自动生成的部署说明
+```
+
+组装步骤：
+
+1. **从归档包解压到 dev/**：
+   ```bash
+   mkdir -p build/dev
+   tar -xzf build/artifacts/<timestamp>-<commit>.tar.gz -C build/dev/software
+   ```
+
+2. **安装依赖（hoisted 模式）**：
+   ```bash
+   cd build/dev/software
+   pnpm install --config.node-linker=hoisted
+   ```
+   验证 `node_modules/` 下为实体目录（无 `.pnpm/` store 符号链接）。
+
+3. **Prisma 项目处理**（如 `prisma/schema.prisma` 存在）：
+   ```prisma
+   generator client {
+     provider      = "prisma-client-js"
+     binaryTargets = ["native", "debian-openssl-3.0.x"]
+   }
+   ```
+   ```bash
+   cd apps/api
+   npx prisma generate
+   ```
+   验证 `node_modules/.prisma/client/` 下同时存在 Windows 和 Linux 引擎文件。
+
+4. **复制辅助目录**：
+   - `database/` — 从仓库复制全量 SQL dump（如有）；复制 `version/<version>/` 下各版本的变更 SQL 到 `database/<version>/`
+   - `sh/` — 从 `version/<latest>/` 取 `.sh` 脚本文件复制到 `build/dev/sh/`
+   - `deploy-manual.md` 和 `update_readme.md` — 从 `version/<latest>/` 复制到 `build/dev/` 根目录
+
+5. **生成 `build/dev/deploy.md`**：包含环境配置表、目录结构、部署步骤（解压发布包 → 安装依赖 → Prisma 引擎编译 → 配置 .env → 数据库初始化/迁移 → 启动后端 → Nginx 配置 → 验证）、凭据信息。
+
+6. **打包部署包**（保留 dev/ 目录供后续启动服务和远程部署）：
+   ```bash
+   cd build
+   rm -rf <NN-Project>
+   cp -a dev <NN-Project>
+   tar -czf <NN-Project>.tar.gz <NN-Project>/
+   rm -rf <NN-Project>
+   ```
+
+#### 4.4 更新 environment.json
+
+构建完成后，在 `environment.json` 中补充构建信息：
+- `buildVersion` — 本次构建版本号
+- `buildArchive` — 归档文件名
+- `buildTime` — 构建完成时间
+
+### Step 5: 生成启动脚本（基于 dev/）
+
+写入 `test_project/<NN-Project>/start.sh`。与之前的版本不同，此脚本从 `build/dev/software/` 启动服务，而非 `repository/<NN-Project>/`：
 
 ```bash
 #!/bin/bash
-# <NN-Project> 一键启动脚本
+# <NN-Project> 一键启动脚本（从 dev/ 部署包启动）
 # 由 Setup Agent 自动生成
 
 PROJECT_NAME="<NN-Project>"
-REPO_DIR="repository/$PROJECT_NAME"
+DEV_DIR="test_project/$PROJECT_NAME/build/dev/software"
 PORT=<端口>
 
-echo "===== 启动 $PROJECT_NAME ====="
+echo "===== 从 dev/ 启动 $PROJECT_NAME ====="
 
-# 0. 检查仓库目录
-if [ ! -d "$REPO_DIR" ]; then
-  echo "[FAIL] 仓库目录不存在: $REPO_DIR"
+# 0. 检查 dev/ 目录
+if [ ! -d "$DEV_DIR" ]; then
+  echo "[FAIL] dev/ 部署包不存在: $DEV_DIR"
+  echo "请先运行 Setup Agent 完成构建（Step 4）"
   exit 1
 fi
 
@@ -206,17 +317,8 @@ elif lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
 fi
 
 if [ "$PORT_RUNNING" = false ]; then
-  echo "[..] 启动服务..."
-  # 检查依赖
-  if [ ! -d "$REPO_DIR/node_modules" ]; then
-    echo "[..] 安装依赖..."
-    (cd "$REPO_DIR" && pnpm install) || (cd "$REPO_DIR" && npm install)
-    if [ $? -ne 0 ]; then
-      echo "[FAIL] 依赖安装失败"
-      exit 1
-    fi
-  fi
-  # <根据构建依赖分析结果，在此添加必要的预编译步骤>
+  echo "[..] 从 dev/ 启动服务..."
+  # node_modules 已在 dev/ 中装好，无需再次安装
   # <根据技术栈生成启动命令，使用 cd 子shell 避免工作目录污染>
 fi
 
@@ -235,14 +337,14 @@ echo "[FAIL] 服务启动超时，请检查日志"
 exit 1
 ```
 
-### Step 3.5: 验证生成的脚本
+### Step 5.5: 验证生成的脚本
 
-按 `03-setup-environment.md` 的「脚本验证」要求执行，脚本验证通过后才进入 Step 4。
+按 `03-setup-environment.md` 的「脚本验证」要求执行，脚本验证通过后才进入 Step 6。
 
-### Step 4: 启动服务并验证
+### Step 6: 从 dev/ 启动服务并验证
 
 1. **检查端口占用** — 目标端口已有服务运行则跳过启动
-2. **执行 start.sh** — 失败时分析错误原因（依赖未安装 → 安装；端口冲突 → 调整；中间件未运行 → 提示用户）
+2. **执行 start.sh** — 启动 `build/dev/software/` 中的服务。失败时分析错误原因（dev/ 未构建 → 回 Step 4；端口冲突 → 调整；中间件未运行 → 提示用户）
 3. **健康检查** — 轮询 `healthCheck.url`（最多 60 秒），确认状态码符合预期
 4. **页面加载验证** — 按 `03-setup-environment.md` 的「页面加载验证」要求执行
 5. **登录验证** — 找到登录表单、填入凭据、提交确认登录成功、记录选择器
@@ -282,7 +384,7 @@ setup('登录并保存认证状态', async ({ page }) => {
 - `storageState` 保存到 `test-config/auth.json`，供 chromium project 复用
 - 登录验证未通过或无凭据时跳过此步骤
 
-### Step 5: 输出启动报告
+### Step 7: 输出启动报告
 
 写入 `test_project/<NN-Project>/SETUP.md`：
 
@@ -302,9 +404,14 @@ setup('登录并保存认证状态', async ({ page }) => {
 
 ## 启动方式
 一键启动: `bash test_project/<NN-Project>/start.sh`
-手动启动:
+手动启动（从 dev/）:
 - 前端: `<命令>`
 - 后端: `<命令>`
+
+## 构建信息
+- 版本: <version>
+- 编译产物: build/artifacts/<archive>
+- 部署包: build/dev/（含 node_modules、Prisma 引擎）
 
 ## 环境验证结果
 - [✅/❌] 服务启动成功
