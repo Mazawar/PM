@@ -21,7 +21,7 @@ import { existsSync, readFileSync, writeFileSync, copyFileSync, readdirSync } fr
 import { resolve, join } from 'path';
 
 const STAGES_MODULE = ['Plan', 'Generate', 'Execute', 'Report'];
-const STAGES_GLOBAL = ['Detect', 'Setup', 'RemoteSetup'];
+const STAGES_GLOBAL = ['Detect', 'Analyze', 'Build', 'Validate'];
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '../..');
 
