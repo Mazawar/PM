@@ -1,6 +1,12 @@
-# 项目环境配置规则
+# 项目环境配置规则（DEPRECATED — 历史索引）
 
-本文件定义 Setup Agent（`project-manage-setup`）的强制约束。Agent 定义（`.claude/agents/project-manage-setup.md`）声明工作流步骤和模板，本文件定义完整操作规则和约束。
+> **⚠️ 本文件已被 `03a-analyzer-rules.md` + `03b-builder-rules.md` + `03c-validator-rules.md` 拆分替代。**
+> **Setup Agent（`project-manage-setup`）已于 2026-06-03 弃用，职责拆为 analyzer（源码分析）/ builder（生产构建+部署包组装）/ validator（启动验证）三段。**
+> **本文件仅作历史索引保留，不再作为新流程的强制规则来源。**
+
+---
+
+本文件原定义 Setup Agent（`project-manage-setup`）的强制约束。Agent 定义（`.claude/agents/project-manage-setup.md`）已加 deprecation banner，新工作流按三段 agent 划分。
 
 ---
 
@@ -38,7 +44,7 @@ SQL dump 导入注意事项：指定 `--default-character-set=utf8mb4` 防止中
 - **全量 SQL dump 必须最先执行**（创建数据库结构和初始数据）
 - 版本迁移按目录名排序（`v0.0.1` → `v0.0.2` → ...），不能跳过中间版本
 - 每个版本内先执行 `migrate_*.sql`，再执行 `seed_*.sql`（如有）
-- Setup Agent 在 `environment.json` 的 `dbConfig.initFiles` 中如实列出**全部** SQL 文件（全量 dump + 各版本 migrate + seed），按执行顺序排列
+- analyzer agent 在 `environment.json` 的 `dbConfig.initFiles` 中如实列出**全部** SQL 文件（全量 dump + 各版本 migrate + seed），按执行顺序排列
 - 组装 `build/dev/database/` 时，保持完整的版本目录结构
 
 ```json
@@ -67,11 +73,10 @@ SQL dump 导入注意事项：指定 `--default-character-set=utf8mb4` 防止中
 
 ## 构建顺序（强制）
 
-Setup Agent 的步骤顺序为：
-1. 分析源码 → 推断配置 → 生成环境配置
-2. **构建生产包**（在 `repository/` 中编译，组装到 `build/dev/`）
-3. 生成 `start.sh`（基于 `build/dev/software/`）
-4. 从 `build/dev/software/` 启动服务并验证
+三段 agent 的步骤顺序（analyzer → builder → validator）：
+1. analyzer 分析源码 → 推断配置 → 写 `environment.json.analyzer.*` 段
+2. **builder 构建生产包**（在 `repository/` 中编译，组装到 `build/dev/`，按 buildMode 走 local/remote 分支）
+3. validator 生成 `start.sh`（基于 `build/dev/software/`）→ 从 `build/dev/software/` 启动服务并验证
 
 **禁止先启动再构建。必须先构建出 dev/，再从 dev/ 启动。**
 
@@ -165,13 +170,13 @@ HTTP 200 不代表页面正常，必须确认：
 - `test_project/<NN-Project>/.last_hash` — 变更追踪基准，禁止删除或清空
 - `test_project/<NN-Project>/.pipeline-state.json` — 管线状态，禁止删除
 - `test_project/<NN-Project>/case/` — 用户案例目录，禁止删除、清空或覆盖其中文件
-- Setup Agent 创建目录时，若上述文件/目录已存在必须保留原内容
+- analyzer / builder / validator agent 创建目录时，若上述文件/目录已存在必须保留原内容
 
 ---
 
 ## 生产构建与部署包组装（强制）
 
-本部分定义 Setup Agent 在 Step 4（构建生产部署包）中的操作规则。
+本部分原定义 Setup Agent 在 Step 4（构建生产部署包）中的操作规则。**现迁移到 `03b-builder-rules.md`。**
 
 ### 生产编译
 
@@ -220,9 +225,9 @@ HTTP 200 不代表页面正常，必须确认：
 | `build/version-log.json` | 构建版本追踪（追加记录） |
 | `build/dev/deploy.md` | 部署说明文档 |
 
-## build/ 自检清单（Setup Agent 完成时强制执行）
+## build/ 自检清单（builder agent 完成时强制执行）
 
-Setup Agent 在 Step 7（输出启动报告）之前**必须**逐项检查 build/ 目录，违规项立即修复。这是任务完成的硬性条件，未通过自检不得向主会话报告"Setup 完成"。
+builder agent 在完成构建（`build.builtAt` 写入前）之前**必须**逐项检查 build/ 目录，违规项立即修复。这是任务完成的硬性条件，未通过自检不得向主会话报告"Build 完成"。
 
 ### 必含项
 
@@ -278,11 +283,11 @@ find build -name "*.log" -not -path "build/dev/logs/*" 2>/dev/null | head -5
 
 ### 违规示例（已发生事故）
 
-> 2026-06-03 在 01-oa-llm 项目中，`api.log` 和 `web.log` 散落在 `build/dev/software/apps/`，违反"日志统一"原则。本规则要求 Setup Agent 启动服务前**先创建 `build/dev/logs/` 目录**，再启动后台进程。
+> 2026-06-03 在 01-oa-llm 项目中，`api.log` 和 `web.log` 散落在 `build/dev/software/apps/`，违反"日志统一"原则。本规则要求 builder agent 启动服务前**先创建 `build/dev/logs/` 目录**，再启动后台进程。
 
 ## version-log.json 自动创建（强制）
 
-Setup Agent 完成构建后**必须**自动创建 `build/version-log.json`（即使只一条记录），含全量 `archiveVerification` 校验结果。
+builder agent 完成构建后**必须**自动创建 `build/version-log.json`（即使只一条记录），含全量 `archiveVerification` 校验结果。
 
 ### 记录结构
 
