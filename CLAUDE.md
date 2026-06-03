@@ -40,15 +40,15 @@ pm/
 │       ├── vitest.config.ts   # 项目级 Vitest 配置（L2 API 测试）
 │       ├── plans/             # 测试计划（00-test-plan.md + 模块详细计划）
 │       ├── case/              # 用户提供的业务案例（planner 优先读取，禁止覆盖）
-│       ├── start.sh           # 一键启动脚本（Setup Agent 生成）
+│       ├── start.sh           # 一键启动脚本（builder agent 生成）
 │       ├── remote-start.sh    # 远程启动脚本（远程服务器上执行，不归档到 build/）
 │       ├── test-config/       # 环境配置（environment.json、auth.json）
 │       ├── tests/             # 测试代码（unit/api/e2e/ui 各层级按模块分子目录）
 │       │   ├── seed.spec.ts  # 登录种子文件（Planner/Generator 共享）
 │       │   └── {level}/{module}/tc-{编号}-{简称}.spec.ts
-│       ├── SETUP.md          # 环境启动报告（Setup Agent 生成）
+│       ├── SETUP.md          # 环境启动报告（validator agent 生成）
 │       ├── .pipeline-state.json # 管线状态（v2：global/modules/publishes 三段）
-│       ├── build/            # 构建部署产物（Remote Setup Agent 生成）
+│       ├── build/            # 构建部署产物（builder agent 生成）
 │       │   ├── version-log.json    # 构建版本追踪总表
 │       │   ├── deploy-config.json  # 部署配置快照（可复用）
 │       │   ├── nginx.conf          # Nginx 配置文件
@@ -74,7 +74,7 @@ pm/
 
 ## Project Configuration
 
-每个项目（`test_project/<NN-Project>/`）包含以下配置文件，由 Setup Agent 和 Remote Setup Agent 生成：
+每个项目（`test_project/<NN-Project>/`）包含以下配置文件，由 `project-manage-analyzer` / `project-manage-builder` / `project-manage-validator` 三段 agent 生成（旧 Setup Agent / Remote Setup Agent 已 deprecated）：
 
 | 文件 | 说明 |
 |------|------|
@@ -113,30 +113,34 @@ pm/
 ## Agent Pipeline 与九阶段流程
 
 ```
-Detect → Setup → Remote Setup → Analyze → Plan → Generate → Execute → Report → Publish
- 扫描     配置    远程部署(可选)   分析      规划    生成      执行      汇报      发布
+Detect → Analyze → Build → Validate → Plan → Generate → Execute → Report → Publish
+ 扫描    分析     构建    验证      规划    生成      执行      汇报      发布
 ```
 
-- **Detect / Setup / Remote Setup** 是项目级阶段（`global`），整个项目只跑一次
-- **Analyze / Plan / Generate / Execute / Report** 是模块级阶段（`modules.<name>`），按模块独立追踪
+- **Detect / Analyze / Build / Validate** 是项目级阶段（`global`，新三段于 2026-06-03 替代原 Setup/RemoteSetup）
+- **Plan / Generate / Execute / Report** 是模块级阶段（`modules.<name>`），按模块独立追踪
 - **Publish** 不是阶段是操作，成功后追加到 `publishes[]` 历史数组
 
 测试执行管线：`planner → generator → healer（按需）`（按模块串行）
+
+环境配置管线：`analyzer → [主会话问 buildMode] → builder (按 mode 分支) → validator`（项目级）
 
 构建发布管线：`Report → 用户确认 → publisher（编译打包 + 打 Tag + 上传 Gitee Release）`
 
 主会话 **不直接编写或调试测试代码**，只做调度和确认：
 
-1. 接收任务 → 环境检查（无配置启动 Setup Agent，已配置则跳过）
-2. **构建方式选择** — 询问用户"本地构建 or 远程构建？"，远程时启动 Remote Setup Agent
+1. 接收任务 → 环境检查（三层检查：analyzer/build/validate 缺失则启动对应 agent；三层都就绪才跳过）
+2. **构建方式选择** — Analyze 完成后用 `AskUserQuestion` 询问用户「本地构建 or 远程部署？」，写 `environment.json.build.mode`
 3. 启动 planner → **优先读取 `case/` 用户案例** → 审阅计划 → **用户多轮确认调整** → 确认后启动 generator
 4. 首次运行测试 → 有失败则启动 healer
 5. 汇总结果（自动运行 `generate-report.mjs`） → 向用户汇报
 6. 测试全部通过后 **必须主动询问** 用户是否发布到 Git Release
+7. 日常启停服务：`bash scripts/runner.sh {start|stop|restart|status} <NN-Project>`
 
-- **Setup** 在每次测试前检查环境：无配置时启动 Setup Agent 分析源码、推断端口；已配置且服务运行则跳过
+- **环境检查** 在每次测试前按三层走：analyzer 缺失 → `project-manage-analyzer`；build 缺失 → `project-manage-builder`；validate 缺失 → `project-manage-validator`
 - 每次测试前**必须**检查目标服务是否运行（读取 environment.json 的 healthCheck）
 - **case/ 优先级**：用户案例 > 变更报告 > 自主探索
+- **新三段 agent 详情**：`docs/agents.md`；**设计**：`docs/superpowers/specs/2026-06-03-setup-agent-decomposition-design.md`；**实施**：`docs/superpowers/plans/2026-06-03-setup-agent-decomposition.md`
 
 ## Commands
 
