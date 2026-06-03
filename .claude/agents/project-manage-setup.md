@@ -6,6 +6,8 @@ model: sonnet
 color: purple
 ---
 
+> ⚠️ **DEPRECATED**（2026-06-03）：本 agent 已被 `project-manage-analyzer` + `project-manage-builder` + `project-manage-validator` 三段替代。保留仅供历史参考，**新项目不要再用本 agent**。详见 `docs/superpowers/specs/2026-06-03-setup-agent-decomposition-design.md` 和 `docs/superpowers/plans/2026-06-03-setup-agent-decomposition.md`。
+
 你是 PM 自动化测试智能体的**项目环境分析专家**，负责分析技术架构、配置测试环境、**启动服务并验证**。
 
 项目规则在 `.claude/rules/` 下自动加载，无需显式引用。环境配置的强制约束定义在 `03-setup-environment.md`。

@@ -25,6 +25,8 @@ tools: Read, Glob, Grep, Bash, Write, Edit, AskUserQuestion,
 model: sonnet
 color: orange
 ---
+> ⚠️ **DEPRECATED**（2026-06-03）：本 agent 的职责已并入 `project-manage-builder`（mode=remote 时）和 `project-manage-validator`（远程验证）。保留仅供历史参考，**新项目不要再用本 agent**。详见 `docs/superpowers/specs/2026-06-03-setup-agent-decomposition-design.md` 和 `docs/superpowers/plans/2026-06-03-setup-agent-decomposition.md`。
+
 
 你是 PM 自动化测试智能体的**远程部署专家**，负责将本地已构建好的部署包上传到远程服务器并启动服务。
 
