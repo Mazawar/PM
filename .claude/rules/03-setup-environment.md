@@ -27,6 +27,17 @@ SQL dump 导入注意事项：指定 `--default-character-set=utf8mb4` 防止中
 - 识别所有需要在启动前完成的预编译/构建步骤（不只是主应用，也包括子模块、共享包、类型定义等）
 - 确定构建顺序（按依赖拓扑排列）
 - **在启动任何服务前，必须先完成所有必要的构建步骤**
+- 构建产出的目标目录为 `build/dev/software/`，后续启动服务从该目录进行，非仓库原始路径
+
+## 构建顺序（强制）
+
+Setup Agent 的步骤顺序为：
+1. 分析源码 → 推断配置 → 生成环境配置
+2. **构建生产包**（在 `repository/` 中编译，组装到 `build/dev/`）
+3. 生成 `start.sh`（基于 `build/dev/software/`）
+4. 从 `build/dev/software/` 启动服务并验证
+
+**禁止先启动再构建。必须先构建出 dev/，再从 dev/ 启动。**
 
 ## 端口推断优先级（强制）
 
@@ -63,6 +74,8 @@ SQL dump 导入注意事项：指定 `--default-character-set=utf8mb4` 防止中
    - 后台进程管理：确保 `&` 在当前 shell 环境下正确工作
 4. **重新验证** — 修复后再次试运行，直到脚本无错误执行完成
 
+**前提条件**：运行 start.sh 前必须先完成构建（Step 4），确保 `build/dev/software/` 存在且包含已编译的产物和 node_modules。start.sh 指向的是 `build/dev/software/`，非 `repository/<NN-Project>/`。
+
 **不允许在 start.sh 未通过试运行验证的情况下启动服务。**
 
 ## 页面加载验证（强制）
@@ -76,6 +89,7 @@ HTTP 200 不代表页面正常，必须确认：
    - `Failed to resolve`
    - `Cannot find module`
 4. 页面加载失败或控制台有模块解析错误时：
+   - **检查 `build/dev/` 是否完整** — 确认 `build/dev/software/` 下存在编译产物和 node_modules
    - **优先检查 workspace 包是否已构建** — monorepo 中最常见原因是共享包未编译
    - 检查前端是否正确启动
    - 检查代理/端口配置是否正确
@@ -102,6 +116,7 @@ HTTP 200 不代表页面正常，必须确认：
 
 **以下条件全部满足才算完成，缺一不可：**
 
+- 生产构建完成，`build/dev/` 部署包组装完毕（含 node_modules、编译产物）
 - 服务已启动，健康检查通过
 - 页面可访问，内容非空白
 - 浏览器控制台无模块解析失败或 JS 运行时错误
@@ -115,3 +130,56 @@ HTTP 200 不代表页面正常，必须确认：
 - `test_project/<NN-Project>/.pipeline-state.json` — 管线状态，禁止删除
 - `test_project/<NN-Project>/case/` — 用户案例目录，禁止删除、清空或覆盖其中文件
 - Setup Agent 创建目录时，若上述文件/目录已存在必须保留原内容
+
+---
+
+## 生产构建与部署包组装（强制）
+
+本部分定义 Setup Agent 在 Step 4（构建生产部署包）中的操作规则。
+
+### 生产编译
+
+- 根据 `techStack` 和 `startCommand` 将 dev 命令转为 build 命令（如 `pnpm dev` → `pnpm build`）
+- 在 `repository/<NN-Project>/` 下执行
+- 构建失败则终止，不在远程修复
+- monorepo 项目注意 workspace 包编译顺序
+
+### 归档内容规范
+
+归档到 `build/artifacts/<timestamp>-<commit>.tar.gz`：
+
+- **必须包含**：前端编译产物（web/dist/ 等）、后端编译产物（api/dist/ 等）、依赖声明文件（package.json, pnpm-lock.yaml）、ORM schema/迁移文件（prisma/ 等）、.env 模板（.env.development 等）、workspace 配置文件（pnpm-workspace.yaml）
+- **禁止包含**：`node_modules/`、`version/`（版本变更记录）、`scripts/`/`sh/`（部署脚本）、静态数据文件（*.json 如 province.json）、进程管理配置（ecosystem.config.cjs）、README、文档、git 相关文件
+- **原因**：辅助文件和脚本在组装 dev/ 时从仓库单独复制，归档只保存编译产物快照
+
+### 归档完整性校验
+
+归档完成后**必须**执行以下校验，任一失败则归档无效，禁止继续：
+
+1. **manifest.files 一致性** — 遍历 manifest.json 的 files 对象，对每个声明的路径确认归档内存在该路径前缀且文件数 ≥ 1
+2. **目录结构校验** — 归档内顶层目录必须与实际项目结构一致（如 api/、web/）
+3. **checksum 写入** — 校验通过后计算 sha256 写入 manifest
+
+校验结果记录到 `version-log.json` 的 `archiveVerification` 字段，`passed: false` 时禁止继续。
+
+### 部署包组装规范
+
+`build/dev/` 下组装完整的部署包：
+
+1. **从归档解压**到 `dev/software/`（workspace 根目录）
+2. **安装依赖**（hoisted 模式）：`pnpm install --config.node-linker=hoisted`
+3. **Prisma 项目**：schema 添加 Linux 引擎目标 `binaryTargets = ["native", "debian-openssl-3.0.x"]`，`npx prisma generate`，验证双平台引擎文件
+4. **复制辅助目录**：`database/`（全量 SQL + 版本变更 SQL）、`sh/`（.sh 脚本）、文档（deploy-manual.md、update_readme.md）
+5. **生成 deploy.md**：环境配置表、目录结构、完整部署步骤、凭据信息
+6. **打包**：`dev/` → `<NN-Project>/` → `<NN-Project>.tar.gz`
+
+### 产出文件
+
+| 文件 | 说明 |
+|------|------|
+| `build/artifacts/<timestamp>-<commit>.tar.gz` | 编译产物归档 |
+| `build/artifacts/<timestamp>-<commit>.manifest.json` | 归档清单 |
+| `build/dev/` | 完整部署包目录（含 node_modules） |
+| `build/<NN-Project>.tar.gz` | 最终部署压缩包 |
+| `build/version-log.json` | 构建版本追踪（追加记录） |
+| `build/dev/deploy.md` | 部署说明文档 |
