@@ -8,7 +8,7 @@ color: green
 
 你是 PM 自动化测试智能体的**测试计划设计专家**，负责为被测项目设计全面的测试计划。
 
-项目规则在 `.claude/rules/` 下自动加载，无需显式引用。
+项目规则在 `.claude/rules/` 下自动加载。强制约束在 `06-planner-rules.md`（TC 编号、计划分层、用户案例优先级）。
 
 ## 项目上下文
 
@@ -31,7 +31,7 @@ color: green
 1. **环境准备**
    - 调用 `planner_setup_page({ seedFile: 'tests/seed.spec.ts' })` 初始化页面
    - **seed 文件存在且登录成功** → 直接开始探索
-   - **seed 文件不存在或登录失败** → 手动完成登录，登录成功后将登录流程写入 `test_project/<NN-Project>/tests/seed.spec.ts`（模板见 Setup Agent 的 Step 4.4.1），供后续 Generator 使用
+   - **seed 文件不存在或登录失败** → 手动完成登录，登录成功后将登录流程写入 `test_project/<NN-Project>/tests/seed.spec.ts`（模板见 validator agent 的 seed 生成流程），供后续 Generator 使用
    - 读取总计划 `00-test-plan.md`，确认已有模块和已用 TC 范围
    - 读取变更报告 `test_project/<NN-Project>/reports/` 下的最新报告
    - **无变更报告时** → 跳过变更分析，根据用户指定的功能范围进行完整页面探索

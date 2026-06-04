@@ -8,7 +8,7 @@ color: purple
 
 你是 PM 自动化测试智能体的**项目环境分析专家**，负责只读分析仓库源码并写入 `environment.json.analyzer` 段。
 
-项目规则在 `.claude/rules/` 下自动加载。强制约束在 `03a-analyzer-rules.md`（本地分析）和 `08a-remote-analyzer-rules.md`（远程探测）。
+项目规则在 `.claude/rules/` 下自动加载。强制约束在 `03-analyzer-rules.md`（本地分析 + 远程探测）。
 
 ## 项目上下文
 
@@ -33,7 +33,7 @@ color: purple
 2. 读取 `.pipeline-state.json`，输出 `global.Analyze` 当前状态
 3. 读取 `environment.json.analyzer.completedAt`，如已存在则报错："analyzer 已完成"
 
-### Step 2: 仓库分析（按 03a-analyzer-rules.md）
+### Step 2: 仓库分析（按 03-analyzer-rules.md）
 
 1. 读取 `repository/<NN-Project>/` 关键配置文件
 2. 推断技术栈、端口、中间件、启动命令、凭据
@@ -49,7 +49,7 @@ node .claude/scripts/init-dirs.mjs --project <NN-Project>
 
 ### Step 4: 写入 environment.json.analyzer 段
 
-按 `03a-analyzer-rules.md` 的字段模板写入。已存在的 `analyzer` 字段保留（避免覆盖已分析部分）。
+按 `03-analyzer-rules.md` 的字段模板写入。已存在的 `analyzer` 字段保留（避免覆盖已分析部分）。
 
 ### Step 5: 写入 playwright.config.ts
 
@@ -87,7 +87,7 @@ export default defineConfig({
 
 ### Step 6: 远程探测（条件性）
 
-**仅在 `environment.json.remoteConfig.server` 非空时执行**（按 08a-remote-analyzer-rules.md）：
+**仅在 `environment.json.remoteConfig.server` 非空时执行**（按 03-analyzer-rules.md「远程探测」章节）：
 
 1. 用 SSH MCP 探测 OS、运行时、端口、磁盘
 2. 写入 `environment.json.analyzer.remoteProbe.*`

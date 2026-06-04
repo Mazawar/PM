@@ -226,6 +226,84 @@ import { readState, updateStage, appendPublish } from './migrate-pipeline-state.
 - **不提交 git**：v2 文件已 gitignore（运行时状态，不属于版本库）
 - **v1 备份文件**：`.pipeline-state.v1.bak.json` 由 `test_project/*` 通配忽略
 
+## 九阶段流程详细描述
+
+```
+Detect → Analyze → Build → Validate → Plan → Generate → Execute → Report → Publish
+ 扫描    分析     构建    验证      规划    生成      执行      汇报      发布
+```
+
+1. **Detect** — `scan.sh` 检测变更，生成报告到 `test_project/<NN-Project>/reports/`
+2. **Analyze** — `project-manage-analyzer` agent 读仓库源码、推断技术栈/端口/中间件/凭据，写 `environment.json.analyzer.*` 段、生成 `playwright.config.ts`、初始化目录
+3. **Build** — 主会话询问构建模式（local | remote）→ 写 `environment.json.build.mode` → 启动 `project-manage-builder` agent
+4. **Validate** — 启动 `project-manage-validator` agent：启动服务 → 健康检查 → 页面验证 → 登录验证 → 生成 seed.spec.ts → 写 SETUP.md
+5. **Plan** — planner agent 生成测试计划（优先读取 `case/` 目录中的用户案例），**用户多轮确认与调整**后才进入 Generate
+6. **Generate** — generator agent 生成测试代码，**用户确认**
+7. **Execute** — 运行测试，失败交 healer agent
+8. **Report** — 主会话汇总结果，向用户汇报
+9. **Publish** — Report 全部通过后，主会话**必须主动询问**用户是否发布；用户确认后启动 publisher agent
+
+## 主会话职责（强制）
+
+主会话 **不直接编写或调试测试代码**，只做：
+
+1. 接收任务 → 环境检查（三层：analyzer 缺失 → `project-manage-analyzer`；build 缺失 → `project-manage-builder`；validate 缺失 → `project-manage-validator`；三层都就绪才跳过）
+2. **构建模式选择** — Analyze 完成后用 `AskUserQuestion` 询问"本地构建还是远程部署？"
+3. 启动 planner → 检查 `case/` → 审阅计划 → **向用户展示并请求确认** → 确认后启动 generator
+4. 首次运行测试 → 跑测试 → 解析结果 → 有失败则启动 healer
+5. 汇总结果 → 向用户汇报
+6. **Publish 询问** — 所有模块 Report 通过后，必须主动询问"是否发布"
+
+**关键**：测试运行出现 **TimeoutError** → **必须委托 healer**，禁止主会话逐步排查。
+
+## 测试前环境检查（强制）
+
+### 基础检查（所有场景）
+
+1. 调用 `migrate-pipeline-state.mjs --project <NN-Project>` 初始化/读取 v2 状态
+2. 检查 `playwright.config.ts` 和 `environment.json` 是否存在
+3. **analyzer 缺失** → 启动 `project-manage-analyzer` → 完成后 `updateStage('global', null, 'Analyze', { status: 'completed' })`
+4. **build 缺失** → 启动 `project-manage-builder` → 完成后 `updateStage('global', null, 'Build', { status: 'completed' })`
+5. **validate 缺失** → 启动 `project-manage-validator` → 完成后 `updateStage('global', null, 'Validate', { status: 'completed' })`
+6. **三层都就绪** → 读取 `healthCheck` → curl 检查服务
+7. 服务未运行 → 启动 `project-manage-validator`
+
+## Report 阶段（强制）
+
+测试运行完成后，无论通过或失败，**必须**生成结果文件：
+
+```bash
+node .claude/scripts/generate-report.mjs --project <NN-Project>
+```
+
+生成 `results/{module}/progress.txt`、`results/{module}/report.md`、`results/summary.md`。
+
+**禁止空结果**：即使全部通过也必须生成。
+
+## Agent 调度管线
+
+测试执行管线：`planner → generator → healer（按需）`
+
+构建发布管线：`Report → 用户询问 → publisher`
+
+- **项目编号传递**：主会话启动 Agent 时**必须**传递项目编号和关键路径
+- **项目编号验证**：Agent 启动后必须首先确认项目编号有效
+- 测试运行必须使用项目级配置：`npx playwright test --config=test_project/<NN-Project>/playwright.config.ts`
+
+## 用户确认点
+
+| 阶段 | 确认内容 |
+|------|---------|
+| Build+Validate 后（remote） | baseURL 变更 |
+| Analyze 后 | analyzer 字段完整性 |
+| Build 前 | 构建模式（local / remote） |
+| Build 后 | 构建产物 |
+| Validate 后 | SETUP.md、baseURL |
+| Plan 后 | 测试计划（可多轮调整） |
+| Generate 后 | 测试代码 |
+| Report 后 | 全通过 → 是否发布；有失败 → 是否修复 |
+| Publish | 确认发布到 Git Release |
+
 ## Agent 联动
 
 主会话启动 Agent 时，在 prompt 中传递当前焦点信息：

@@ -41,7 +41,7 @@ Ask **only** for missing info using **one single AskUserQuestion call**:
 1. **项目名称** — Only ask if NOT provided in arguments. Short project name (e.g., `RuoYi-Vue`, `MyApp`). Letters, digits, hyphens only. No number prefix — auto-assigned.
 2. **仓库地址** — Only ask if NOT provided in arguments. Full URL or local path. Use free-text input (user selects "Other" to type URL).
 
-**DO NOT ask for port or credentials** — 这些在测试前环境检查时由 Setup Agent 询问。
+**DO NOT ask for port or credentials** — 这些在测试前环境检查时由 analyzer agent 推断。
 
 **DO NOT ask for project type** — auto-detect from the address:
 - URL ending in `.git` or matching `github.com` / `gitee.com` / `gitlab.com` → **Git**
@@ -72,7 +72,7 @@ Create directory structure only:
 mkdir -p test_project/{NN}-{Name}/{test-config/plans,tests/{unit,api,e2e,ui},results,reports}
 ```
 
-**不创建** `playwright.config.ts` 和 `environment.json`，这些由 Setup Agent 在测试前环境检查时按需生成。
+**不创建** `playwright.config.ts` 和 `environment.json`，这些由 analyzer agent 在测试前环境检查时按需生成。
 
 ### Step 5: Write to Both Registries
 
@@ -103,7 +103,7 @@ Output a summary:
 | test_project/README.md | {NN}-{Name} \| ../repository/{NN}-{Name} \| {URL} \| {Type} |
 
 下次执行 scan.sh 时将自动克隆仓库。
-测试前环境检查时将自动启动 Setup Agent 配置环境（端口、凭据、技术栈分析），已配置则跳过。
+测试前环境检查时将自动启动 analyzer / builder / validator 三段 agent 配置环境（端口、凭据、技术栈分析），已配置则跳过。
 ```
 
 ---

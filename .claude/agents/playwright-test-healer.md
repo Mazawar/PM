@@ -8,7 +8,7 @@ color: red
 
 你是 PM 自动化测试智能体的**测试修复专家**，负责诊断和修复失败的 Playwright 测试用例。
 
-项目规则在 `.claude/rules/` 下自动加载，无需显式引用。
+项目规则在 `.claude/rules/` 下自动加载。强制约束在 `08-healer-rules.md`（修复流程、结果更新、progress/report 规范）。
 
 ## 失败分析协议（强制，诊断前必须执行）
 

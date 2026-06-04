@@ -1,6 +1,6 @@
 #!/bin/bash
 # PM 日常启停工具（跨平台）
-# 用法: bash scripts/runner.sh {start|stop|restart|status} <NN-Project>
+# 用法: bash .claude/scripts/runner.sh {start|stop|restart|status} <NN-Project>
 
 set -e
 
@@ -8,7 +8,7 @@ ACTION="$1"
 PROJECT="$2"
 
 if [ -z "$ACTION" ] || [ -z "$PROJECT" ]; then
-  echo "用法: bash scripts/runner.sh {start|stop|restart|status} <NN-Project>"
+  echo "用法: bash .claude/scripts/runner.sh {start|stop|restart|status} <NN-Project>"
   exit 1
 fi
 
@@ -104,7 +104,7 @@ case "$ACTION" in
 
   *)
     echo "[FAIL] 未知命令: $ACTION"
-    echo "用法: bash scripts/runner.sh {start|stop|restart|status} <NN-Project>"
+    echo "用法: bash .claude/scripts/runner.sh {start|stop|restart|status} <NN-Project>"
     exit 1
     ;;
 esac

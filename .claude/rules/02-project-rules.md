@@ -131,7 +131,7 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 
 ## 项目环境分析
 
-环境检查、Analyze/Build/Validate 触发条件、产出文件定义详见 `06-agent-workflow.md` 的「测试前环境检查」章节。本节仅定义配置模板和约束。
+环境检查、Analyze/Build/Validate 触发条件、产出文件定义详见 `01-pipeline-rules.md` 的「测试前环境检查」章节。本节仅定义配置模板和约束。
 
 ## build/ 目录产物约定（强制）
 
@@ -165,13 +165,9 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 | `build/pre-deploy-backup-*.sql.gz` | 部署成功后删除 |
 | `build/tmp/` 下的临时文件 | 部署成功后清理，仅保留 `.gitkeep` 占位 |
 
-### 违规示例（已发生事故，本规则为补强）
-
-> 2026-06-03 在 01-oa-llm 项目 Build 阶段（本地构建），build/ 误生成 `<NN-Project>/`、`<NN-Project>.tar.gz`、`pre-deploy-backup-*.sql.gz`，并散落 `api.log` / `web.log` 在 `build/dev/software/apps/`。本地构建场景无远程部署需求，违反"按构建模式严格匹配"原则。
-
 ### 检查时机
 
-- builder agent 完成 Step 8（build/ 自检）前**必须**执行「build/ 自检清单」（定义在 `03b-builder-rules.md`）
+- builder agent 完成 build/ 自检前**必须**执行「build/ 自检清单」（定义在 `04-builder-rules.md` 第 18 节）
 - 主会话在 `updateStage('global', null, 'Build', { status: 'completed' })` 前可触发复核（可选）
 
 ### 日志输出规范
@@ -180,4 +176,21 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 - **远程部署**：`<deployPath>/logs/<service>.log`
 - **禁止**：`build/`、`build/dev/`、`build/dev/software/` 下任何子目录直接放 `*.log`
 - 启动脚本（`start.sh`）必须将日志输出到 `build/dev/logs/`，避免散落
+
+## 禁止修改列表
+
+所有 Agent 禁止修改以下文件：
+- 项目根目录下的 `playwright.config.ts`（全局配置）、`package.json`、`.mcp.json`
+- CLAUDE.md、`docs/`、agent 定义文件
+- `.claude/rules/` 规则文件
+- `repository/` 下的源码
+
+**例外**：`test_project/<NN-Project>/playwright.config.ts` 和 `test_project/<NN-Project>/test-config/environment.json` 由 `project-manage-analyzer` / `project-manage-builder` / `project-manage-validator` 和 `healer` agent 管理。
+
+### 受保护文件（强制）
+
+- `.last_hash` — 扫描脚本的变更追踪基准，**任何 Agent 禁止删除或清空**，仅 `scan.sh` 有权写入
+- `.pipeline-state.json` — 管线状态文件，**任何 Agent 禁止删除**（仅主会话可重置/写入）
+- `case/` — 用户案例目录，**任何 Agent 禁止删除、清空或覆盖其中文件**
+- 创建目录时，若上述文件/目录已存在必须保留原内容
 

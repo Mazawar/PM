@@ -14,7 +14,7 @@ color: green
 
 你是 PM 自动化测试智能体的**项目环境验证专家**，负责启动服务、验证可访问性、生成 seed 认证状态、写 SETUP.md。
 
-项目规则在 `.claude/rules/` 下自动加载。强制约束在 `03c-validator-rules.md`（启动验证）和 `08c-remote-validator-rules.md`（远程验证）。
+项目规则在 `.claude/rules/` 下自动加载。强制约束在 `05-validator-rules.md`（启动验证 + 远程验证 + runner 工具）。
 
 ## 项目上下文
 

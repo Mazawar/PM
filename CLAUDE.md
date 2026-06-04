@@ -74,7 +74,7 @@ pm/
 
 ## Project Configuration
 
-每个项目（`test_project/<NN-Project>/`）包含以下配置文件，由 `project-manage-analyzer` / `project-manage-builder` / `project-manage-validator` 三段 agent 生成（旧 Setup Agent / Remote Setup Agent 已 deprecated）：
+每个项目（`test_project/<NN-Project>/`）包含以下配置文件，由 `project-manage-analyzer` / `project-manage-builder` / `project-manage-validator` 三段 agent 生成：
 
 | 文件 | 说明 |
 |------|------|
@@ -101,14 +101,14 @@ pm/
 | 文件 | 内容 |
 |------|------|
 | `00-README.md` | 规则索引：分层结构、管线阶段映射、Agent 与规则对应关系 |
-| `01-pipeline-state.md` | 管线状态持久化：v2 schema（global/modules/publishes 三段）、可中断恢复、状态转换规则、迁移流程 |
-| `02-project-invariants.md` | 项目结构、目录规范、注册表双写、Git 规则、case/ 保护 |
-| `03-setup-environment.md` | 环境配置：数据库初始化优先级、端口推断、脚本验证、页面验证、问题处理策略、完成条件 |
-| `04-testing-framework.md` | 测试层级定义（L1-L4）、框架选择、覆盖要求、测试数据安全 |
-| `05-test-output.md` | 结果目录结构、文件命名、progress/report 格式、截图规范 |
-| `06-agent-workflow.md` | 九阶段流程、主会话职责、调度管线、环境检查、构建方式选择、用户确认点 |
-| `07-agent-behavior.md` | planner/generator/healer Agent 行为约束、等待策略、循环防护、用户案例优先级 |
-| `08-remote-deployment.md` | 远程部署：SSH 操作、服务器绑定/重绑定、三种构建模式、归档校验、Nginx、验证 |
+| `01-pipeline-rules.md` | 管线状态持久化 + 主会话编排：v2 schema、九阶段流程、环境检查、调度管线、用户确认点 |
+| `02-project-rules.md` | 项目结构、目录规范、注册表双写、Git 规则、禁止修改列表、文件保护 |
+| `03-analyzer-rules.md` | analyzer agent：本地源码分析、远程探测、端口/技术栈/凭据/中间件/数据库推断 |
+| `04-builder-rules.md` | builder agent：生产构建、归档、组装 dev/、远程部署（SSH/Nginx/DB 初始化/验证） |
+| `05-validator-rules.md` | validator agent：启动服务、健康检查、页面验证、登录验证、写 SETUP.md、远程验证、runner 工具 |
+| `06-planner-rules.md` | planner agent：TC 编号、计划分层、用户案例优先级、用户确认流程 |
+| `07-generator-rules.md` | generator agent：直接生成/录制模式、代码生成、等待策略、断言约束 |
+| `08-healer-rules.md` | healer agent：修复流程、修复限制、结果更新、progress/report/截图规范 |
 
 ## Agent Pipeline 与九阶段流程
 
@@ -135,12 +135,12 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
 4. 首次运行测试 → 有失败则启动 healer
 5. 汇总结果（自动运行 `generate-report.mjs`） → 向用户汇报
 6. 测试全部通过后 **必须主动询问** 用户是否发布到 Git Release
-7. 日常启停服务：`bash scripts/runner.sh {start|stop|restart|status} <NN-Project>`
+7. 日常启停服务：`bash .claude/scripts/runner.sh {start|stop|restart|status} <NN-Project>`
 
 - **环境检查** 在每次测试前按三层走：analyzer 缺失 → `project-manage-analyzer`；build 缺失 → `project-manage-builder`；validate 缺失 → `project-manage-validator`
 - 每次测试前**必须**检查目标服务是否运行（读取 environment.json 的 healthCheck）
 - **case/ 优先级**：用户案例 > 变更报告 > 自主探索
-- **新三段 agent 详情**：`docs/agents.md`；**设计**：`docs/superpowers/specs/2026-06-03-setup-agent-decomposition-design.md`；**实施**：`docs/superpowers/plans/2026-06-03-setup-agent-decomposition.md`
+- **新三段 agent 详情**：`docs/agents.md`
 
 ## Commands
 

@@ -15,7 +15,7 @@ color: orange
 
 你是 PM 自动化测试智能体的**项目生产构建专家**，按 `buildMode` 分支执行本地构建 + 远程部署。
 
-项目规则在 `.claude/rules/` 下自动加载。强制约束在 `03b-builder-rules.md`（构建+部署包）和 `08b-remote-builder-rules.md`（远程部署）。
+项目规则在 `.claude/rules/` 下自动加载。强制约束在 `04-builder-rules.md`（构建 + 远程部署）。
 
 ## 项目上下文
 
@@ -70,7 +70,7 @@ color: orange
 
 ### Step 6: 生成 start.sh
 
-模板见 03b-builder-rules.md 第 6 节。
+模板见 04-builder-rules.md 第 7 节。
 
 **预创建** `build/dev/logs/` 目录。
 
