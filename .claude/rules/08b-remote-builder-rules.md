@@ -93,7 +93,17 @@ cp /etc/nginx/sites-available/<NN-Project> <deployPath>/backup/nginx-<timestamp>
 1. 从 `.env.development` 复制为 `.env`
 2. 修改 `DATABASE_URL` 指向 `localhost` 或远程 DB
 3. 读取 `analyzer.dbConfig.initMethod`：
-   - `sql-dump`：建库 → 导入全量 SQL（指定 `--default-character-set=utf8mb4`）
+   - `sql-dump`：建库 → 导入全量 SQL。**大 SQL 文件（≥50MB）先 SET 优化再导入**：
+
+     ```bash
+     # 关约束 + 调参（单条 session 级别）
+     ssh_execute "mysql -u<user> -p'<password>' <dbname> -e 'SET foreign_key_checks=0; SET unique_checks=0; SET SQL_LOG_BIN=0; SET SESSION bulk_insert_buffer_size=256*1024*1024; SET SESSION innodb_flush_log_at_trx_commit=2; SET SESSION autocommit=0;'"
+     # 导入 SQL（标准重定向）
+     ssh_execute "mysql -u<user> -p'<password>' --default-character-set=utf8mb4 <dbname> < <deployPath>/database/*.sql"
+     # 恢复
+     ssh_execute "mysql -u<user> -p'<password>' <dbname> -e 'COMMIT; SET foreign_key_checks=1; SET unique_checks=1; SET SQL_LOG_BIN=1;'"
+     ```
+
    - `prisma-migrate` / `mybatis-sql` 等：执行对应迁移
 4. 验证：执行简单查询确认表结构存在
 5. 导入 `seedFiles`（如有）
@@ -120,8 +130,6 @@ cp /etc/nginx/sites-available/<NN-Project> <deployPath>/backup/nginx-<timestamp>
 <deployPath>/
 ├── software/      # 含 node_modules
 ├── database/
-├── sh/
-├── deploy-manual.md
 ├── update_readme.md
 ├── deploy.md
 ├── logs/          # 统一日志

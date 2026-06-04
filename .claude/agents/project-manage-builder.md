@@ -55,7 +55,18 @@ color: orange
 
 ### Step 5: 组装 build/dev/
 
-按 03b 的 6 步骤（解压 → pnpm install → Prisma 引擎 → 复制辅助目录 → 生成 deploy.md）。
+按 03b 的 6 步骤：
+1. 从归档解压到 `build/dev/software/`
+2. `pnpm install --config.node-linker=hoisted`
+3. Prisma 引擎生成
+4. 组装 `database/`：
+   - 只复制 SQL 文件（migrate_*.sql、rollback_*.sql、seed_*.sql），按版本号分扁平目录
+   - 例：`version/v0.0.1/sql/migrate_*.sql` → `database/v0.0.1/migrate_*.sql`
+   - 例：`version/v0.0.1/sql/rollback_*.sql` → `database/v0.0.1/rollback_*.sql`
+   - 不复制 `version/` 下的 sh/md/其他文件
+   - **database/ 内不许有 `version/` 嵌套目录**
+5. 生成 `update_readme.md`（从 version/ 各版本的 update_readme.md 合并关键信息）
+6. 生成 `deploy.md`（按 03b 模板，步骤必须是具体命令而非泛泛描述）
 
 ### Step 6: 生成 start.sh
 
@@ -80,7 +91,7 @@ color: orange
 3. 安装远程运行时（按 `analyzer.remoteProbe.runtime` 缺失项）
 4. 上传 dev/ 到远程 deployPath
 5. 操作前备份（首次可跳，重绑必做）
-6. 远程配置 .env + 初始化数据库
+6. 远程配置 .env + 初始化数据库（大 SQL 按 08b 优化导入）
 7. 写 `build.remote.*` 段
 8. **保留** `build/<NN-Project>.tar.gz` 等远程部署产物（部署成功后由 main 清理）
 

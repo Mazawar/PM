@@ -48,7 +48,7 @@
 **禁止包含**：
 - `node_modules/`
 - `version/`（版本变更记录）
-- `scripts/`/`sh/`（部署脚本，组装 dev/ 时从仓库单独复制）
+- `scripts/`（部署脚本，组装 dev/ 时从仓库单独复制）
 - 静态数据文件（如 `province.json`）
 - 进程管理配置（`ecosystem.config.cjs`）
 - README、文档、`.git/`
@@ -86,11 +86,15 @@ dev/
 │   ├── packages/
 │   ├── package.json
 │   └── pnpm-workspace.yaml
-├── database/             # 数据库脚本
-│   ├── <全量 SQL>.sql
-│   └── <version>/sql/
-├── sh/                   # 部署运维脚本
-├── deploy-manual.md
+├── database/             # 数据库脚本（仅 SQL 文件，扁平版本目录）
+│   ├── <全量 SQL>.sql     # 全量 SQL dump
+│   ├── v0.0.1/           # 版本号目录（源自 version/ 目录，只复制 SQL）
+│   │   ├── migrate_*.sql
+│   │   └── rollback_*.sql
+│   └── v0.0.2/
+│       ├── migrate_*.sql
+│       ├── rollback_*.sql
+│       └── seed_*.sql
 ├── update_readme.md
 └── deploy.md             # 自动生成
 ```
@@ -99,10 +103,100 @@ dev/
 1. 从归档解压到 `build/dev/software/`
 2. `pnpm install --config.node-linker=hoisted`（hoisted 模式）
 3. Prisma 项目：schema 加 `binaryTargets = ["native", "debian-openssl-3.0.x"]` → `npx prisma generate` → 验证双引擎
-4. 复制 `database/`、`sh/`、`deploy-manual.md`、`update_readme.md`
-5. 生成 `build/dev/deploy.md`（含环境配置、目录结构、部署步骤、凭据）
+4. 组装 `database/`（仅 SQL 文件，扁平版本目录，无 `version/` 嵌套）：
+   - 全量 SQL：`repository/<NN-Project>/keyidea_newoa.sql` → `build/dev/database/`
+   - 版本 SQL 按 analyzer 的 `dbConfig.initFiles` 和发现的其他 SQL 文件提取到扁平目录：
+     - `version/v0.0.1/sql/migrate_*.sql` → `database/v0.0.1/migrate_*.sql`
+     - `version/v0.0.1/sql/rollback_*.sql` → `database/v0.0.1/rollback_*.sql`
+     - `version/v0.0.2/sql/migrate_*.sql` → `database/v0.0.2/migrate_*.sql`
+     - `version/v0.0.2/sql/rollback_*.sql` → `database/v0.0.2/rollback_*.sql`
+     - `version/v0.0.2/sql/seed_*.sql` → `database/v0.0.2/seed_*.sql`
+   - **禁止**复制 `version/v{*}/` 下的非 SQL 文件（sh/md/其他）
+   - **禁止**嵌套 `version/` 中间目录
+5. 生成 `build/dev/update_readme.md`：
+   - 从 `repository/<NN-Project>/version/` 下各版本的 `update_readme.md` 提取关键信息
+   - 合并为一份扁平文档（当前版本号、构建环境、目录结构、数据库变更、健康检查端点）
+   - 写入 `build/dev/update_readme.md`
+6. 生成 `build/dev/deploy.md`（见下方模板）
 
-### 6. 生成 start.sh
+### 6. 生成 deploy.md 模板
+
+deploy.md 包含以下章节，各章节内容由 builder agent 按当前项目实际信息动态填充：
+
+- **环境配置**：技术栈、端口、数据库名称（从 `analyzer` 段读取），**不写默认账号**
+- **目录结构**：反映实际 `build/dev/` 结构（software/、database/、logs/）
+- **部署步骤**：见下方固定模板
+
+```markdown
+# <NN-Project> 部署说明
+
+## 部署步骤
+
+### 1. 上传并解压
+```bash
+# 上传部署包到服务器
+scp <NN-Project>.tar.gz root@<server-ip>:<deployPath>/
+
+# 解压
+cd <deployPath>
+tar -xzf <NN-Project>.tar.gz
+```
+
+### 2. 配置环境变量
+```bash
+cd <deployPath>/software
+# 从模板复制 .env
+cp apps/api/.env.development apps/api/.env
+# 编辑 .env，修改 DATABASE_URL 为远程连接串
+vi apps/api/.env
+```
+
+### 3. 初始化数据库
+```bash
+# 建库（如不存在）
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS <db-name> CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# 导入全量 SQL
+mysql -u root -p --default-character-set=utf8mb4 <db-name> < <deployPath>/database/keyidea_newoa.sql
+
+# 按版本执行迁移
+mysql -u root -p --default-character-set=utf8mb4 <db-name> < <deployPath>/database/v0.0.1/migrate_v0.1.0.sql
+mysql -u root -p --default-character-set=utf8mb4 <db-name> < <deployPath>/database/v0.0.2/migrate_v0.0.2.sql
+mysql -u root -p --default-character-set=utf8mb4 <db-name> < <deployPath>/database/v0.0.2/seed_v0.0.2.sql
+```
+
+### 4. 启动后端
+```bash
+cd <deployPath>/software
+nohup node -r dotenv/config apps/api/dist/src/main.js dotenv_config_path=apps/api/.env > <deployPath>/logs/backend.log 2>&1 &
+# 确认端口监听
+sleep 3 && ss -tlnp | grep <backend-port>
+```
+
+### 5. 配置 Nginx（前端）
+```nginx
+server {
+    listen 80;
+    server_name _;
+    root <deployPath>/software/apps/web/dist;
+    index index.html;
+    location / { try_files $uri $uri/ /index.html; }
+    location /api/ { proxy_pass http://127.0.0.1:<backend-port>; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; }
+    location /socket.io/ { proxy_pass http://127.0.0.1:<backend-port>; proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade"; }
+}
+```
+
+### 6. 健康检查
+```bash
+# 前端
+curl -s -o /dev/null -w "%{http_code}" http://localhost:<frontend-port>
+# 预期: 200
+
+# 后端 API
+curl -s -X POST http://localhost:<backend-port>/api/auth/login -H "Content-Type: application/json" -d '{"username":"<username>","password":"<password>"}'
+# 预期: 返回 token 或 401（至少说明服务响应正常）
+```
+### 7. 生成 start.sh
 
 ```bash
 #!/bin/bash
@@ -110,15 +204,19 @@ dev/
 PROJECT_NAME="<NN-Project>"
 DEV_DIR="test_project/$PROJECT_NAME/build/dev/software"
 PORT=<端口>
+BACKEND_MAIN="apps/api/dist/src/main.js"
 
 if [ ! -d "$DEV_DIR" ]; then
   echo "[FAIL] dev/ 部署包不存在: $DEV_DIR"
   exit 1
 fi
 
-# 启动服务
+cd "$DEV_DIR"
+
+# 启动后备服务
 mkdir -p build/dev/logs
-nohup <启动命令> > build/dev/logs/<service>.log 2>&1 &
+nohup node -r dotenv/config $BACKEND_MAIN dotenv_config_path=apps/api/.env > build/dev/logs/backend.log 2>&1 &
+echo "[INFO] 后端已启动，PID: $!"
 
 # 健康检查
 for i in $(seq 1 30); do
@@ -149,7 +247,7 @@ exit 1
     "status": "completed" | "deployed",
     "archiveVerification": {
       "passed": true, "checkedAt": "ISO", "checksumMatches": true,
-      "topLevelDirs": ["software", "database", "sh", "deploy-manual.md", "update_readme.md"],
+      "topLevelDirs": ["software", "database", "update_readme.md"],
       "nodeModulesExcluded": true, "keyFilesPresent": ["..."], "totalEntries": 0, "size": "0M"
     }
   }]

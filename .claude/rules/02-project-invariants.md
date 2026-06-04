@@ -148,7 +148,7 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 
 | 必含 | 必不含（出现即违规，需删除） |
 |------|------|
-| `build/dev/`（完整部署包，含 software/ database/ sh/ deploy-manual.md update_readme.md） | `build/<NN-Project>/`（项目副本，由远程部署前的"组装副本"产生） |
+| `build/dev/`（完整部署包，含 software/ database/ update_readme.md） | `build/<NN-Project>/`（项目副本，由远程部署前的"组装副本"产生） |
 | `build/artifacts/<timestamp>-<commit>.tar.gz` + `.manifest.json` | `build/<NN-Project>.tar.gz`（远程部署包，本地无需） |
 | `build/tmp/`（可空，预留给远程部署用） | `build/pre-deploy-backup-*.sql.gz`（部署前数据库备份，本地无需） |
 | `build/version-log.json`（含 `archiveVerification` 校验记录） | `build/deploy-config.json`（远程部署配置，本地无需） |

@@ -262,7 +262,7 @@ dev/
 4. **复制辅助目录**：
    - `database/` — 按以下步骤从仓库构建：
      1. 复制仓库根目录下的全量 SQL dump（如 `keyidea_newoa.sql`）到 `build/dev/database/`
-     2. 扫描仓库 `version/` 目录下所有版本子目录（按版本号升序排序），对每个 `<version>/sql/` 下的 `.sql` 文件复制到 `build/dev/database/<version>/`：
+     2. 扫描仓库 `version/` 目录下所有版本子目录（按版本号升序排序），对每个 `<version>/sql/` 下的 `.sql` 文件复制到 `build/dev/database/` 直接以版本号命名：
         ```bash
         # 参考实现
         for ver_dir in version/v*/; do
@@ -275,7 +275,7 @@ dev/
         ```
      3. 验证 `build/dev/database/` 下存在全量 SQL + 至少一个版本子目录
 
-5. **生成 `build/dev/deploy.md`**：包含环境配置表、目录结构、部署步骤（上传部署包到服务器 → 远程解压 → 配置 .env → 数据库初始化/迁移 → 启动后端 → Nginx 配置 → 验证）、凭据信息。
+5. **生成 `build/dev/deploy.md`**：包含环境配置表、目录结构、部署步骤。
 
 6. **打包部署包**（保留 dev/ 目录供后续启动服务和远程部署）：
    ```bash
@@ -378,7 +378,7 @@ nohup <command> > build/dev/logs/<service>.log 2>&1 &
 按 `03-setup-environment.md` 的「build/ 自检清单」逐项执行，违规项立即修复：
 
 **必含**：
-- [ ] `build/dev/` 含 `software/ database/ sh/ deploy-manual.md update_readme.md`
+- [ ] `build/dev/` 含 `software/ database/ update_readme.md`
 - [ ] `build/artifacts/<timestamp>-<commit>.tar.gz` + manifest.json
 - [ ] `build/tmp/` 存在（可空）
 - [ ] `build/version-log.json` 含 `archiveVerification`
