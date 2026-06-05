@@ -223,10 +223,165 @@ HEADER
     echo '```'
   } >> "$report_file"
 
+  # 追加关注路径变更追踪
+  append_track_diff "$report_file" "$repo_path" "$old_hash" "$new_hash" "$project_name"
+
   # 保存当前 hash 供下次对比
   echo "$new_hash" > "$TEST_DIR/$project_name/.last_hash"
 
   log "  生成报告: ${commit_count} 个提交 -> $report_file"
+}
+
+# 从 README.md 获取指定项目的「追踪」字段（目录路径列表，逗号分隔）
+# 列名：追踪（第 5 列），空 = 不追踪
+# 值是仓库内的目录路径（相对仓库根），不支持正则
+# 注意：表格行首尾各有一个 |，awk 切分后「追踪」实际落在 $6
+get_track_paths() {
+  local project="$1"
+  sed -n '/<!-- projects-start -->/,/<!-- projects-end -->/p' "$REPO_README" \
+    | grep -P '^\|\s*\d{2}-' \
+    | grep "$project" \
+    | head -1 \
+    | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $6); print $6}'
+}
+
+# 解析追踪字段为多个目录路径，去除空白和空项
+parse_track_paths() {
+  local track_field="$1"
+  [ -z "$track_field" ] && return 0
+  IFS=',' read -ra paths <<< "$track_field"
+  for p in "${paths[@]}"; do
+    p=$(echo "$p" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s|/$||')  # trim + 去尾斜杠
+    [ -n "$p" ] && echo "$p"
+  done
+}
+
+# 删除 track/ 下所有软链接（不动用户放的真实文件）
+clean_track_links() {
+  local track_dir="$1"
+  [ ! -d "$track_dir" ] && return 0
+  find "$track_dir" -type l -delete 2>/dev/null
+  find "$track_dir" -mindepth 1 -type d -empty -delete 2>/dev/null
+}
+
+# 创建单个软链接
+create_symlink() {
+  local link="$1"
+  local target="$2"
+
+  mkdir -p "$(dirname "$link")"
+
+  if command -v cmd.exe >/dev/null 2>&1; then
+    local win_link win_target
+    win_link="$(cygpath -w "$link" 2>/dev/null || echo "$link")"
+    win_target="$(cygpath -w "$target" 2>/dev/null || echo "$target")"
+    local bat_tmp
+    bat_tmp="$(mktemp -t mklink.XXXXXX.bat)"
+    printf '@echo off\r\nmklink /D "%s" "%s"\r\n' "$win_link" "$win_target" > "$bat_tmp"
+    if cmd.exe //c "$(cygpath -w "$bat_tmp")" >/dev/null 2>&1; then
+      log "    track: $link -> $target (mklink)"
+    else
+      log "    WARN: 无法创建软链接 $link"
+    fi
+    rm -f "$bat_tmp"
+  else
+    local target_abs
+    target_abs="$(cd "$target" && pwd)"
+    if ln -s "$target_abs" "$link" 2>/dev/null; then
+      log "    track: $link -> $target_abs"
+    else
+      log "    WARN: 无法创建软链接 $link"
+    fi
+  fi
+}
+
+# 重建项目的所有追踪软链接
+# 规则：track/ 目录不存在 → 按当前追踪字段建一次；存在 → 跳过（用户删了才会重建）
+ensure_track_links() {
+  local project="$1"
+  local repo_path="$REPO_DIR/$project"
+  local test_path="$TEST_DIR/$project"
+  local track_dir="$test_path/track"
+  local track_field
+  track_field=$(get_track_paths "$project")
+
+  # 空字段 = 不追踪
+  [ -z "$track_field" ] && return 0
+
+  # track/ 目录已存在 → 跳过（用户想重建请手动 rm -rf test_project/<project>/track/）
+  if [ -d "$track_dir" ]; then
+    log "  track: 目录已存在，跳过（手动 rm -rf 重建）"
+    return 0
+  fi
+
+  mkdir -p "$track_dir"
+
+  # 对每个目录建软链接
+  local count=0
+  while IFS= read -r p; do
+    [ -z "$p" ] && continue
+    local target="$repo_path/$p"
+    local link="$track_dir/$p"
+
+    if [ ! -e "$target" ]; then
+      log "  WARN track: $project -> $p (仓库中不存在)"
+      continue
+    fi
+
+    create_symlink "$link" "$target"
+    count=$((count + 1))
+  done < <(parse_track_paths "$track_field")
+
+  log "  track: 共建立 $count 个软链接"
+}
+
+# 在变更报告末尾追加"关注路径变更追踪"章节
+# 对每个目录路径单独统计变更
+append_track_diff() {
+  local report_file="$1"
+  local repo_path="$2"
+  local old_hash="$3"
+  local new_hash="$4"
+  local project_name="$5"
+  local track_field
+  track_field=$(get_track_paths "$project_name")
+
+  [ -z "$track_field" ] && return 0
+
+  local paths=()
+  while IFS= read -r line; do
+    [ -n "$line" ] && paths+=("$line")
+  done < <(parse_track_paths "$track_field")
+
+  if [ ${#paths[@]} -eq 0 ]; then
+    return 0
+  fi
+
+  {
+    echo ""
+    echo "---"
+    echo ""
+    echo "## 关注路径变更追踪"
+    echo ""
+    echo "本项目在 \`repository/README.md\` 中标记了以下关注路径，扫描时按路径单独统计。"
+    echo "软链接位于 \`test_project/${project_name}/track/\` 下，每次扫描时按当前模式重新生成。"
+
+    for p in "${paths[@]}"; do
+      local changed
+      changed=$(git -C "$repo_path" diff --name-only "${old_hash}..${new_hash}" -- "$p" 2>/dev/null || true)
+
+      echo ""
+      echo "### \`$p\`"
+      echo ""
+      if [ -z "$changed" ]; then
+        echo "本次扫描无变更"
+      else
+        echo "$changed" | while IFS= read -r line; do
+          [ -n "$line" ] && echo "- \`$line\`"
+        done
+      fi
+    done
+  } >> "$report_file"
 }
 
 # 主流程
@@ -260,17 +415,20 @@ main() {
     # 首次扫描（新克隆或 .last_hash 丢失）：生成基线报告
     if [ ! -f "$test_path/.last_hash" ] || [ -z "$old_hash" ]; then
       generate_initial_report "$repo_path" "$new_hash" "$project"
+      ensure_track_links "$project"
       continue
     fi
 
     # 无变更
     if [ "$old_hash" = "$new_hash" ]; then
       log "  无新提交"
+      ensure_track_links "$project"
       continue
     fi
 
     # 有变更，生成摘要
     generate_summary "$repo_path" "$old_hash" "$new_hash" "$project"
+    ensure_track_links "$project"
     has_change=1
   done
 
