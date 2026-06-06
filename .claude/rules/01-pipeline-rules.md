@@ -59,8 +59,8 @@ test_project/<NN-Project>/.pipeline-state.json
 |--------|------|------|
 | global | `Detect`   | scan.sh 执行结果 |
 | global | `Analyze`  | 项目环境分析（analyzer agent）：源码/端口/凭据/中间件推断，写 environment.json.analyzer.* |
-| global | `Build`    | 生产构建（builder agent）：local 模式产 dev/；remote 模式在 dev/ 基础上 + deploy-config/nginx.conf + 远程运行时 + 部署 |
-| global | `Validate` | 启动验证（validator agent）：local 跑 start.sh / remote 启动后端+Nginx → 健康检查 → 页面验证 → 登录验证 → 写 SETUP.md |
+| global | `Build`    | 部署验证（deployer agent）：编译验证+归档+组装 dev/；remote 模式额外+远程部署 |
+| global | `Validate` | 环境验证（validator agent）：启动服务 → 健康检查 → 出环境验证报告 |
 | modules | `Plan`     | 模块测试计划 |
 | modules | `Generate` | 测试代码生成 |
 | modules | `Execute`  | 测试执行 |
@@ -190,6 +190,33 @@ running → failed（附 reason）
    ```
 4. 等待用户指示或继续执行
 
+## 测试流程入口闸门（部署验证）
+
+**部署验证（global.Build）和环境验证（global.Validate）共同构成测试流程的第一道闸门**，决定是否进入端到端测试：
+
+```
+扫描 → Analyze → Build → Validate ← 第一道闸门
+                                  ├─ 全 PASS → 进入端到端测试（modules.<name>）
+                                  └─ 有 FAIL（上游问题）→ 打回，不进入端到端
+```
+
+**主会话调度规则**：
+
+1. Validate 阶段（validator agent）完成后，**必须**检查 `test_project/<NN-Project>/results/build/progress.txt`：
+   - DEPLOY-001~004（deployer 输出）+ ENV-001~004（validator 输出）全 PASS → 主会话可启动 planner
+   - 任一 FAIL（归因为上游）→ **不**启动 planner，出具打回报告
+   - 任一 FAIL（归因为平台）→ 平台侧修复后重跑对应阶段
+2. 端到端测试通过后，**主会话主动询问**用户是否发布（不变）
+3. `results/build/report.md` 与 `results/{module}/report.md` **是平级独立**的两份报告：
+   - 部署验证报告：验证上游产物能不能跑（deployer 出 DEPLOY-001~004）
+   - 环境验证报告：验证环境能不能用（validator 出 ENV-001~004）
+   - 业务测试报告：验证跑起来的应用业务对不对
+4. `results/summary.md` 由 `generate-report.mjs` 合并三者统计
+
+**关键不变量**：
+- 部署验证不通过 = 上游问题（按 `pm-test.md` 第 3 节失败归因矩阵），不替上游修
+- 部署验证和环境验证是**两条独立管线**，互不阻断对方的报告产出
+
 ## migration 流程
 
 ### v1 → v2 破坏性升级
@@ -235,8 +262,8 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
 
 1. **Detect** — `scan.sh` 检测变更，生成报告到 `test_project/<NN-Project>/reports/`
 2. **Analyze** — `project-manage-analyzer` agent 读仓库源码、推断技术栈/端口/中间件/凭据，写 `environment.json.analyzer.*` 段、生成 `playwright.config.ts`、初始化目录
-3. **Build** — 主会话询问构建模式（local | remote）→ 写 `environment.json.build.mode` → 启动 `project-manage-builder` agent
-4. **Validate** — 启动 `project-manage-validator` agent：启动服务 → 健康检查 → 页面验证 → 登录验证 → 生成 seed.spec.ts → 写 SETUP.md
+3. **Build** — 主会话询问构建模式（local | remote）→ 写 `environment.json.build.mode` → 启动 `project-manage-deployer` agent 验证部署能力
+4. **Validate** — 启动 `project-manage-validator` agent：启动服务 → 健康检查 → 页面验证 → 登录验证 → 出环境验证报告
 5. **Plan** — planner agent 生成测试计划（优先读取 `case/` 目录中的用户案例），**用户多轮确认与调整**后才进入 Generate
 6. **Generate** — generator agent 生成测试代码，**用户确认**
 7. **Execute** — 运行测试，失败交 healer agent
@@ -247,7 +274,7 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
 
 主会话 **不直接编写或调试测试代码**，只做：
 
-1. 接收任务 → 环境检查（三层：analyzer 缺失 → `project-manage-analyzer`；build 缺失 → `project-manage-builder`；validate 缺失 → `project-manage-validator`；三层都就绪才跳过）
+1. 接收任务 → 环境检查（三层：analyzer 缺失 → `project-manage-analyzer`；build 缺失 → `project-manage-deployer`；validate 缺失 → `project-manage-validator`；三层都就绪才跳过）
 2. **构建模式选择** — Analyze 完成后用 `AskUserQuestion` 询问"本地构建还是远程部署？"
 3. 启动 planner → 检查 `case/` → 审阅计划 → **向用户展示并请求确认** → 确认后启动 generator
 4. 首次运行测试 → 跑测试 → 解析结果 → 有失败则启动 healer
@@ -263,7 +290,7 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
 1. 调用 `migrate-pipeline-state.mjs --project <NN-Project>` 初始化/读取 v2 状态
 2. 检查 `playwright.config.ts` 和 `environment.json` 是否存在
 3. **analyzer 缺失** → 启动 `project-manage-analyzer` → 完成后 `updateStage('global', null, 'Analyze', { status: 'completed' })`
-4. **build 缺失** → 启动 `project-manage-builder` → 完成后 `updateStage('global', null, 'Build', { status: 'completed' })`
+4. **build 缺失** → 启动 `project-manage-deployer` → 完成后 `updateStage('global', null, 'Build', { status: 'completed' })`
 5. **validate 缺失** → 启动 `project-manage-validator` → 完成后 `updateStage('global', null, 'Validate', { status: 'completed' })`
 6. **三层都就绪** → 读取 `healthCheck` → curl 检查服务
 7. 服务未运行 → 启动 `project-manage-validator`
@@ -297,8 +324,8 @@ node .claude/scripts/generate-report.mjs --project <NN-Project>
 | Build+Validate 后（remote） | baseURL 变更 |
 | Analyze 后 | analyzer 字段完整性 |
 | Build 前 | 构建模式（local / remote） |
-| Build 后 | 构建产物 |
-| Validate 后 | SETUP.md、baseURL |
+| Build 后 | 部署验证结果 |
+| Validate 后 | baseURL |
 | Plan 后 | 测试计划（可多轮调整） |
 | Generate 后 | 测试代码 |
 | Report 后 | 全通过 → 是否发布；有失败 → 是否修复 |

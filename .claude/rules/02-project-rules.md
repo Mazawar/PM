@@ -27,7 +27,7 @@ test_project/<NN-Project>/
 │   ├── README.md              # 目录说明（analyzer agent 生成）
 │   └── *.{md,txt,...}         # 任意文件名、任意数量，planner 优先读取
 │                              # ⚠️ 任何 Agent 禁止删除、清空或覆盖用户文件
-├── start.sh                   # 一键启动脚本（builder agent 生成）
+├── start.sh                   # 一键启动脚本（deployer agent 生成）
 ├── remote-start.sh            # 远程启动脚本（远程服务器上执行，不归档到 build/）
 ├── test-config/
 │   └── environment.json       # 环境配置（技术栈、端口、凭据、中间件、启动命令）
@@ -52,8 +52,7 @@ test_project/<NN-Project>/
 │       ├── progress.txt
 │       ├── report.md
 │       └── screenshots/
-├── SETUP.md                # 环境启动报告（validator agent 生成）
-├── build/                  # 构建部署产物（builder agent 生成）
+├── build/                  # 构建部署产物（deployer agent 生成）
 │   ├── version-log.json    # 构建版本追踪总表（每次构建追加一条记录）
 │   ├── deploy-config.json  # 部署配置快照（可复用）
 │   ├── nginx.conf          # Nginx 配置文件
@@ -127,7 +126,7 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 - 测试代码使用相对路径（如 `page.goto('/login')`），由项目配置提供 `baseURL`
 - 全局 `playwright.config.ts` 仅作为参考模板，不参与实际测试运行
 - `environment.json` 是环境的**唯一真实来源**，`playwright.config.ts` 的 `baseURL` 必须与 `environment.json` 的 `baseURL` 一致
-- analyzer + builder agent 同时生成两个文件时确保值同步；修改时必须同步更新两者
+- analyzer + deployer agent 同时生成两个文件时确保值同步；修改时必须同步更新两者
 
 ## 项目环境分析
 
@@ -135,14 +134,14 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 
 ## build/ 目录产物约定（强制）
 
-`build/` 下的产物**必须与构建模式严格匹配**。builder agent 完成构建后必须按当前构建模式自检，违规产物需立即删除（不留待主会话清理）。
+`build/` 下的产物**必须与构建模式严格匹配**。deployer agent 完成部署验证后必须按当前构建模式自检，违规产物需立即删除（不留待主会话清理）。
 
 ### 两种构建模式
 
 | 模式 | 触发条件 |
 |------|---------|
 | **本地构建** | 用户选择"本地构建"（不部署到远程） |
-| **远程部署** | 用户选择"远程部署"，且 `build/dev/` 已就绪 + builder agent（mode=remote）已执行 |
+| **远程部署** | 用户选择"远程部署"，且 `build/dev/` 已就绪 + deployer agent（mode=remote）已执行 |
 
 ### 本地构建 — 必含 / 必不含
 
@@ -167,7 +166,7 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 
 ### 检查时机
 
-- builder agent 完成 build/ 自检前**必须**执行「build/ 自检清单」（定义在 `04-builder-rules.md` 第 18 节）
+- deployer agent 完成 build/ 自检前**必须**执行「build/ 自检清单」（定义在 `04-deployer-rules.md`）
 - 主会话在 `updateStage('global', null, 'Build', { status: 'completed' })` 前可触发复核（可选）
 
 ### 日志输出规范
@@ -185,7 +184,7 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 - `.claude/rules/` 规则文件
 - `repository/` 下的源码
 
-**例外**：`test_project/<NN-Project>/playwright.config.ts` 和 `test_project/<NN-Project>/test-config/environment.json` 由 `project-manage-analyzer` / `project-manage-builder` / `project-manage-validator` 和 `healer` agent 管理。
+**例外**：`test_project/<NN-Project>/playwright.config.ts` 和 `test_project/<NN-Project>/test-config/environment.json` 由 `project-manage-analyzer` / `project-manage-deployer` / `project-manage-validator` 和 `healer` agent 管理。
 
 ### 受保护文件（强制）
 

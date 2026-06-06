@@ -1,11 +1,11 @@
 # analyzer 阶段规则（本地源码分析 + 远程探测）
 
 > 配套 agent: `project-manage-analyzer`
-> 规则编号：03（上接 02-project-rules，下接 04-builder）
+> 规则编号：03（上接 02-project-rules，下接 04-deployer）
 
 ## 核心职责
 
-**只读分析 + 写入 environment.json.analyzer 段**。禁止执行构建、禁止启动服务、禁止写 build/、禁止写 SETUP.md、禁止询问用户构建模式、禁止询问服务器绑定。
+**只读分析 + 写入 environment.json.analyzer 段**。禁止执行构建、禁止启动服务、禁止写 build/、禁止写环境验证报告、禁止询问用户构建模式、禁止询问服务器绑定。
 
 ## 输入与输出
 

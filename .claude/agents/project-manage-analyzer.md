@@ -106,7 +106,7 @@ export default defineConfig({
 - 执行构建命令
 - 生成 `build/` 目录
 - 启动服务
-- 写 `start.sh`、`SETUP.md`、`seed.spec.ts`
+- 写 `start.sh`（deployer 阶段）、环境验证报告（validator 阶段）、seed（planner 阶段）
 - 询问用户「构建模式选择」或「服务器绑定」（由主会话负责）
 - 修改 `repository/` 下的源码
 - 删除 `case/` 中的用户文件

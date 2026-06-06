@@ -124,6 +124,44 @@ UI 测试统一 Playwright。L2 API 测试统一 Vitest。
 - 计划提交后等待用户确认，不直接进入执行
 - 优先使用 `browser_snapshot`，除非必要不截图
 
+## Seed 文件生成（强制）
+
+Plan 阶段结束时，检查 `tests/seed.spec.ts` 是否存在：
+- **已存在** → 复用，不覆盖
+- **不存在** → 基于探索到的登录流程生成
+
+**用户确认计划后才生成**，不在探索过程中生成。
+
+### 模板
+
+```typescript
+// TEST-ID: TP-<NN-Project>-SEED
+// TEST-NAME: 登录种子
+// TEST-LEVEL: SEED
+// MODULE: auth
+
+import { test as setup } from '@playwright/test';
+import path from 'path';
+import fs from 'fs';
+
+setup('登录并保存认证状态', async ({ page }) => {
+  await page.goto('<baseURL><login.url>');
+  await page.getByPlaceholder('<usernamePlaceholder>').fill('<credentials.username>');
+  await page.getByPlaceholder('<passwordPlaceholder>').fill('<credentials.password>');
+  await page.getByRole('button', { name: '<submitButton>' }).click();
+  await page.waitForURL('**/<登录后路径>**');
+  const authPath = path.resolve(__dirname, '..', 'test-config', 'auth.json');
+  fs.mkdirSync(path.dirname(authPath), { recursive: true });
+  await page.context().storageState({ path: authPath });
+});
+```
+
+### 约束
+
+- 选择器从探索应用时实际使用的为准，不猜测
+- `storageState` 写到 `test-config/auth.json`（chromium project 自动加载）
+- 生成后验证 seed 能正常执行
+
 ## 测试数据安全
 
 - 所有测试数据使用 `test_` 前缀

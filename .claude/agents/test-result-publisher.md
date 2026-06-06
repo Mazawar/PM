@@ -29,7 +29,7 @@ color: green
 2. **排除部署无关文件**：打包前删除 `logs/`、`.git/`、`*.log` 等文件
 3. **环境配置文件保留**：项目中已有的 `.env` / `.env.production` / `application.yml` 等环境配置文件需复制到产物对应位置，部署方直接修改其中的连接信息。不存在则跳过
 4. **每次发布必须重新打包**，不复用旧产物
-5. **发布内容直接取自 `build/dev/`**（builder agent 已整合 update_readme.md 等文件到 dev/），不再额外组装
+5. **发布内容直接取自 `build/dev/`**（deployer agent 已整合 update_readme.md 等文件到 dev/），不再额外组装
 6. **分包规范**：单包不超过 100M，用 `split` 拆分，上传时逐个上传所有分片
 
 ---

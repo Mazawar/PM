@@ -452,6 +452,29 @@ for (const [mod, tests] of Object.entries(modules)) {
 writeFileSync(join(resultsDir, 'summary.md'), generateSummary(modules, filtered, env));
 console.log(`  ✓ summary.md`);
 
+// --- 合并构建测试结果（如果存在）---
+// 构建验证由 validator 写入 results/build/progress.txt，
+// 这里把它当作一个特殊模块并入 summary 汇总
+const buildProgressPath = join(resultsDir, 'build', 'progress.txt');
+if (existsSync(buildProgressPath)) {
+  const buildContent = readFileSync(buildProgressPath, 'utf-8').trim();
+  const buildTests = buildContent.split('\n').filter(l => l.includes(':')).map(l => {
+    const [tcId, status] = l.split(':').map(s => s.trim());
+    return {
+      tcId,
+      title: tcId,  // BUILD-001 等
+      module: 'build',
+      status: status === 'PASS' ? 'passed' : status === 'SKIP' ? 'skipped' : 'failed',
+    };
+  });
+  if (buildTests.length > 0) {
+    modules['build'] = buildTests;
+    const buildSummaryMd = generateSummary(modules, [...filtered, ...buildTests], env);
+    writeFileSync(join(resultsDir, 'summary.md'), buildSummaryMd);
+    console.log(`  ✓ summary.md（含构建测试 build 模块: ${buildTests.length} 项）`);
+  }
+}
+
 // --- 统计输出 ---
 const totalPass = filtered.filter(t => t.status === 'passed').length;
 const totalFail = filtered.filter(t => t.status === 'failed').length;

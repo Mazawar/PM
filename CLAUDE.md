@@ -18,8 +18,6 @@ cp .env.example .env
 # 4. 启动 Claude Code，智能体会自动加载 .mcp.json 中的 MCP Server
 ```
 
-详细环境说明见 [SETUP.md](SETUP.md)。
-
 ## Project Overview
 
 PM (Project Manager) 是自动化测试智能体中枢。监控外部项目仓库、检测代码变更、生成测试计划、执行测试、反馈问题。
@@ -40,15 +38,14 @@ pm/
 │       ├── vitest.config.ts   # 项目级 Vitest 配置（L2 API 测试）
 │       ├── plans/             # 测试计划（00-test-plan.md + 模块详细计划）
 │       ├── case/              # 用户提供的业务案例（planner 优先读取，禁止覆盖）
-│       ├── start.sh           # 一键启动脚本（builder agent 生成）
+│       ├── start.sh           # 一键启动脚本（deployer agent 生成）
 │       ├── remote-start.sh    # 远程启动脚本（远程服务器上执行，不归档到 build/）
 │       ├── test-config/       # 环境配置（environment.json、auth.json）
 │       ├── tests/             # 测试代码（unit/api/e2e/ui 各层级按模块分子目录）
 │       │   ├── seed.spec.ts  # 登录种子文件（Planner/Generator 共享）
 │       │   └── {level}/{module}/tc-{编号}-{简称}.spec.ts
-│       ├── SETUP.md          # 环境启动报告（validator agent 生成）
 │       ├── .pipeline-state.json # 管线状态（v2：global/modules/publishes 三段）
-│       ├── build/            # 构建部署产物（builder agent 生成）
+│       ├── build/            # 构建部署产物（deployer agent 生成）
 │       │   ├── version-log.json    # 构建版本追踪总表
 │       │   ├── deploy-config.json  # 部署配置快照（可复用）
 │       │   ├── nginx.conf          # Nginx 配置文件
@@ -74,7 +71,7 @@ pm/
 
 ## Project Configuration
 
-每个项目（`test_project/<NN-Project>/`）包含以下配置文件，由 `project-manage-analyzer` / `project-manage-builder` / `project-manage-validator` 三段 agent 生成：
+每个项目（`test_project/<NN-Project>/`）包含以下配置文件，由 `project-manage-analyzer` / `project-manage-deployer` / `project-manage-validator` 三段 agent 生成：
 
 | 文件 | 说明 |
 |------|------|
@@ -85,7 +82,6 @@ pm/
 | `tests/seed.spec.ts` | 登录种子文件（Planner/Generator/Healer 共享，自动登录） |
 | `case/` | 用户案例目录（业务案例、测试场景，planner 最高优先读取） |
 | `start.sh` | 一键启动脚本（端口检查 + 依赖安装 + 健康检查） |
-| `SETUP.md` | 环境启动报告（实际验证结果） |
 | `.pipeline-state.json` | 管线状态文件（v2 schema：global 项目级 + modules 模块级 + publishes 历史，破坏性升级会备份为 .pipeline-state.v1.bak.json） |
 | `build/version-log.json` | 构建版本追踪总表（每次构建追加一条记录） |
 | `build/deploy-config.json` | 部署配置快照（可复用，下次构建跳过已安装组件） |
@@ -104,8 +100,8 @@ pm/
 | `01-pipeline-rules.md` | 管线状态持久化 + 主会话编排：v2 schema、九阶段流程、环境检查、调度管线、用户确认点 |
 | `02-project-rules.md` | 项目结构、目录规范、注册表双写、Git 规则、禁止修改列表、文件保护 |
 | `03-analyzer-rules.md` | analyzer agent：本地源码分析、远程探测、端口/技术栈/凭据/中间件/数据库推断 |
-| `04-builder-rules.md` | builder agent：生产构建、归档、组装 dev/、远程部署（SSH/Nginx/DB 初始化/验证） |
-| `05-validator-rules.md` | validator agent：启动服务、健康检查、页面验证、登录验证、写 SETUP.md、远程验证、runner 工具 |
+| `04-deployer-rules.md` | deployer agent：验证部署能力（编译验证、归档、组装 dev/、远程部署） |
+| `05-validator-rules.md` | validator agent：环境验证、健康检查、环境验证报告、runner 工具 |
 | `06-planner-rules.md` | planner agent：TC 编号、计划分层、用户案例优先级、用户确认流程 |
 | `07-generator-rules.md` | generator agent：直接生成/录制模式、代码生成、等待策略、断言约束 |
 | `08-healer-rules.md` | healer agent：修复流程、修复限制、结果更新、progress/report/截图规范 |
@@ -123,7 +119,7 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
 
 测试执行管线：`planner → generator → healer（按需）`（按模块串行）
 
-环境配置管线：`analyzer → [主会话问 buildMode] → builder (按 mode 分支) → validator`（项目级）
+环境配置管线：`analyzer → [主会话问 buildMode] → deployer (按 mode 分支) → validator`（项目级）
 
 构建发布管线：`Report → 用户确认 → publisher（编译打包 + 打 Tag + 上传 Gitee Release）`
 
@@ -137,7 +133,7 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
 6. 测试全部通过后 **必须主动询问** 用户是否发布到 Git Release
 7. 日常启停服务：`bash .claude/scripts/runner.sh {start|stop|restart|status} <NN-Project>`
 
-- **环境检查** 在每次测试前按三层走：analyzer 缺失 → `project-manage-analyzer`；build 缺失 → `project-manage-builder`；validate 缺失 → `project-manage-validator`
+- **环境检查** 在每次测试前按三层走：analyzer 缺失 → `project-manage-analyzer`；build 缺失 → `project-manage-deployer`；validate 缺失 → `project-manage-validator`
 - 每次测试前**必须**检查目标服务是否运行（读取 environment.json 的 healthCheck）
 - **case/ 优先级**：用户案例 > 变更报告 > 自主探索
 - **新三段 agent 详情**：`docs/agents.md`

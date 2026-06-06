@@ -67,6 +67,20 @@ const directories = [
     guardFile: null,
   },
   {
+    name: 'results/build',
+    guardFile: 'README.md',
+    guardContent: `# 构建测试报告目录
+
+存放构建验证环节的产物（与业务测试 reports 平级，但路径独立为 \`results/build/\`）。
+
+- **progress.txt** — 8 项构建验证项的 PASS/FAIL/SKIP 状态
+- **report.md** — 详细验证结果（制品完整性、依赖、数据库、配置、启动、健康、页面、登录）
+- **summary.md** — 跨项目构建验证汇总
+
+构建验证是测试流程的第一道闸门，不通过不进入端到端测试。详见 \`docs/pm-test.md\` 第 2.1 节。
+`,
+  },
+  {
     name: 'build/artifacts',
     guardFile: null,
   },
