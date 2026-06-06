@@ -385,15 +385,30 @@ append_track_diff() {
 }
 
 # 主流程
+# 用法: scan.sh [项目名]
+#   无参数       — 扫描所有项目
+#   指定项目名   — 仅扫描指定项目（支持部分匹配，如 oa-llm 匹配 01-oa-llm）
 main() {
-  log "===== 开始扫描 ====="
+  local target="${1:-}"
   local projects has_change=0
 
-  projects=$(parse_projects)
-
-  if [ -z "$projects" ]; then
-    log "未在 $REPO_README 中发现项目，退出"
-    exit 0
+  if [ -n "$target" ]; then
+    # 指定项目模式：从注册表中模糊匹配
+    local matched
+    matched=$(parse_projects | grep "$target" || true)
+    if [ -z "$matched" ]; then
+      log "未在 $REPO_README 中找到项目: $target"
+      exit 1
+    fi
+    projects="$matched"
+    log "===== 开始扫描（指定项目: $matched）====="
+  else
+    projects=$(parse_projects)
+    if [ -z "$projects" ]; then
+      log "未在 $REPO_README 中发现项目，退出"
+      exit 0
+    fi
+    log "===== 开始扫描 ====="
   fi
 
   for project in $projects; do
@@ -414,21 +429,21 @@ main() {
 
     # 首次扫描（新克隆或 .last_hash 丢失）：生成基线报告
     if [ ! -f "$test_path/.last_hash" ] || [ -z "$old_hash" ]; then
-      generate_initial_report "$repo_path" "$new_hash" "$project"
-      ensure_track_links "$project"
+      generate_initial_report "$repo_path" "$new_hash" "$project" || { log "  FAIL: 基线报告生成失败"; continue; }
+      ensure_track_links "$project" || log "  WARN: 软链接建立失败"
       continue
     fi
 
     # 无变更
     if [ "$old_hash" = "$new_hash" ]; then
       log "  无新提交"
-      ensure_track_links "$project"
+      ensure_track_links "$project" || log "  WARN: 软链接建立失败"
       continue
     fi
 
     # 有变更，生成摘要
-    generate_summary "$repo_path" "$old_hash" "$new_hash" "$project"
-    ensure_track_links "$project"
+    generate_summary "$repo_path" "$old_hash" "$new_hash" "$project" || { log "  FAIL: 变更报告生成失败"; continue; }
+    ensure_track_links "$project" || log "  WARN: 软链接建立失败"
     has_change=1
   done
 
@@ -441,4 +456,4 @@ main() {
   log "===== 扫描完成 ====="
 }
 
-main
+main "$@"

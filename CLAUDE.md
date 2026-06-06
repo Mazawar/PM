@@ -155,10 +155,11 @@ cp .env.example .env
 ### 仓库扫描
 
 ```bash
-bash .claude/scripts/scan.sh          # 扫描所有项目变更
+bash .claude/scripts/scan.sh              # 扫描所有项目变更
+bash .claude/scripts/scan.sh <项目名>      # 仅扫描指定项目（支持部分匹配，如 oa-llm 匹配 01-oa-llm）
 ```
 
-定时扫描（每 30 分钟）通过 `CronCreate` 配置，含自动续签机制（7 天过期前自动重建）。
+定时扫描（每天 12:00）通过 `CronCreate` 配置，含自动续签机制（7 天过期前自动重建）。
 
 ### 项目目录初始化
 
