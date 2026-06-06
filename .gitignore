@@ -36,3 +36,6 @@ package-lock.json
 
 # 跟踪文件
 .traces/
+
+# 代码图谱索引
+.codegraph/

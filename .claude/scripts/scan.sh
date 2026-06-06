@@ -14,6 +14,10 @@ LOG_FILE="$PM_ROOT/.omc/logs/scan.log"
 
 mkdir -p "$(dirname "$LOG_FILE")"
 
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
 # 确保 README 文件存在，不存在则从模板复制
 if [ ! -f "$REPO_README" ]; then
   mkdir -p "$REPO_DIR"
@@ -26,10 +30,6 @@ if [ ! -f "$TEST_README" ]; then
   cp "$TEMPLATE_DIR/test-project-README.md" "$TEST_README"
   log "从模板创建: $TEST_README"
 fi
-
-log() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
-}
 
 # 从 README.md 的 <!-- projects-start --> ~ <!-- projects-end --> 之间解析项目
 # 仅匹配包含编号和仓库地址的数据行，忽略表头、分隔行、空行

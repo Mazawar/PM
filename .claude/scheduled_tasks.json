@@ -8,7 +8,8 @@
       "recurring": true,
       "createdBySessionId": "fa9c65df-d740-4a03-80a1-3163d1aeefd8",
       "createdByPid": 29008,
-      "createdByProcStart": "639163411585055260"
+      "createdByProcStart": "639163411585055260",
+      "lastFiredAt": 1780729680902
     }
   ]
 }
