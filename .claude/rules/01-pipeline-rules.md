@@ -74,7 +74,7 @@ test_project/<NN-Project>/.pipeline-state.json
 - `01-role-management.md` → key 为 `role-management`
 - `02-user-management.md` → key 为 `user-management`
 
-**plans 目录是模块名的唯一真源**。不要在状态文件、reports、summary 中独立维护模块列表。
+**plans 目录是模块名的唯一真源**。不要在状态文件、scan-logs、summary 中独立维护模块列表。
 
 ## progress.txt 与 pipeline-state 的边界（强制）
 
@@ -260,7 +260,7 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
  扫描    分析     构建    验证      规划    生成      执行      汇报      发布
 ```
 
-1. **Detect** — `scan.sh` 检测变更，生成报告到 `test_project/<NN-Project>/reports/`
+1. **Detect** — `scan.sh` 检测变更，生成报告到 `test_project/<NN-Project>/scan-logs/`
 2. **Analyze** — `project-manage-analyzer` agent 读仓库源码、推断技术栈/端口/中间件/凭据，写 `environment.json.analyzer.*` 段、生成 `playwright.config.ts`、初始化目录
 3. **Build** — 主会话询问构建模式（local | remote）→ 写 `environment.json.build.mode` → 启动 `project-manage-deployer` agent 验证部署能力
 4. **Validate** — 启动 `project-manage-validator` agent：启动服务 → 健康检查 → 页面验证 → 登录验证 → 出环境验证报告

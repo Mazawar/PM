@@ -158,7 +158,7 @@ TC-003:PASS
 | <module> | X | Y | Z | XX% |
 ```
 
-仅存放测试结果，变更分析写入 `reports/summary.md`。
+仅存放测试结果，变更分析写入 `scan-logs/summary.md`。
 
 ## 截图规范（强制）
 

@@ -55,7 +55,7 @@ test_project/01-oa-llm/
 
 ## 报告示例
 
-整体有变更时，reports 末尾追加：
+整体有变更时，scan-logs 末尾追加：
 
 ```markdown
 ---

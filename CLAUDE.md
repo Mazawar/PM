@@ -50,7 +50,7 @@ pm/
 │       │   └── artifacts/          # 构建归档（不可删除）
 │       │       ├── <timestamp>-<commit>.tar.gz
 │       │       └── <timestamp>-<commit>.manifest.json
-│       ├── reports/           # 变更报告（scan.sh 生成）
+│       ├── scan-logs/         # 变更报告（scan.sh 生成）
 │       └── results/           # 测试执行结果（按模块分目录）
 ├── docs/                      # 项目文档
 ├── .claude/
@@ -166,7 +166,7 @@ bash .claude/scripts/scan.sh          # 扫描所有项目变更
 node .claude/scripts/init-dirs.mjs --project <NN-Project>
 ```
 
-幂等脚本，自动创建 case/、plans/、tests/、test-config/、results/、reports/、build/artifacts/ 目录。已有文件不覆盖。
+幂等脚本，自动创建 case/、plans/、tests/、test-config/、results/、scan-logs/、build/artifacts/ 目录。已有文件不覆盖。
 
 ### 管线状态迁移（v1 → v2）
 

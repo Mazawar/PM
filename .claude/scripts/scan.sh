@@ -91,7 +91,7 @@ generate_initial_report() {
   local new_hash="$2"
   local project_name="$3"
 
-  local report_dir="$TEST_DIR/$project_name/reports"
+  local report_dir="$TEST_DIR/$project_name/scan-logs"
   local scan_time
   scan_time=$(date '+%Y-%m-%d_%H%M%S')
   local report_file="$report_dir/${scan_time}.md"
@@ -138,7 +138,7 @@ generate_summary() {
   local new_hash="$3"
   local project_name="$4"
 
-  local report_dir="$TEST_DIR/$project_name/reports"
+  local report_dir="$TEST_DIR/$project_name/scan-logs"
   local scan_time
   scan_time=$(date '+%Y-%m-%d_%H%M%S')
   local report_file="$report_dir/${scan_time}.md"
@@ -433,7 +433,7 @@ main() {
   done
 
   if [ "$has_change" -eq 1 ]; then
-    log "检测到变更，请查看 test_project/ 下对应项目的 reports/ 目录"
+    log "检测到变更，请查看 test_project/ 下对应项目的 scan-logs/ 目录"
   else
     log "所有项目均无新变更"
   fi

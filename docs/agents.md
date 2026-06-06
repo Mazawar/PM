@@ -52,7 +52,7 @@ analyzer.*   build.*      validator.*
 | 脚本 | 用途 |
 |------|------|
 | `runner.sh` | 日常启停服务（`start` / `stop` / `restart` / `status`） |
-| `scan.sh`   | 仓库扫描（检测变更，生成 reports/） |
+| `scan.sh`   | 仓库扫描（检测变更，生成 scan-logs/） |
 | `init-dirs.mjs` | 项目目录初始化（幂等） |
 | `migrate-pipeline-state.mjs` | pipeline-state 迁移 + 读写（ESM） |
 | `generate-report.mjs` | 解析 Playwright 报告生成 progress/report/summary |

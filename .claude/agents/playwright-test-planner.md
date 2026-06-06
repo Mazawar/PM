@@ -33,9 +33,9 @@ color: green
    - **seed 文件存在且登录成功** → 直接开始探索
    - **seed 文件不存在或登录失败** → 手动完成登录，登录成功后将登录流程写入 `test_project/<NN-Project>/tests/seed.spec.ts`（模板见 validator agent 的 seed 生成流程），供后续 Generator 使用
    - 读取总计划 `00-test-plan.md`，确认已有模块和已用 TC 范围
-   - 读取变更报告 `test_project/<NN-Project>/reports/` 下的最新报告
+   - 读取变更报告 `test_project/<NN-Project>/scan-logs/` 下的最新报告
    - **无变更报告时** → 跳过变更分析，根据用户指定的功能范围进行完整页面探索
-   - **有变更报告时** → 先写 `reports/summary.md`（变更概述、影响范围、测试建议），然后按变更范围规划
+   - **有变更报告时** → 先写 `scan-logs/summary.md`（变更概述、影响范围、测试建议），然后按变更范围规划
 
 2. **页面探索**
    - 使用 `browser_*` 工具浏览应用界面

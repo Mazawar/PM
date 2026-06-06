@@ -75,7 +75,7 @@ Show the auto-detected type in the report for user to verify.
 Create directory structure only:
 
 ```bash
-mkdir -p test_project/{NN}-{Name}/{test-config/plans,tests/{unit,api,e2e,ui},results,reports}
+mkdir -p test_project/{NN}-{Name}/{test-config/plans,tests/{unit,api,e2e,ui},results,scan-logs}
 ```
 
 **不创建** `playwright.config.ts` 和 `environment.json`，这些由 analyzer agent 在测试前环境检查时按需生成。

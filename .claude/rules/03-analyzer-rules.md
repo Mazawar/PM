@@ -16,7 +16,7 @@
 - `test_project/<NN-Project>/test-config/environment.json.analyzer.*` 段
 - `test_project/<NN-Project>/playwright.config.ts`
 - `test_project/<NN-Project>/vitest.config.ts`（如 L2 API 测试需要）
-- 初始化目录（`init-dirs.mjs` 自动创建 case/、plans/、tests/、test-config/、results/、reports/、build/artifacts/）
+- 初始化目录（`init-dirs.mjs` 自动创建 case/、plans/、tests/、test-config/、results/、scan-logs/、build/artifacts/）
 
 ## 触发条件
 

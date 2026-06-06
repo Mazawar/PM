@@ -63,7 +63,7 @@ const directories = [
     guardFile: null,
   },
   {
-    name: 'reports',
+    name: 'scan-logs',
     guardFile: null,
   },
   {
@@ -71,7 +71,7 @@ const directories = [
     guardFile: 'README.md',
     guardContent: `# 构建测试报告目录
 
-存放构建验证环节的产物（与业务测试 reports 平级，但路径独立为 \`results/build/\`）。
+存放构建验证环节的产物（与业务测试 scan-logs 平级，但路径独立为 \`results/build/\`）。
 
 - **progress.txt** — 8 项构建验证项的 PASS/FAIL/SKIP 状态
 - **report.md** — 详细验证结果（制品完整性、依赖、数据库、配置、启动、健康、页面、登录）
