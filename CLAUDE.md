@@ -38,8 +38,6 @@ pm/
 │       ├── vitest.config.ts   # 项目级 Vitest 配置（L2 API 测试）
 │       ├── plans/             # 测试计划（00-test-plan.md + 模块详细计划）
 │       ├── case/              # 用户提供的业务案例（planner 优先读取，禁止覆盖）
-│       ├── start.sh           # 一键启动脚本（deployer agent 生成）
-│       ├── remote-start.sh    # 远程启动脚本（远程服务器上执行，不归档到 build/）
 │       ├── test-config/       # 环境配置（environment.json、auth.json）
 │       ├── tests/             # 测试代码（unit/api/e2e/ui 各层级按模块分子目录）
 │       │   ├── seed.spec.ts  # 登录种子文件（Planner/Generator 共享）
@@ -81,7 +79,6 @@ pm/
 | `test-config/auth.json` | 登录认证状态（seed.spec.ts 生成，chromium project 自动加载） |
 | `tests/seed.spec.ts` | 登录种子文件（Planner/Generator/Healer 共享，自动登录） |
 | `case/` | 用户案例目录（业务案例、测试场景，planner 最高优先读取） |
-| `start.sh` | 一键启动脚本（端口检查 + 依赖安装 + 健康检查） |
 | `.pipeline-state.json` | 管线状态文件（v2 schema：global 项目级 + modules 模块级 + publishes 历史，破坏性升级会备份为 .pipeline-state.v1.bak.json） |
 | `build/version-log.json` | 构建版本追踪总表（每次构建追加一条记录） |
 | `build/deploy-config.json` | 部署配置快照（可复用，下次构建跳过已安装组件） |

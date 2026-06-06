@@ -27,8 +27,6 @@ test_project/<NN-Project>/
 │   ├── README.md              # 目录说明（analyzer agent 生成）
 │   └── *.{md,txt,...}         # 任意文件名、任意数量，planner 优先读取
 │                              # ⚠️ 任何 Agent 禁止删除、清空或覆盖用户文件
-├── start.sh                   # 一键启动脚本（deployer agent 生成）
-├── remote-start.sh            # 远程启动脚本（远程服务器上执行，不归档到 build/）
 ├── test-config/
 │   └── environment.json       # 环境配置（技术栈、端口、凭据、中间件、启动命令）
 ├── tests/
@@ -174,7 +172,7 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 - **本地构建**：`nohup ... > build/dev/logs/<service>.log 2>&1 &`
 - **远程部署**：`<deployPath>/logs/<service>.log`
 - **禁止**：`build/`、`build/dev/`、`build/dev/software/` 下任何子目录直接放 `*.log`
-- 启动脚本（`start.sh`）必须将日志输出到 `build/dev/logs/`，避免散落
+- 后台进程日志必须重定向到 `build/dev/logs/`，避免散落
 
 ## 禁止修改列表
 

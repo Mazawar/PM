@@ -134,6 +134,36 @@ SQL dump 导入指定 `--default-character-set=utf8mb4` 防止中文乱码。
 - **不安装任何运行时**（安装是 builder 阶段）
 - **不上传任何文件**（上传是 builder 阶段）
 
+## track/ 文档提取（强制）
+
+`track/` 目录通过软链接映射了仓库中的关键目录（如 `version/`、`docs/`）。analyzer **必须**读取这些目录中的部署文档和脚本，提取部署知识写入 `deploymentDocs` 段，供 deployer 直接使用而非猜测。
+
+### 读取步骤
+
+1. 检查 `test_project/<NN-Project>/track/` 是否存在
+2. 遍历软链接指向的目录，识别并读取以下类型的文件：
+   - **部署文档**：`update_readme.md`、`deploy.md`、`DEPLOY.md`、`INSTALL.md`
+   - **启动脚本**：`*.sh`（特别是 `start*.sh`、`deploy*.sh`）
+   - **配置说明**：`.env.example`、`README.md` 中与部署相关的章节
+   - **版本变更**：`version/*/` 下的变更日志、迁移说明
+3. 从文档中提取关键信息写入 `deploymentDocs` 段
+
+### 提取内容
+
+| 信息 | 来源 | 用途 |
+|------|------|------|
+| 构建命令 | 文档中的「构建」/「编译」章节 | deployer 执行编译 |
+| 启动命令 | 文档中的「启动」/「运行」章节 | environment.json.startCommand |
+| 数据库初始化 | 文档中的「数据库」/「初始化」章节 | SQL 执行顺序 |
+| 环境变量 | `.env.example` + 文档说明 | 配置 .env |
+| 依赖安装 | 文档中的「依赖」/「安装」章节 | 包管理器、特殊依赖 |
+| 目录结构 | 文档中的「目录说明」章节 | 组装 dev/ 的布局依据 |
+| 已知问题 | 文档中的「已知问题」/「限制」章节 | 部署避坑 |
+
+### 如果 track/ 不存在
+
+跳过本步骤，不阻塞 analyzer 完成。deployer 将退回通用推断模式。
+
 ## 写入字段（environment.json.analyzer）
 
 ```json
@@ -153,6 +183,17 @@ SQL dump 导入指定 `--default-character-set=utf8mb4` 防止中文乱码。
     "login": { "url": "/login", "usernamePlaceholder": "...", "passwordPlaceholder": "...", "submitButton": "..." },
     "startCommand": { "frontend": "...", "backend": "...", "full": "..." },
     "healthCheck": { "url": "http://localhost:5173", "method": "GET", "expectedStatus": 200 },
+    "deploymentDocs": {
+      "source": "track/ | repository/",
+      "readFiles": ["version/v0.0.2/update_readme.md", "sh/start.sh"],
+      "buildCommand": "pnpm install && pnpm build",
+      "startCommand": "node -r dotenv/config apps/api/dist/src/main.js",
+      "dbInit": "mysql -u root -p --default-character-set=utf8mb4 <db> < database/keyidea_newoa.sql",
+      "envVars": ["DATABASE_URL", "PORT"],
+      "directoryLayout": "software/ 含 apps/api + apps/web，database/ 含 SQL",
+      "knownIssues": ["Prisma 需指定 binaryTargets", "前端需 Nginx 代理"],
+      "warnings": []
+    },
     "remoteProbe": {
       "completedAt": "ISO",
       "os": "Ubuntu 22.04",

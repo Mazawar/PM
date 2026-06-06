@@ -20,9 +20,7 @@
 ### 1. 启动服务
 
 **local**：
-```bash
-bash test_project/<NN-Project>/start.sh
-```
+从 `environment.json.analyzer.startCommand` 读取启动命令，在 `build/dev/software/` 下执行。预创建 `build/dev/logs/` 目录，日志重定向到 `build/dev/logs/<service>.log`。
 
 **remote**：
 ```bash
@@ -168,7 +166,7 @@ ENV-004:PASS
 ### 命令协议
 
 ```bash
-bash .claude/scripts/runner.sh start <NN-Project>     # 检查端口 → 未占用则执行 start.sh
+bash .claude/scripts/runner.sh start <NN-Project>     # 检查端口 → 未占用则按 startCommand 启动
 bash .claude/scripts/runner.sh stop <NN-Project>      # 找进程 → kill
 bash .claude/scripts/runner.sh restart <NN-Project>   # stop + start
 bash .claude/scripts/runner.sh status <NN-Project>    # 端口 + 进程查询
@@ -182,7 +180,7 @@ runner.sh 只操作进程/端口，**不读不写** `environment.json`、`pipeli
 
 | 情况 | 行为 |
 |------|------|
-| start.sh 不存在 | 报错："请先运行 deployer" |
+| environment.json 缺 startCommand | 报错："请先运行 analyzer" |
 | 端口已被占用 | 提示用户（不自动 kill） |
 | 进程未找到 | stop/restart 提示「服务未运行」 |
-| start.sh 启动超时 | 检查 `build/dev/logs/*.log` |
+| 启动超时 | 检查 `build/dev/logs/*.log` |

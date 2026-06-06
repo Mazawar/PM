@@ -6,7 +6,7 @@
 ## 核心职责
 
 验证项目能否成功部署并具备测试条件。按 `buildMode` 分支执行：
-- **mode=local**：编译验证 → 归档 → 组装 `build/dev/` → 写 `start.sh` → 出部署验证报告
+- **mode=local**：编译验证 → 归档 → 组装 `build/dev/` → 出部署验证报告
 - **mode=remote**：在 local 步骤基础上 + 打包 `<NN-Project>.tar.gz` + 安装远程运行时 + 上传 + 配置 .env + 初始化 DB
 
 **禁止**启动服务、做健康检查、更新 baseURL（validator 阶段负责）。
@@ -16,6 +16,33 @@
 - `environment.json.analyzer.completedAt` 必须存在
 - `environment.json.build.mode` 必须为 `'local'` 或 `'remote'`
 - mode=remote 时 `remoteConfig.server` 必须已绑定
+
+## 文档知识优先（强制）
+
+deployer **禁止**在 `deploymentDocs` 已提供明确信息时靠猜测操作。必须按以下优先级获取部署知识：
+
+1. **`environment.json.analyzer.deploymentDocs`** — analyzer 从 `track/` 提取的文档知识，最高优先
+2. **`track/` 目录直接读取** — 如果 `deploymentDocs` 缺失但 `track/` 存在，自行读取关键文档
+3. **通用推断** — 以上都没有时，才按技术栈走通用逻辑
+
+### 强制检查清单
+
+deployer 启动后**必须**先读取 `deploymentDocs`，并在执行每项操作前核对：
+
+| 操作 | 先查 `deploymentDocs` 的字段 | 文档有值时 | 文档无值时 |
+|------|---------------------------|-----------|-----------|
+| 编译构建 | `buildCommand` | 直接执行文档命令 | 走通用推断（pnpm build 等） |
+| 启动后端 | `startCommand` | 直接使用文档命令 | 走通用推断（node main.js 等） |
+| 数据库初始化 | `dbInit` | 直接执行文档命令 | 走通用推断（建库→导入SQL） |
+| 环境变量 | `envVars` | 核对这些变量已配置 | 走通用推断 |
+| 目录结构 | `directoryLayout` | 按文档布局组装 dev/ | 走通用推断 |
+| 已知问题 | `knownIssues` | 提前规避 | 无 |
+
+### 禁止行为
+
+- **禁止**在有 `deploymentDocs.buildCommand` 时自行拼凑构建命令
+- **禁止**在有 `deploymentDocs.startCommand` 时尝试不同的启动方式
+- **禁止**忽略 `deploymentDocs.knownIssues` 中的警告
 
 ## 构建依赖分析
 
@@ -305,40 +332,7 @@ curl -s -X POST http://localhost:<backend-port>/api/auth/login -H "Content-Type:
 <!-- 直接复制 version/<ver>/update_readme.md 的 §10 原文 -->
 ```
 
-### 7. 生成 start.sh
-
-```bash
-#!/bin/bash
-# <NN-Project> 一键启动脚本（从 dev/ 启动）
-PROJECT_NAME="<NN-Project>"
-DEV_DIR="test_project/$PROJECT_NAME/build/dev/software"
-PORT=<端口>
-BACKEND_MAIN="apps/api/dist/src/main.js"
-
-if [ ! -d "$DEV_DIR" ]; then
-  echo "[FAIL] dev/ 部署包不存在: $DEV_DIR"
-  exit 1
-fi
-
-cd "$DEV_DIR"
-
-# 启动后端服务
-mkdir -p build/dev/logs
-nohup node -r dotenv/config $BACKEND_MAIN dotenv_config_path=apps/api/.env > build/dev/logs/backend.log 2>&1 &
-echo "[INFO] 后端已启动，PID: $!"
-
-# 健康检查
-for i in $(seq 1 30); do
-  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT" 2>/dev/null)
-  if [ "$HTTP_CODE" = "200" ]; then exit 0; fi
-  sleep 2
-done
-exit 1
-```
-
-启动脚本**预创建** `build/dev/logs/`，禁止日志散落。
-
-### 8. 生成 version-log.json
+### 7. 生成 version-log.json
 
 ```json
 {
@@ -731,7 +725,7 @@ rm -rf build/<NN-Project> build/<NN-Project>.tar.gz build/*.sql.gz
 - **本地构建**：`nohup ... > build/dev/logs/<service>.log 2>&1 &`
 - **远程部署**：`<deployPath>/logs/<service>.log`
 - **禁止**：`build/`、`build/dev/`、`build/dev/software/` 下任何子目录直接放 `*.log`
-- 启动脚本（`start.sh`）必须**预创建** `build/dev/logs/` 目录，再启动后台进程
+- 后台进程启动前必须**预创建** `build/dev/logs/` 目录，日志统一重定向到该目录
 
 ## 错误处理（强制）
 
