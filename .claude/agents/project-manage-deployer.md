@@ -54,7 +54,17 @@ color: orange
 4. 输出 `global.Build` 当前状态
 5. 预创建 `build/tmp/`、`build/dev/logs/`
 
-### Step 2: 逐个执行 DEPLOY 测试用例
+### Step 2: 交叉验证（强制）
+
+**在执行任何 DEPLOY 用例前，必须先完成交叉验证：**
+
+1. 读取 `deploymentDocs.readFiles` 中列出的原始文档
+2. 逐项验证 `buildCommand`、`startCommand`、`envVars`、`deliveryModel` 是否与文档原文一致
+3. `deliveryModel: "pre-built"` → 文档应描述预构建包结构（tar.gz 含编译产物）
+4. `deliveryModel: "source-build"` → 文档应包含明确的编译命令
+5. 不一致 → DEPLOY-001 FAIL，写报告终止
+
+### Step 3: 逐个执行 DEPLOY 测试用例
 
 严格按 04-deployer-rules.md 的测试用例清单和执行细节执行。
 
@@ -62,8 +72,8 @@ color: orange
 
 1. **DEPLOY-001 文档完整性**：检查 deploymentDocs 四字段
 2. **DEPLOY-002 项目构建**：执行 buildCommand
-3. **DEPLOY-003 依赖解析**：归档 → 解压到 dev/software/ → pnpm install
-4. **DEPLOY-004 制品归档**：验证 archive + manifest 完整性
+3. **DEPLOY-003 依赖解析**：归档 → 解压到 dev/software/ → 按文档安装依赖（pre-built 模式跳过安装）
+4. **DEPLOY-004 制品归档**：验证产物完整性（source-build: archive + manifest；pre-built: 目录结构）
 5. **DEPLOY-005 数据库文件**：提取 SQL 到 dev/database/
 6. **DEPLOY-006 配置完整性**：检查 .env 变量齐备
 
@@ -77,23 +87,25 @@ color: orange
 **执行规则**：
 
 - PASS → 记录结果，继续下一步
-- FAIL → 记录结果 + 错误详情，后续全部 SKIP，跳到 Step 3
+- FAIL → 记录结果 + 错误详情，后续全部 SKIP，跳到 Step 4
 - SKIP → 记录原因，继续下一步
+- **总工具调用上限 100 次**，超出立即写报告终止
+- **FAIL 后禁止**：重试、换命令、查日志、排查根因、安装依赖。只做一件事：写报告
 
-### Step 3: 写报告
+### Step 4: 写报告
 
 在 `results/build/` 下写 `progress.txt` 和 `report.md`。
 
 报告覆盖所有 DEPLOY-001~010 的结果（未执行的记 SKIP）。
 
-### Step 4: 写 build 段 + 辅助文件
+### Step 5: 写 build 段 + 辅助文件
 
 1. 写 `environment.json.build` 段
 2. 生成 `build/version-log.json`（追加记录）
 3. 生成 `build/dev/deploy.md`（从 update_readme.md 合并）
 4. mode=remote 时生成 `build/deploy-config.json`、`build/nginx.conf`
 
-### Step 5: 收尾
+### Step 6: 收尾
 
 1. build/ 自检（按 02-project-rules.md 产物约定，违规项清理）
 2. 本地清理：删除 `build/<NN-Project>/` 副本、`build/<NN-Project>.tar.gz`、`build/tmp/` 内容
@@ -106,5 +118,8 @@ color: orange
 - 修改 `repository/` 源码
 - 删除 `case/`、`.last_hash`、`.pipeline-state.json`
 - 猜测构建命令、尝试替代方案
-- **尝试修复失败的步骤**
-- **自动安装缺失的远程组件**
+- **尝试修复失败的步骤**（失败就报告，不是我们的问题）
+- **自动安装缺失的远程组件**（缺什么报什么，让用户装）
+- **FAIL 后重试、换命令、查日志、排查根因**（只做一件事：写报告）
+- **总工具调用超过 100 次**（超出立即写报告终止）
+- **不经交叉验证直接执行 DEPLOY 用例**

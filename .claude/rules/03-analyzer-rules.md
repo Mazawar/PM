@@ -160,6 +160,17 @@ SQL dump 导入指定 `--default-character-set=utf8mb4` 防止中文乱码。
 | 目录结构 | 文档中的「目录说明」章节 | 组装 dev/ 的布局依据 |
 | 已知问题 | 文档中的「已知问题」/「限制」章节 | 部署避坑 |
 
+### 提取纪律（强制）
+
+**核心原则：从文档原文提取，不从代码推断。**
+
+1. **`buildCommand` 禁止从 `package.json` scripts 推断**。必须在部署文档中找到原文说明（可以是编译命令，也可以是「使用预构建包」的说明）。文档无此说明 → `buildCommand` 写 `"未在文档中找到"`
+2. **预构建包识别**：部署文档中明确说「使用预构建包」「解压即可运行」或描述 tar.gz 含编译产物 + node_modules → `deliveryModel: "pre-built"`，`buildCommand: "NONE"`
+3. **源码编译识别**：部署文档中给出编译命令（如 `pnpm install && pnpm build`、`mvn package`）→ `deliveryModel: "source-build"`，`buildCommand` 为文档中的原文命令
+4. **两种模式都合法**：项目可以提供预构建包，也可以只提供源码和构建说明。关键是**文档必须说明怎么构建或怎么部署**
+4. **每个字段附原文出处**：`readFiles` 记录提取了哪些文件，`sourceLocations` 记录每个关键字段来自哪个文件的哪个章节标题
+5. **文档中没有的信息 → 写 `"未在文档中找到"`**，禁止自行推断、猜测、从代码反向工程
+
 ### 如果 track/ 不存在
 
 跳过本步骤，不阻塞 analyzer 完成。deployer 将退回通用推断模式。
@@ -184,10 +195,17 @@ SQL dump 导入指定 `--default-character-set=utf8mb4` 防止中文乱码。
     "startCommand": { "frontend": "...", "backend": "...", "full": "..." },
     "healthCheck": { "url": "http://localhost:5173", "method": "GET", "expectedStatus": 200 },
     "deploymentDocs": {
+      "deliveryModel": "pre-built | source-build",
       "source": "track/ | repository/",
       "readFiles": ["version/v0.0.2/update_readme.md", "sh/start.sh"],
-      "buildCommand": "pnpm install && pnpm build",
-      "startCommand": "node -r dotenv/config apps/api/dist/src/main.js",
+      "sourceLocations": {
+        "buildCommand": "update_readme.md §2 编译包结构说明（pre-built 模式无需编译）",
+        "startCommand": "update_readme.md §6 环境变量与配置变更",
+        "envVars": ".env.example",
+        "dbInit": "update_readme.md §5 数据库变更"
+      },
+      "buildCommand": "NONE | pnpm install && pnpm build",
+      "startCommand": "pm2 start ecosystem.config.cjs",
       "dbInit": "mysql -u root -p --default-character-set=utf8mb4 <db> < database/keyidea_newoa.sql",
       "envVars": ["DATABASE_URL", "PORT"],
       "directoryLayout": "software/ 含 apps/api + apps/web，database/ 含 SQL",

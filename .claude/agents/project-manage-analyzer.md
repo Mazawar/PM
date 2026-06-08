@@ -39,6 +39,26 @@ color: purple
 2. 推断技术栈、端口、中间件、启动命令、凭据
 3. 不推断出的询问用户
 
+#### Step 2.1: 部署文档原文读取（强制）
+
+在提取 `deploymentDocs` 前，**必须先读取部署文档原文**：
+
+1. 检查 `track/`、`version/*/update_readme.md`、`docs/`、`README.md`、`.env.example`
+2. 识别项目的交付模式：
+   - 文档描述 tar.gz 含编译产物 + node_modules + 离线工具包 → `deliveryModel: "pre-built"`
+   - 文档给出明确的编译命令（如 `pnpm build`、`mvn package`）→ `deliveryModel: "source-build"`
+3. **逐字提取**文档中的构建/启动/配置命令，**不从 `package.json` scripts 推断**
+4. 预构建包模式 → `buildCommand: "NONE"`，`startCommand` 从文档提取
+
+#### Step 2.2: 提取验证（强制）
+
+提取完成后，逐项验证：
+
+1. 对每个 `deploymentDocs` 字段，检查是否有文档原文支撑
+2. 文档中没有对应信息 → 该字段写 `"未在文档中找到"`，禁止自行推断
+3. 在 `deploymentDocs.sourceLocations` 中记录每个字段来自哪个文件的哪个章节标题
+4. `package.json` / `package-lock.json` 仅用于识别技术栈，不作为部署命令的来源
+
 ### Step 3: 初始化目录
 
 ```bash
@@ -110,3 +130,5 @@ export default defineConfig({
 - 询问用户「构建模式选择」或「服务器绑定」（由主会话负责）
 - 修改 `repository/` 下的源码
 - 删除 `case/` 中的用户文件
+- **从 `package.json` scripts 推断 buildCommand / startCommand**（必须从部署文档原文提取）
+- **在文档无对应信息时自行推断命令**（写 `"未在文档中找到"`）

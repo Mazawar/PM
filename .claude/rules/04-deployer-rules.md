@@ -16,6 +16,25 @@
 
 **项目构建命令跑不通 = DEPLOY-002 FAIL，不是我们要解决的问题。**
 
+## 硬性熔断（强制）
+
+| 规则 | 阈值 | 行为 |
+|------|------|------|
+| 总工具调用上限 | **100 次** | 超出立即写报告终止，不论当前进度 |
+| 单步骤失败后重试 | **0 次** | FAIL 直接 SKIP 后续，跳到写报告 |
+| DEPLOY-002 失败后 | 全部 SKIP | 跳到写报告，**禁止**查日志、排查根因、换命令 |
+
+**FAIL 后禁止事项**：重试、换命令、查错误日志、排查根因、安装缺失依赖。只做一件事：写报告。
+
+## 交叉验证（强制）
+
+执行任何 DEPLOY 步骤前，**必须**先交叉验证 analyzer 提取结果与文档原文：
+
+1. 读取 `deploymentDocs.readFiles` 中列出的原始文档
+2. 逐项对比 `buildCommand` / `startCommand` / `envVars` 是否与文档原文一致
+3. `deliveryModel` 是否与文档描述的交付模式一致（预构建包 vs 源码编译）
+4. 不一致 → **DEPLOY-001 FAIL**，报告「analyzer 提取结果与文档原文不符」，附具体差异，终止执行
+
 ## 唯一知识来源（强制）
 
 deployer **所有操作**的知识来源只有一个：`environment.json.analyzer`。
@@ -39,9 +58,9 @@ deployer **所有操作**的知识来源只有一个：`environment.json.analyze
 
 | 编号 | 检查项 | PASS | FAIL | SKIP |
 |------|--------|------|------|------|
-| DEPLOY-001 | 文档完整性 | buildCommand + startCommand + envVars + directoryLayout 四字段齐全 | 任一缺失 | — |
+| DEPLOY-001 | 文档完整性 | buildCommand + startCommand + envVars + directoryLayout + deliveryModel 五字段齐全 | 任一缺失 | — |
 | DEPLOY-002 | 项目构建 | buildCommand exit 0 | exit ≠ 0 | — |
-| DEPLOY-003 | 依赖解析 | archive 打包 + 解压 + pnpm install 全成功 | 任一失败 | — |
+| DEPLOY-003 | 依赖解析 | archive 打包 + 解压 + 按文档安装依赖 全成功 | 任一失败 | — |
 | DEPLOY-004 | 制品归档 | archive + manifest 存在且校验通过 | 文件缺失或校验不通过 | — |
 | DEPLOY-005 | 数据库文件 | SQL 按 initFiles 提取到 dev/database/ 成功 | 文件缺失或损坏 | 无 dbConfig |
 | DEPLOY-006 | 配置完整性 | .env 中 envVars 所有变量齐备 | 任一变量缺失 | 无 envVars |
@@ -59,29 +78,49 @@ deployer **所有操作**的知识来源只有一个：`environment.json.analyze
 
 ### DEPLOY-001: 文档完整性
 
-读取 `environment.json.analyzer.deploymentDocs`，逐一检查四个必要字段。
-任一缺失 → FAIL，报告「项目部署文档缺少 <字段名>」。
+读取 `environment.json.analyzer.deploymentDocs`，逐一检查五个必要字段（buildCommand、startCommand、envVars、directoryLayout、deliveryModel）。
+
+**交叉验证**：同时读取 `deploymentDocs.readFiles` 和 `deploymentDocs.sourceLocations`，验证提取结果与文档原文一致。不一致 → FAIL，报告具体差异。
+
+任一缺失或验证不通过 → FAIL，报告「项目部署文档缺少 <字段名>」。
 
 ### DEPLOY-002: 项目构建
 
-在 `repository/<NN-Project>/` 执行 `deploymentDocs.buildCommand`。
+根据 `deploymentDocs.deliveryModel` 分支：
+
+**`deliveryModel: "pre-built"`**：跳过源码编译，验证仓库中预构建包结构：
+- 检查文档描述的产物目录是否存在于仓库中（如 `api/`、`web/`、`node_modules/`）
+- 产物存在 → PASS，直接进入 DEPLOY-003
+- 产物不存在 → FAIL，报告「文档声称预构建包含 <目录>，但仓库中未找到」
+
+**`deliveryModel: "source-build"`**：在 `repository/<NN-Project>/` 执行 `deploymentDocs.buildCommand`。
 - exit 0 → PASS
-- exit ≠ 0 → FAIL，捕获完整 stderr 作为报告附件
+- exit ≠ 0 → FAIL，捕获完整 stderr 作为报告附件，**不做任何排查**
+
+**`deliveryModel` 缺失或为其他值**：FAIL，报告「deploymentDocs.deliveryModel 未设置或无效」。
 
 ### DEPLOY-003: 依赖解析
 
+根据 `deliveryModel` 分支：
+
+**`pre-built`**：预构建包已包含依赖，跳过安装步骤。验证 `dev/software/` 下关键产物目录存在（按 `directoryLayout` 描述检查）。
+
+**`source-build`**：
 1. 打包编译产物到 `build/artifacts/<YYYYMMDD-HHmmss>-<commit>.tar.gz`
 2. 解压到 `build/dev/software/`
-3. `pnpm install --config.node-linker=hoisted`
-4. Prisma 项目：`npx prisma generate`
+3. 按文档安装依赖（文档说 pnpm 就用 pnpm，说 npm 就用 npm）
+4. 如文档要求额外步骤（如 Prisma generate），按文档执行
 
 归档禁止包含：`node_modules/`、`version/`、`.git/`、文档、大文件。
 
 ### DEPLOY-004: 制品归档
 
+**`pre-built`**：验证预构建包目录结构完整（按 `directoryLayout` 逐项检查产物目录和文件存在）。
+
+**`source-build`**：
 1. 验证 archive 和 manifest 文件存在
 2. manifest.files 与实际内容一致
-3. 关键文件存在（package.json、lock 文件）
+3. 关键文件存在（按文档要求检查）
 
 ### DEPLOY-005: 数据库文件
 

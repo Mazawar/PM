@@ -5,11 +5,11 @@
       "cron": "0 12 * * *",
       "prompt": "第一步（自动续签）：用 CronList 检查当前定时任务。找到 cron 为 \"0 12 * * *\" 的扫描任务，检查其 createdAt。如果距今超过 6 天，先 CronDelete 删除该任务，再用 CronCreate（cron=\"0 12 * * *\", durable=true, recurring=true）以本 prompt 原文重新创建，完成续签。\n\n第二步（仓库扫描）：用 Agent 工具（run_in_background: true）后台执行仓库扫描：bash .claude/scripts/scan.sh。\n\n第三步（报告分析，必须执行）：扫描完成后，读取 test_project/ 下每个项目的 scan-logs/ 目录。如果存在报告文件（{timestamp}.md），则读取最新报告，分析后写入或更新 test_project/<NN-Project>/scan-logs/summary.md（变更概述、影响范围、测试建议、潜在风险）。无论是否检测到新变更，只要 scan-logs/ 下有报告文件就必须确保 summary.md 与之同步。然后向用户汇报。无任何报告文件时才跳过。",
       "createdAt": 1780731291941,
+      "lastFiredAt": 1780893000691,
       "recurring": true,
       "createdBySessionId": "296b589a-43a3-4832-b07a-4af05c08ba3b",
       "createdByPid": 10956,
-      "createdByProcStart": "639163552781523810",
-      "lastFiredAt": 1780882435738
+      "createdByProcStart": "639163552781523810"
     }
   ]
 }
