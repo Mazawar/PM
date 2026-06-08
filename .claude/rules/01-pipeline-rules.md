@@ -214,7 +214,7 @@ running → failed（附 reason）
 4. `results/summary.md` 由 `generate-report.mjs` 合并三者统计
 
 **关键不变量**：
-- 部署验证不通过 = 上游问题（按 `pm-test.md` 第 3 节失败归因矩阵），不替上游修
+- 部署验证不通过 = 上游问题，不替上游修
 - 部署验证和环境验证是**两条独立管线**，互不阻断对方的报告产出
 
 ## migration 流程

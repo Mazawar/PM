@@ -52,10 +52,10 @@ pm/
 │       │       └── <timestamp>-<commit>.manifest.json
 │       ├── scan-logs/         # 变更报告（scan.sh 生成）
 │       └── results/           # 测试执行结果（按模块分目录）
-├── docs/                      # 项目文档
+├── docs/                      # 项目文档（agents.md）
 ├── .claude/
 │   ├── rules/                 # 项目规则（自动加载，00-08）
-│   ├── agents/                # Agent 定义（setup/planner/generator/healer/publisher/remote-setup）
+│   ├── agents/                # Agent 定义（analyzer/deployer/validator/planner/generator/healer/publisher）
 │   ├── skills/pm/             # 项目注册管理 skill
 │   └── scripts/
 │       ├── scan.sh            # 仓库扫描脚本
@@ -128,7 +128,6 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
 4. 首次运行测试 → 有失败则启动 healer
 5. 汇总结果（自动运行 `generate-report.mjs`） → 向用户汇报
 6. 测试全部通过后 **必须主动询问** 用户是否发布到 Git Release
-7. 日常启停服务：`bash .claude/scripts/runner.sh {start|stop|restart|status} <NN-Project>`
 
 - **环境检查** 在每次测试前按三层走：analyzer 缺失 → `project-manage-analyzer`；build 缺失 → `project-manage-deployer`；validate 缺失 → `project-manage-validator`
 - 每次测试前**必须**检查目标服务是否运行（读取 environment.json 的 healthCheck）
@@ -184,8 +183,9 @@ node .claude/scripts/migrate-pipeline-state.mjs --project <NN-Project> --dry-run
 
 ```
 /pm add [name] [url]    # 添加项目（名称和地址可选，缺省时交互询问，类型从地址自动推断）
-/pm del <name>          # 删除项目（需确认）
+/pm del <name>          # 删除项目（可选「彻底清理」删除磁盘目录）
 /pm list                # 列出已注册项目
+/pm track <name> [dirs] # 修改追踪目录
 ```
 
 ### 测试执行

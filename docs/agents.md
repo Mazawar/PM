@@ -51,7 +51,6 @@ analyzer.*   build.*      validator.*
 
 | 脚本 | 用途 |
 |------|------|
-| `runner.sh` | 日常启停服务（`start` / `stop` / `restart` / `status`） |
 | `scan.sh`   | 仓库扫描（检测变更，生成 scan-logs/） |
 | `init-dirs.mjs` | 项目目录初始化（幂等） |
 | `migrate-pipeline-state.mjs` | pipeline-state 迁移 + 读写（ESM） |
@@ -82,7 +81,7 @@ Report → [主会话问用户] → publisher → 上传 Gitee Release
 
 | 用户说 | 主会话动作 |
 |--------|-----------|
-| 「启动/停止/重启 xxx」 | `bash .claude/scripts/runner.sh {start\|stop\|restart} <NN-Project>` |
+| 「启动/停止/重启 xxx」 | 启动 `project-manage-validator`（含服务启停） |
 | 「配置 xxx 项目」 | 启动 `project-manage-analyzer` |
 | 「部署验证 xxx」 | 询问 buildMode → 启动 `project-manage-deployer` |
 | 「验证 xxx」 | 启动 `project-manage-validator` |
