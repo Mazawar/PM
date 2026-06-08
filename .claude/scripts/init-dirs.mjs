@@ -10,7 +10,7 @@
  *   node .claude/scripts/init-dirs.mjs --project <NN-Project>
  */
 
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync, copyFileSync, readFileSync } from 'fs';
 import { resolve, join } from 'path';
 
 const args = process.argv.slice(2);
@@ -84,6 +84,11 @@ const directories = [
     name: 'build/artifacts',
     guardFile: null,
   },
+  {
+    name: 'templates',
+    guardFile: 'generate-report-template.md',
+    guardContent: null, // 特殊处理：从全局模板复制
+  },
 ];
 
 // --- 执行 ---
@@ -105,8 +110,21 @@ for (const dir of directories) {
   if (dir.guardFile) {
     const guardPath = join(dirPath, dir.guardFile);
     if (!existsSync(guardPath)) {
-      writeFileSync(guardPath, dir.guardContent, 'utf-8');
-      console.log(`  ✓ 写入 ${dir.name}/${dir.guardFile}`);
+      if (dir.guardContent) {
+        writeFileSync(guardPath, dir.guardContent, 'utf-8');
+        console.log(`  ✓ 写入 ${dir.name}/${dir.guardFile}`);
+      } else {
+        // guardContent 为 null 时从全局模板复制
+        const globalTemplate = join(PROJECT_ROOT, '.claude', 'templates', dir.guardFile);
+        if (existsSync(globalTemplate)) {
+          copyFileSync(globalTemplate, guardPath);
+          console.log(`  ✓ 复制全局模板 -> ${dir.name}/${dir.guardFile}`);
+        } else {
+          // 全局模板也不存在 → 写空文件占位
+          writeFileSync(guardPath, '', 'utf-8');
+          console.log(`  · ${dir.name}/${dir.guardFile}（全局模板不存在，创建空文件）`);
+        }
+      }
     } else {
       console.log(`  · 已存在 ${dir.name}/${dir.guardFile}，跳过`);
     }

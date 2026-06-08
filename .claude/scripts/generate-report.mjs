@@ -18,7 +18,7 @@
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, copyFileSync } from 'fs';
-import { resolve, join, dirname, basename, relative } from 'path';
+import { resolve, join, dirname, basename } from 'path';
 
 // --- 参数解析 ---
 const args = process.argv.slice(2);
@@ -40,6 +40,43 @@ if (!existsSync(projectDir)) {
 }
 
 const resultsDir = join(projectDir, 'results');
+
+// --- 加载模板（项目级 → 全局 fallback）---
+function loadReportTemplate() {
+  const candidates = [
+    join(projectDir, 'templates', 'generate-report-template.md'),
+    join(PROJECT_ROOT, '.claude', 'templates', 'generate-report-template.md'),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return readFileSync(p, 'utf-8');
+  }
+  console.error('未找到模板文件');
+  process.exit(1);
+}
+
+const REPORT_TEMPLATE = loadReportTemplate();
+
+// --- 渲染重复块 {{#key}}...{{/key}} ---
+// 模板中用 {{#rows}} 和 {{/rows}} 包裹行模板，脚本按 TC 数量展开
+function renderRepeatBlock(template, key, items, getVars) {
+  const startTag = `{{#${key}}}`;
+  const endTag = `{{/${key}}}`;
+  const startIdx = template.indexOf(startTag);
+  const endIdx = template.indexOf(endTag);
+  if (startIdx === -1 || endIdx === -1) return template;
+
+  const blockTpl = template.slice(startIdx + startTag.length, endIdx);
+  const rendered = items.map((item, i) => {
+    const vars = getVars(item, i);
+    let row = blockTpl;
+    for (const [k, v] of Object.entries(vars)) {
+      row = row.replaceAll(`{{${k}}}`, v);
+    }
+    return row;
+  }).join('');
+
+  return template.slice(0, startIdx) + rendered + template.slice(endIdx + endTag.length);
+}
 
 // --- 定位 JSON 报告 ---
 function findReport() {
@@ -232,7 +269,7 @@ function generateProgress(module, tests) {
   return lines.join('\n') + '\n';
 }
 
-// --- 生成 report.md ---
+// --- 渲染 report.md（模板驱动）---
 function generateReport(module, tests, env) {
   const now = new Date();
   const timeStr = now.toISOString().slice(0, 16).replace('T', ' ');
@@ -241,81 +278,74 @@ function generateReport(module, tests, env) {
   const skipCount = tests.filter(t => t.status === 'skipped').length;
   const rate = tests.length > 0 ? Math.round(passCount / tests.length * 100) : 0;
 
-  let md = `# ${module} 测试报告\n\n`;
-  md += `## 概要\n`;
-  md += `- 测试需求: ${module} 模块自动化测试\n`;
-  md += `- 目标应用: ${env.baseURL || '-'}\n`;
-  md += `- 测试时间: ${timeStr}\n`;
-  md += `- 执行结果: ${passCount}/${tests.length} 通过（通过率 ${rate}%）\n\n`;
-
-  // 结果概览表
-  md += `## 结果概览\n`;
-  md += `| # | 用例编号 | 用例名称 | 结果 | 截图 |\n`;
-  md += `|---|---------|---------|------|------|\n`;
-  tests.forEach((t, i) => {
+  // 结果概览表（由模板 {{#rows}}{{/rows}} 控制列结构）
+  let md = REPORT_TEMPLATE;
+  md = renderRepeatBlock(md, 'rows', tests, (t, i) => {
     const status = t.status === 'passed' ? 'PASS' : t.status === 'skipped' ? 'SKIP' : 'FAIL';
     const shot = t.screenshots.length > 0 ? `![](${t.screenshots[t.screenshots.length - 1]})` : '-';
-    md += `| ${i + 1} | ${t.tcId} | ${t.title} | ${status} | ${shot} |\n`;
+    return {
+      index: String(i + 1),
+      tcId: t.tcId,
+      name: t.title,
+      status,
+      shot,
+    };
   });
-  md += '\n';
 
-  // 详细结果
-  md += `## 详细结果\n\n`;
-  for (const t of tests) {
-    // 陈旧 TC：直接复用已有段落
-    if (t._existingSection) {
-      md += t._existingSection + '\n\n';
-      continue;
-    }
+  // 生成详细结果
+  const details = tests.map(t => {
+    if (t._existingSection) return t._existingSection;
 
     const status = t.status === 'passed' ? 'PASS' : t.status === 'skipped' ? 'SKIP' : 'FAIL';
-    md += `### ${t.tcId}: ${t.title} - ${status}\n`;
+    let md = `### ${t.tcId}: ${t.title} - ${status}\n`;
 
-    // 步骤信息
     if (t.steps.length > 0) {
       md += `**步骤**:\n`;
       for (const step of t.steps) {
-        if (step.title) {
-          const stepStatus = step.error ? 'FAIL' : 'OK';
-          md += `1. ${step.title} - ${stepStatus}\n`;
-        }
+        if (step.title) md += `1. ${step.title} - ${step.error ? 'FAIL' : 'OK'}\n`;
       }
       md += '\n';
     }
 
-    // 预期/实际
     if (t.error) {
       md += `**预期**: （根据测试计划）\n`;
       md += `**实际**: ${t.error.message}\n\n`;
     }
 
-    // 截图
     if (t.screenshots.length > 0) {
       md += `**截图**:\n`;
-      for (const s of t.screenshots) {
-        md += `![](${s})\n\n`;
-      }
+      for (const s of t.screenshots) md += `![](${s})\n\n`;
     }
-  }
 
-  // 缺陷汇总
+    return md;
+  }).join('\n');
+
+  // 生成缺陷汇总
   const failed = tests.filter(t => t.status === 'failed');
+  let defectSummary = '';
   if (failed.length > 0) {
-    md += `## 缺陷汇总\n`;
-    md += `| # | 严重程度 | 用例 | 描述 | 建议 |\n`;
-    md += `|---|---------|------|------|------|\n`;
+    defectSummary = `## 缺陷汇总\n`;
+    defectSummary += `| # | 严重程度 | 用例 | 描述 | 建议 |\n`;
+    defectSummary += `|---|---------|------|------|------|\n`;
     failed.forEach((t, i) => {
-      md += `| ${i + 1} | P1 | ${t.tcId} | ${t.error?.message || '未知错误'} | 需排查修复 |\n`;
+      defectSummary += `| ${i + 1} | P1 | ${t.tcId} | ${t.error?.message || '未知错误'} | 需排查修复 |\n`;
     });
-    md += '\n';
+    defectSummary += '\n';
   }
 
-  // 环境信息
-  md += `## 环境信息\n`;
-  md += `- 浏览器: Chromium\n`;
-  md += `- 分辨率: 1920x1080\n`;
-
-  return md;
+  // 替换模板变量（{{#rows}}{{/rows}} 已在上面展开）
+  const baseURL = env.validator?.remote?.baseURL || env.analyzer?.baseURL || env.baseURL || '-';
+  return md
+    .replace(/\{\{module\}\}/g, module)
+    .replace(/\{\{baseURL\}\}/g, baseURL)
+    .replace(/\{\{testTime\}\}/g, timeStr)
+    .replace(/\{\{passCount\}\}/g, passCount)
+    .replace(/\{\{failCount\}\}/g, failCount)
+    .replace(/\{\{skipCount\}\}/g, skipCount)
+    .replace(/\{\{totalCount\}\}/g, tests.length)
+    .replace(/\{\{passRate\}\}/g, rate)
+    .replace(/\{\{tcDetails\}\}/g, details)
+    .replace(/\{\{defectSummary\}\}/g, defectSummary);
 }
 
 // --- 生成 summary.md ---

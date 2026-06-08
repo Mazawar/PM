@@ -57,6 +57,8 @@ test_project/<NN-Project>/
 │   └── artifacts/          # 构建归档（不可删除）
 │       ├── <timestamp>-<commit>.tar.gz
 │       └── <timestamp>-<commit>.manifest.json
+├── templates/                # 报告模板（项目级，可选）
+│   └── generate-report-template.md  # 测试报告 markdown 模板
 └── scan-logs/
     ├── summary.md            # 变更分析汇总（定时扫描写入）
     └── {timestamp}.md        # 变更报告（scan.sh 生成）
