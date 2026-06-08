@@ -94,6 +94,27 @@ dev/
 
 ### Phase 2：远程部署（mode=remote 时追加）
 
+#### SSH 工具选择指南（强制）
+
+**优先使用高层工具，`ssh_execute` 仅作为无对应工具时的兜底。**
+
+| 操作场景 | 首选工具 | 优势 |
+|---------|---------|------|
+| 系统健康/资源探测 | `ssh_health_check` + `ssh_monitor` | 一次调用获取 CPU/内存/磁盘/网络 |
+| 服务状态检查 | `ssh_service_status` | 批量查多个服务 |
+| 文件同步到远程 | `ssh_sync`（rsync 增量） | 仅传输变更，替代 tar+upload+extract |
+| 配置文件部署 | `ssh_deploy`（带权限+备份） | 自动备份旧文件、设置权限 |
+| 数据库备份 | `ssh_backup_create` | 自带压缩、保留期 |
+| 查看已有数据库/表 | `ssh_db_list` | 结构化结果，无需拼命令 |
+| 导入 SQL 文件 | `ssh_db_import` | 自动处理字符集 |
+| 查询验证数据 | `ssh_db_query` | 只读安全，结构化返回 |
+| 连续配置命令 | `ssh_session_start` + `ssh_session_send` | 持久会话，减少连接开销 |
+| 单条快速命令 | `ssh_execute` | 兜底 |
+| 需要 sudo 的命令 | `ssh_execute_sudo` | 兜底 |
+| 查看备份历史 | `ssh_backup_list` | 结构化列表 |
+
+**连续操作**（如多步环境配置）使用 `ssh_session` 持久会话；独立操作直接用对应高层工具。
+
 #### 1. 服务器绑定
 
 检查 `remoteConfig`：
@@ -102,7 +123,15 @@ dev/
 
 #### 2. 环境探测
 
-探测远程现有环境（OS、node、mysql、nginx、端口、磁盘）。**仅探测不安装。**
+使用高层工具一次获取多项指标，**替代多条 `ssh_execute`**：
+
+```
+ssh_health_check(server, detailed=true)                         # CPU/内存/磁盘/运行时间
+ssh_service_status(server, services=["mysql", "nginx"])         # 批量检查服务
+ssh_monitor(server, type="overview")                            # 详细资源概览
+```
+
+仅探测不安装。将结果写入 `deploy-config.json.installedComponents`。
 
 #### 3. 缺失组件上报
 
@@ -113,43 +142,90 @@ dev/
 
 > 注意：首次部署时可选择自动安装基础组件（Node.js、MySQL、Nginx），但**不反复尝试**，一次装不上就报告。
 
-#### 4. 上传 dev/
+#### 4. 操作前备份（重绑/重部署时）
 
-```bash
-cd build && cp -a dev <NN-Project> && tar -czf <NN-Project>.tar.gz <NN-Project>/
-ssh_upload <NN-Project>.tar.gz <deployPath>/
-ssh_execute "cd <deployPath> && tar -xzf <NN-Project>.tar.gz"
+使用 `ssh_backup_create` 替代手动 `mysqldump`：
+
+```
+ssh_backup_create(server, type="mysql", database=<db>, name="pre-deploy-<NN-Project>")
 ```
 
-验证：`ssh_execute "ls <deployPath>/software/package.json"`
+- 首次部署可跳过
+- 重绑/重部署**必须**备份
+- 可用 `ssh_backup_list(server)` 查看历史备份
 
-#### 5. 配置环境
+#### 5. 上传 dev/
 
-按 `deploymentDocs.envVars` 配置 .env：
-1. 复制 `.env.development` → `.env`
-2. 修改 `DATABASE_URL` 指向 localhost
-3. 验证所有 `envVars` 列出的变量都已配置
+使用 `ssh_sync` 增量同步，替代 tar+upload+extract 三步操作：
 
-#### 6. 初始化数据库
+```
+ssh_sync(server, source="local:build/dev/", destination="remote:<deployPath>/dev/",
+         compress=true, exclude=["node_modules", "*.log"])
+```
 
-按 `dbConfig` 执行：
-1. 建库（`CREATE DATABASE IF NOT EXISTS ... CHARACTER SET utf8mb4`）
-2. 按 `initFiles` 顺序导入 SQL（`--default-character-set=utf8mb4`）
-3. 导入 `seedFiles`（如有）
-4. 简单验证：查询关键表记录数
+- rsync 增量传输，仅发送变更文件
+- 验证：`ssh_execute(server, "ls <deployPath>/dev/software/package.json")`
+
+#### 6. 配置环境
+
+使用 `ssh_session` 持久会话执行连续配置命令：
+
+```
+session = ssh_session_start(server, name="deploy-config")
+ssh_session_send(session, "cd <deployPath>/dev/software && cp .env.development .env")
+ssh_session_send(session, "sed -i 's|DATABASE_URL=.*|DATABASE_URL=mysql://...|' .env")
+ssh_session_send(session, "grep -c '.' .env")
+ssh_session_close(session)
+```
+
+按 `deploymentDocs.envVars` 配置 .env，验证所有变量齐备。
+
+#### 7. 初始化数据库
+
+优先使用数据库高层工具，替代手动 `mysql` 命令：
+
+```
+# 查看已有数据库
+ssh_db_list(server, type="mysql")
+
+# 建库（无对应高层工具，用 execute）
+ssh_execute(server, "mysql -u root -e 'CREATE DATABASE IF NOT EXISTS <db> CHARACTER SET utf8mb4'")
+
+# 按 dbConfig.initFiles 顺序导入
+ssh_db_import(server, type="mysql", database=<db>, inputFile="<deployPath>/dev/database/<file>.sql")
+
+# 导入 seedFiles
+ssh_db_import(server, type="mysql", database=<db>, inputFile="<deployPath>/dev/database/<seed>.sql")
+
+# 验证关键表数据
+ssh_db_query(server, type="mysql", database=<db>, query="SELECT COUNT(*) AS cnt FROM <关键表>")
+```
 
 失败 → **报告「数据库初始化失败」**，附错误信息，不尝试修复。
 
-#### 7. Nginx 配置（有前端时）
+#### 8. Nginx 配置（有前端时）
 
-按 `deploymentDocs.directoryLayout` 确定前端产物路径，生成 Nginx 配置：
-- 静态文件路径 + SPA 回退 + API 反向代理 + WebSocket（如需要）
-- `nginx -t` 验证 → `systemctl reload nginx`
-- 保存副本到 `build/nginx.conf`
+使用 `ssh_deploy` 部署配置文件（自动备份旧配置）：
 
-#### 8. 清理
+```
+ssh_deploy(server,
+  files=[{local: "build/nginx.conf", remote: "/etc/nginx/sites-available/<NN-Project>"}],
+  options={backup: true, permissions: "644"})
+```
 
-- 远程：删除上传的 tar.gz
+然后验证并重载：
+
+```
+ssh_execute_sudo(server, "ln -sf /etc/nginx/sites-available/<NN-Project> /etc/nginx/sites-enabled/")
+ssh_execute_sudo(server, "nginx -t")
+ssh_execute_sudo(server, "systemctl reload nginx")
+```
+
+保存副本到 `build/nginx.conf`。
+
+#### 9. 清理
+
+- 远程临时文件：`ssh_session_start` + `ssh_session_send` 批量删除
 - 本地：删除 `build/<NN-Project>/` 副本，`build/tmp/` 清理
 
 ## 产出文件

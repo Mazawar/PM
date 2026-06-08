@@ -5,10 +5,21 @@ tools: Read, Glob, Grep, Bash, Write, Edit, AskUserQuestion,
   mcp__ssh-manager__ssh_execute,
   mcp__ssh-manager__ssh_execute_sudo,
   mcp__ssh-manager__ssh_upload,
+  mcp__ssh-manager__ssh_download,
+  mcp__ssh-manager__ssh_sync,
+  mcp__ssh-manager__ssh_deploy,
   mcp__ssh-manager__ssh_health_check,
+  mcp__ssh-manager__ssh_monitor,
+  mcp__ssh-manager__ssh_service_status,
+  mcp__ssh-manager__ssh_backup_create,
+  mcp__ssh-manager__ssh_backup_list,
   mcp__ssh-manager__ssh_db_list,
   mcp__ssh-manager__ssh_db_query,
-  mcp__ssh-manager__ssh_monitor
+  mcp__ssh-manager__ssh_db_dump,
+  mcp__ssh-manager__ssh_db_import,
+  mcp__ssh-manager__ssh_session_start,
+  mcp__ssh-manager__ssh_session_send,
+  mcp__ssh-manager__ssh_session_close
 model: sonnet
 color: orange
 ---
@@ -85,11 +96,14 @@ color: orange
 1. 打包 `<NN-Project>.tar.gz`
 2. 写 `deploy-config.json`、`nginx.conf`
 3. 安装远程运行时（按 `analyzer.remoteProbe.runtime` 缺失项）
-4. 上传 dev/ 到远程 deployPath
-5. 操作前备份（首次可跳，重绑必做）
-6. 远程配置 .env + 初始化数据库
-7. 写 `build.remote.*` 段
-8. **保留**远程部署产物（部署成功后由 main 清理）
+4. 环境探测：`ssh_health_check` + `ssh_service_status` + `ssh_monitor`
+5. 操作前备份：`ssh_backup_create`（首次可跳，重绑必做）
+6. 上传 dev/：`ssh_sync` 增量同步（替代 tar+upload+extract）
+7. 配置 .env：`ssh_session_start` + `ssh_session_send` 持久会话
+8. 初始化数据库：`ssh_db_list` → `ssh_db_import` → `ssh_db_query` 验证
+9. Nginx 部署：`ssh_deploy`（自动备份旧配置）+ `ssh_execute_sudo` 验证重载
+10. 写 `build.remote.*` 段
+11. **保留**远程部署产物（部署成功后由 main 清理）
 
 ### Step 11: 写入 build 段
 
