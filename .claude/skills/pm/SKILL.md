@@ -16,6 +16,26 @@ Manage projects in two registry files:
 
 Both use `<!-- projects-start -->` / `<!-- projects-end -->` markers. Only edit within markers.
 
+## 表格格式规范（强制）
+
+标记区域内的内容**必须严格遵循以下格式**，确保 Markdown 表格正确渲染：
+
+```markdown
+<!-- projects-start -->
+
+| 编号 | 地址 | 仓库 | 类型 | 追踪 |
+| --- | --- | --- | --- | --- |
+| 01-RuoYi-Vue | ./01-RuoYi-Vue | ... | Git | |
+
+<!-- projects-end -->
+```
+
+格式规则：
+- `<!-- projects-start -->` 后**必须有一个空行**，再接表头
+- 表头行、分隔行、数据行之间**无空行**
+- 最后一条数据行与 `<!-- projects-end -->` 之间**必须有一个空行**
+- **写入前先读取当前文件**，用 Edit 的 `old_string` 精确匹配现有内容（含空行），确保替换后格式一致
+
 ## Parse Arguments
 
 Determine action from **$ARGUMENTS**:
@@ -97,7 +117,17 @@ mkdir -p test_project/{NN}-{Name}/{test-config/plans,tests/{unit,api,e2e,ui},res
 Note the address column differs: repository uses `./`, test_project uses `../repository/`.
 {Track} 留空时第 5 列也留空（`| |` 末位空字段），不要写 `null` 或 `none`。
 
-### Step 6: Report
+### Step 6: Scan
+
+立即执行扫描，克隆仓库并建立追踪软链接：
+
+```bash
+bash .claude/scripts/scan.sh {Name}
+```
+
+扫描会自动完成：克隆仓库到 `repository/{NN}-{Name}/`、建立 track/ 软链接（如有追踪目录）。
+
+### Step 7: Report
 
 Output a summary:
 
@@ -109,9 +139,8 @@ Output a summary:
 | repository/README.md | {NN}-{Name} \| ./{NN}-{Name} \| {URL} \| {Type} \| {Track} |
 | test_project/README.md | {NN}-{Name} \| ../repository/{NN}-{Name} \| {URL} \| {Type} \| {Track} |
 
-下次执行 scan.sh 时将自动克隆仓库。
-{如果填了追踪目录}如果 test_project/{NN}-{Name}/track/ 不存在，下次 scan.sh 会建立软链接；想立即建，运行 bash .claude/scripts/scan.sh 或 /pm track {NN}-{Name}。
-测试前环境检查时将自动启动 analyzer / builder / validator 三段 agent 配置环境（端口、凭据、技术栈分析），已配置则跳过。
+仓库已克隆{如果填了追踪目录}，追踪软链接已建立}。
+测试前环境检查时将自动启动 analyzer / deployer / validator 三段 agent 配置环境，已配置则跳过。
 ```
 
 ---
@@ -134,11 +163,13 @@ Output a summary:
 Use **AskUserQuestion** to confirm deletion:
 
 ```
-确认删除项目 {NN}-{Name}？此操作将从两个注册表中移除该项目。
-注意：已克隆的仓库目录、测试产物、test_project/{NN}-{Name}/track/ 软链接不会被自动删除，需手动清理。
+确认删除项目 {NN}-{Name}？
 ```
 
-Options: `确认删除` / `取消`
+Options:
+- `仅移除注册` — 从两个注册表中移除，仓库目录和测试产物保留在磁盘上
+- `彻底清理` — 从注册表移除 + 删除仓库目录 + 删除测试产物目录（不可恢复）
+- `取消`
 
 If cancelled, stop with `已取消。`
 
@@ -148,8 +179,27 @@ Remove the matching row from:
 - `repository/README.md`
 - `test_project/README.md`
 
-### Step 5: Report
+### Step 5: Cleanup (if 彻底清理)
 
+If user chose `彻底清理`, delete physical directories:
+
+```bash
+rm -rf repository/{NN}-{Name}
+rm -rf test_project/{NN}-{Name}
+```
+
+Before deletion, list directory sizes for the report:
+
+```bash
+du -sh repository/{NN}-{Name} 2>/dev/null
+du -sh test_project/{NN}-{Name} 2>/dev/null
+```
+
+If directories don't exist (already deleted or never cloned), skip silently.
+
+### Step 6: Report
+
+**仅移除注册:**
 ```
 ✓ 项目已移除: {NN}-{Name}
 
@@ -157,7 +207,20 @@ Remove the matching row from:
 - repository/README.md
 - test_project/README.md
 
-注意：仓库目录、测试产物、test_project/{NN}-{Name}/track/ 软链接仍保留在磁盘上，需手动清理。
+注意：仓库目录、测试产物仍保留在磁盘上，需手动清理。
+```
+
+**彻底清理:**
+```
+✓ 项目已彻底清理: {NN}-{Name}
+
+已从以下文件中删除:
+- repository/README.md
+- test_project/README.md
+
+已删除目录:
+- repository/{NN}-{Name}/ ({size})
+- test_project/{NN}-{Name}/ ({size})
 ```
 
 ---
