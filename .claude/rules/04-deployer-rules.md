@@ -256,7 +256,7 @@ nginx -t 通过 → PASS，失败 → FAIL。
 
 ### 部署验证报告
 
-在 `results/build/` 下写 `progress.txt` 和 `report.md`。
+在 `test_project/<NN-Project>/results/.build/deploy/` 下写 `progress.txt` 和 `report.md`。
 
 **progress.txt**：
 ```

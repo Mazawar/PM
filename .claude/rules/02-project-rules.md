@@ -46,6 +46,13 @@ test_project/<NN-Project>/
 │           └── ...
 ├── results/
 │   ├── summary.md
+│   ├── .build/                   # 构建验证报告（.前缀排在目录最前）
+│   │   ├── deploy/               # deployer 部署验证报告
+│   │   │   ├── progress.txt
+│   │   │   └── report.md
+│   │   └── env/                  # validator 环境验证报告
+│   │       ├── progress.txt
+│   │       └── report.md
 │   └── {module}/
 │       ├── progress.txt
 │       ├── report.md

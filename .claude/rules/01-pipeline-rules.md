@@ -202,15 +202,17 @@ running → failed（附 reason）
 
 **主会话调度规则**：
 
-1. Validate 阶段（validator agent）完成后，**必须**检查 `test_project/<NN-Project>/results/build/progress.txt`：
-   - DEPLOY-001~004（deployer 输出）+ ENV-001~004（validator 输出）全 PASS → 主会话可启动 planner
+1. Validate 阶段（validator agent）完成后，**必须**分别检查：
+   - `results/.build/deploy/progress.txt`（deployer 输出 DEPLOY-001~010）
+   - `results/.build/env/progress.txt`（validator 输出 ENV-001~004）
+   - 两份全 PASS → 主会话可启动 planner
    - 任一 FAIL（归因为上游）→ **不**启动 planner，出具打回报告
    - 任一 FAIL（归因为平台）→ 平台侧修复后重跑对应阶段
 2. 端到端测试通过后，**主会话主动询问**用户是否发布（不变）
-3. `results/build/report.md` 与 `results/{module}/report.md` **是平级独立**的两份报告：
-   - 部署验证报告：验证上游产物能不能跑（deployer 出 DEPLOY-001~004）
-   - 环境验证报告：验证环境能不能用（validator 出 ENV-001~004）
-   - 业务测试报告：验证跑起来的应用业务对不对
+3. `results/.build/` 下有**三份独立报告**：
+   - 部署验证报告：`results/.build/deploy/report.md`（deployer 出，验证上游产物能不能跑）
+   - 环境验证报告：`results/.build/env/report.md`（validator 出，验证环境能不能用）
+   - 业务测试报告：`results/{module}/report.md`（验证跑起来的应用业务对不对）
 4. `results/summary.md` 由 `generate-report.mjs` 合并三者统计
 
 **关键不变量**：

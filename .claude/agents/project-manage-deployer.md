@@ -94,7 +94,7 @@ color: orange
 
 ### Step 4: 写报告
 
-在 `results/build/` 下写 `progress.txt` 和 `report.md`。
+在 `test_project/<NN-Project>/results/.build/deploy/` 下写 `progress.txt` 和 `report.md`。
 
 报告覆盖所有 DEPLOY-001~010 的结果（未执行的记 SKIP）。
 

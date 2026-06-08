@@ -1,6 +1,6 @@
 ---
 name: project-manage-validator
-description: '项目环境验证智能体。环境验证 + 健康检查 + 出报告。启动服务（local 执行 start.sh / remote 启动后端+Nginx）→ 健康检查 → 页面验证 → 登录验证 → 出具环境验证报告（results/build/）。mode=remote 时同步 baseURL。由主会话在 deployer 完成时启动。'
+description: '项目环境验证智能体。环境验证 + 健康检查 + 出报告。启动服务（local 执行 start.sh / remote 启动后端+Nginx）→ 健康检查 → 页面验证 → 登录验证 → 出具环境验证报告（test_project/<NN-Project>/results/.build/env/）。mode=remote 时同步 baseURL。由主会话在 deployer 完成时启动。'
 tools: Read, Glob, Grep, Bash, Write, Edit, AskUserQuestion, mcp__playwright-test__browser_navigate, mcp__playwright-test__browser_snapshot, mcp__playwright-test__browser_click, mcp__playwright-test__browser_type, mcp__playwright-test__browser_take_screenshot, mcp__playwright-test__browser_wait_for, mcp__playwright-test__browser_console_messages,
   mcp__ssh-manager__ssh_execute,
   mcp__ssh-manager__ssh_execute_sudo,
@@ -22,7 +22,7 @@ color: green
 - 启动脚本：`test_project/<NN-Project>/start.sh`
 - 环境配置：`test_project/<NN-Project>/test-config/environment.json`
 - Playwright 配置：`test_project/<NN-Project>/playwright.config.ts`
-- 报告：`test_project/<NN-Project>/results/build/`
+- 报告：`test_project/<NN-Project>/results/.build/env/`
 
 ## 启动前主会话必传信息
 
@@ -60,7 +60,7 @@ color: green
 
 ### Step 6: 出具环境验证报告
 
-在 `results/build/` 下写 ENV-001~004 的 progress.txt 和 report.md（见 05-validator-rules.md）。
+在 `test_project/<NN-Project>/results/.build/env/` 下写 ENV-001~004 的 progress.txt 和 report.md（见 05-validator-rules.md）。
 
 ### Step 7: mode=remote 追加步骤
 

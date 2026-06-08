@@ -27,7 +27,7 @@ analyzer.*   build.*      validator.*
 
 - **analyzer**：只读分析，**不构建、不启动**
 - **deployer**：按 `environment.json.build.mode`（`local` / `remote`）分支，**不启动服务**
-- **validator**：启动服务、做健康/页面/登录验证、生成 seed，**不修改 build/ 产物**；同时出具 `results/build/` 构建测试报告（**测试流程第一道闸门**，不通过不进入端到端）
+- **validator**：启动服务、做健康/页面/登录验证、生成 seed，**不修改 build/ 产物**；同时出具 `results/.build/env/` 环境验证报告（**测试流程第一道闸门**，不通过不进入端到端）
 
 状态交接载体：`test_project/<NN-Project>/test-config/environment.json` 的三段字段（`analyzer.*` / `build.*` / `validator.*`）。
 
@@ -38,12 +38,12 @@ analyzer.*   build.*      validator.*
                                             ├─ 全 PASS → planner → generator → healer → 端到端
                                             └─ 有 FAIL（上游）→ 打回，不进入端到端
                                                   ↓
-                                            results/build/ + results/{module}/ 独立报告
+                                            results/.build/ + results/{module}/ 独立报告
                                                   ↓
                                             summary.md 合并汇总
 ```
 
-两路测试报告平级独立：构建测试（`results/build/`）+ 端到端（`results/{module}/`），由 `generate-report.mjs` 合并到 `results/summary.md`。
+两路测试报告平级独立：构建验证（`results/.build/deploy/`）+ 环境验证（`results/.build/env/`）+ 端到端（`results/{module}/`），由 `generate-report.mjs` 合并到 `results/summary.md`。
 
 ## 工具脚本
 

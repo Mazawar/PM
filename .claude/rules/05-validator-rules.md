@@ -64,7 +64,7 @@ exit 1
 
 ## 出具报告
 
-完成验证后，在 `test_project/<NN-Project>/results/build/` 下写两份文件。
+完成验证后，在 `test_project/<NN-Project>/results/.build/env/` 下写两份文件。
 
 ### progress.txt
 

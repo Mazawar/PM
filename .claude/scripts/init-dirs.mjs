@@ -67,17 +67,29 @@ const directories = [
     guardFile: null,
   },
   {
-    name: 'results/build',
+    name: 'results/.build/deploy',
     guardFile: 'README.md',
-    guardContent: `# 构建测试报告目录
+    guardContent: `# 部署验证报告目录
 
-存放构建验证环节的产物（与业务测试 scan-logs 平级，但路径独立为 \`results/build/\`）。
+存放 deployer 部署验证的产物。
 
-- **progress.txt** — 8 项构建验证项的 PASS/FAIL/SKIP 状态
-- **report.md** — 详细验证结果（制品完整性、依赖、数据库、配置、启动、健康、页面、登录）
-- **summary.md** — 跨项目构建验证汇总
+- **progress.txt** — DEPLOY-001~010 的 PASS/FAIL/SKIP 状态
+- **report.md** — 详细验证结果（文档完整性、构建、依赖、归档、数据库、配置、远程环境、同步、数据库初始化、Nginx）
 
-构建验证是测试流程的第一道闸门，不通过不进入端到端测试。
+部署验证是测试流程的第一道闸门，不通过不进入端到端测试。
+`,
+  },
+  {
+    name: 'results/.build/env',
+    guardFile: 'README.md',
+    guardContent: `# 环境验证报告目录
+
+存放 validator 环境验证的产物。
+
+- **progress.txt** — ENV-001~004 的 PASS/FAIL/SKIP 状态
+- **report.md** — 详细验证结果（服务启动、健康检查、页面渲染、登录验证）
+
+环境验证是测试流程的第一道闸门，不通过不进入端到端测试。
 `,
   },
   {
