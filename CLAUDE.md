@@ -11,11 +11,17 @@ npm install
 # 2. 安装 Playwright 浏览器
 npx playwright install chromium
 
-# 3. 配置 SSH（可选，如需远程管理）
+# 3. 安装 OfficeCli（文档生成工具）
+# Windows (PowerShell):
+irm https://raw.githubusercontent.com/iOfficeAI/OfficeCLI/main/install.ps1 | iex
+# macOS / Linux:
+curl -fsSL https://raw.githubusercontent.com/iOfficeAI/OfficeCLI/main/install.sh | bash
+
+# 4. 配置 SSH（可选，如需远程管理）
 cp .env.example .env
 # 编辑 .env 填写 SSH_SERVER_* 变量
 
-# 4. 启动 Claude Code，智能体会自动加载 .mcp.json 中的 MCP Server
+# 5. 启动 Claude Code，智能体会自动加载 .mcp.json 中的 MCP Server
 ```
 
 ## Project Overview

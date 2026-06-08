@@ -171,6 +171,26 @@ SQL dump 导入指定 `--default-character-set=utf8mb4` 防止中文乱码。
 4. **每个字段附原文出处**：`readFiles` 记录提取了哪些文件，`sourceLocations` 记录每个关键字段来自哪个文件的哪个章节标题
 5. **文档中没有的信息 → 写 `"未在文档中找到"`**，禁止自行推断、猜测、从代码反向工程
 
+### 前后端分离构建识别（强制）
+
+**前后端分离项目（前端和后端在不同目录、用不同工具构建）必须分别提取构建信息。**
+
+判断标准：仓库中存在独立的前端目录（且有独立的构建配置如 `package.json` + `vue.config.js`/`vite.config.*`/`webpack.config.*`）→ 前后端分离项目。
+
+提取要求：
+
+| 字段 | 说明 | 缺失时 |
+|------|------|--------|
+| `frontendBuild.command` | 前端构建命令（如 `npm run build:prod`） | 从前端目录的 `package.json` scripts 中 `build` 字段获取 |
+| `frontendBuild.workDir` | 前端构建的工作目录（相对于仓库根目录） | 必须填写 |
+| `frontendBuild.outputDir` | 构建产物输出目录（相对于 workDir） | 从构建工具配置推断（`vue.config.js` 的 `outputDir`、`vite.config.*` 的 `build.outDir`，默认 `dist`） |
+
+**单构建项目**（如 NestJS 全栈、Django + 模板）不需要 `frontendBuild`，保持原有 `buildCommand` 即可。
+
+**前后端分离项目的 `buildCommand` 仍指后端构建命令**（如 `mvn clean package`），前端构建由 `frontendBuild` 单独描述。deployer 会分别执行两个构建。
+
+**前端服务策略**：前后端分离项目中，前端**一律通过 Nginx 托管静态文件**。除非项目文档明确要求前端以 dev 模式运行，否则不在远程安装 Node.js、不运行前端 dev server。`frontendBuild.command` 必须是生产构建命令（如 `npm run build:prod`），不是 dev 命令。
+
 ### 如果 track/ 不存在
 
 跳过本步骤，不阻塞 analyzer 完成。deployer 将退回通用推断模式。
@@ -205,6 +225,11 @@ SQL dump 导入指定 `--default-character-set=utf8mb4` 防止中文乱码。
         "dbInit": "update_readme.md §5 数据库变更"
       },
       "buildCommand": "NONE | pnpm install && pnpm build",
+      "frontendBuild": {
+        "command": "npm run build:prod",
+        "workDir": "<前端目录相对路径>",
+        "outputDir": "dist/"
+      },
       "startCommand": "pm2 start ecosystem.config.cjs",
       "dbInit": "mysql -u root -p --default-character-set=utf8mb4 <db> < database/keyidea_newoa.sql",
       "envVars": ["DATABASE_URL", "PORT"],

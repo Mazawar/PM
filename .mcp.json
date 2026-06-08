@@ -7,6 +7,10 @@
     "ssh-manager": {
       "command": "npx",
       "args": ["mcp-ssh-manager"]
+    },
+    "officecli": {
+      "command": "officecli",
+      "args": ["mcp"]
     }
   }
 }
