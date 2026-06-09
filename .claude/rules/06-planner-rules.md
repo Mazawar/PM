@@ -85,7 +85,7 @@ UI 测试统一 Playwright。L2 API 测试统一 Vitest。
 
 ### 测试 ID 格式
 
-- 脚本文件：`TP-<project>-L<level>-<NNN>`（如 `TP-01-RuoYi-Vue-L3-003`）
+- 脚本文件：`TP-<project>-L<level>-<NNN>`（如 `TP-<NN-Project>-L3-003`）
 - 计划与报告：`TC-XXX`（全局唯一，跨模块连续递增）
 
 ## 计划分层（强制）

@@ -52,7 +52,7 @@ color: orange
 2. 读取 `build.mode`（必须为 local 或 remote）
 3. mode=remote 时检查 `remoteConfig.server` + `deployPath` 非空
 4. 输出 `global.Build` 当前状态
-5. 预创建 `build/tmp/`、`build/dev/logs/`
+5. 预创建 `build/dev/backend/`、`build/dev/frontend/`（有前端时）、`build/dev/logs/`、`build/backups/`
 
 ### Step 2: 交叉验证（强制）
 
@@ -72,7 +72,7 @@ color: orange
 
 1. **DEPLOY-001 文档完整性**：检查 deploymentDocs 四字段
 2. **DEPLOY-002 项目构建**：执行 buildCommand
-3. **DEPLOY-003 依赖解析**：归档 → 解压到 dev/software/ → 按文档安装依赖（pre-built 模式跳过安装）
+3. **DEPLOY-003 依赖解析**：归档 → 后端解压到 `dev/backend/`，前端复制到 `dev/frontend/`（pre-built 模式按 directoryLayout 映射）
 4. **DEPLOY-004 制品归档**：验证产物完整性（source-build: archive + manifest；pre-built: 目录结构）
 5. **DEPLOY-005 数据库文件**：提取 SQL 到 dev/database/
 6. **DEPLOY-006 配置完整性**：检查 .env 变量齐备

@@ -157,7 +157,7 @@ ls test_project/<NN-Project>/results/ | grep -v '^summary\.md$' | grep -v '^\.'
 
 主会话拿到上述输出后调用：
 ```js
-import { appendPublish } from './.claude/scripts/migrate-pipeline-state.mjs';
+import { appendPublish } from './.claude/scripts/pipeline-state.mjs';
 appendPublish('test_project/<NN-Project>', {
   version, commit, archive, parts, releaseUrl, modules, releasedAt
 });

@@ -58,32 +58,43 @@ SQL dump 导入指定 `--default-character-set=utf8mb4` 防止中文乱码。
 
 ```
 初始化顺序：
-1. <全量 SQL dump>.sql              — 初始结构 + 全量数据
-2. version/v0.0.1/sql/migrate_*.sql  — v0.0.1 变更
-3. version/v0.0.2/sql/migrate_*.sql  — v0.0.2 变更
-4. version/v0.0.2/sql/seed_*.sql     — v0.0.2 种子数据（放在该版本 migrate 之后）
-...
+1. <全量 SQL dump>.sql                       — 初始结构 + 全量数据
+2. version/<vX.Y.Z>/sql/migrate_*.sql        — 该版本变更
+3. version/<vX.Y.Z>/sql/seed_*.sql            — 该版本种子数据（放在 migrate 之后）
+...按版本号升序逐一执行
 ```
 
 - 全量 SQL dump 必须最先执行
 - 版本迁移按目录名排序（`v0.0.1` → `v0.0.2` → ...），不能跳过中间版本
 - 每个版本内先执行 `migrate_*.sql`，再执行 `seed_*.sql`（如有）
 - analyzer 在 `dbConfig.initFiles` 中如实列出**全部** SQL 文件（全量 dump + 各版本 migrate + seed），按执行顺序排列
-- 组装 `build/dev/database/` 时，保持扁平版本目录结构：`database/v0.1.0/migrate_*.sql`
+- 组装 `build/dev/database/` 时，保持扁平版本目录结构：`database/< vX.Y.Z >/migrate_*.sql`
 
 ```json
-// 以 v0.0.2 项目为例的 dbConfig
+// dbConfig 按项目实际情况选择 initMethod：
+
+// 1. sql-dump：仅全量 SQL 文件
+"dbConfig": {
+  "url": "mysql://...",
+  "initMethod": "sql-dump",
+  "initFiles": ["database/init.sql"],
+  "seedFiles": []
+}
+
+// 2. sql-scripts：多个 SQL 脚本（无版本目录）
+"dbConfig": {
+  "url": "mysql://...",
+  "initMethod": "sql-scripts",
+  "initFiles": ["schema.sql", "data.sql"],
+  "seedFiles": ["seed.sql"]
+}
+
+// 3. versioned-sql：仓库含 version/ 目录时，按版本升序列出全部 SQL
 "dbConfig": {
   "url": "mysql://...",
   "initMethod": "versioned-sql",
-  "initFiles": [
-    "keyidea_newoa.sql",
-    "version/v0.0.1/sql/migrate_v0.1.0.sql",
-    "version/v0.0.2/sql/migrate_v0.0.2.sql"
-  ],
-  "seedFiles": [
-    "version/v0.0.2/sql/seed_v0.0.2.sql"
-  ]
+  "initFiles": ["<全量dump>.sql", "<版本目录>/migrate_*.sql", "..."],
+  "seedFiles": ["<版本目录>/seed_*.sql"]
 }
 ```
 
@@ -191,6 +202,78 @@ SQL dump 导入指定 `--default-character-set=utf8mb4` 防止中文乱码。
 
 **前端服务策略**：前后端分离项目中，前端**一律通过 Nginx 托管静态文件**。除非项目文档明确要求前端以 dev 模式运行，否则不在远程安装 Node.js、不运行前端 dev server。`frontendBuild.command` 必须是生产构建命令（如 `npm run build:prod`），不是 dev 命令。
 
+### 目录布局映射（强制）
+
+analyzer **必须**将仓库中的产物路径映射到扁平化的 `build/dev/` 结构。`directoryLayout` 是结构化 JSON 对象，deployer 直接使用，禁止自由文本。
+
+#### Schema
+
+```json
+{
+  "directoryLayout": {
+    "backend": {
+      "source": "仓库中后端产物的相对路径",
+      "artifact": "主产物文件名（可选，目录模式可省略）",
+      "targetDir": "backend/"
+    },
+    "frontend": {
+      "source": "仓库中前端构建产物的相对路径",
+      "targetDir": "frontend/"
+    },
+    "database": {
+      "source": "仓库中 SQL 文件的相对路径",
+      "targetDir": "database/"
+    },
+    "config": {
+      "envSource": "环境模板文件路径",
+      "envTarget": "backend/.env"
+    }
+  }
+}
+```
+
+#### 字段规则
+
+| 字段 | 必需 | 说明 |
+|------|------|------|
+| `backend` | 是 | `source` 指向编译产物所在目录（如 `target/`、`dist/`、`build/`），`targetDir` 固定 `"backend/"` |
+| `frontend` | 条件 | 有 `frontendBuild` 时必须，`source` 等于 `frontendBuild.workDir` + `frontendBuild.outputDir` |
+| `database` | 条件 | 有 `dbConfig` 时必须，`source` 指向 SQL 文件所在目录 |
+| `config` | 否 | `envTarget` 固定 `"backend/.env"` |
+
+#### 按项目类型示例
+
+**前后端分离（source-build — Java+Vue）**：
+```json
+{
+  "backend": { "source": "<后端模块>/target/", "artifact": "<产物>.jar", "targetDir": "backend/" },
+  "frontend": { "source": "<前端目录>/dist/", "targetDir": "frontend/" },
+  "database": { "source": "sql/", "targetDir": "database/" },
+  "config": { "envSource": "<前端目录>/.env.development", "envTarget": "backend/.env" }
+}
+```
+
+**前后端分离（pre-built 包）**：
+```json
+{
+  "backend": { "source": "api/", "targetDir": "backend/" },
+  "frontend": { "source": "web/", "targetDir": "frontend/" },
+  "database": { "source": "database/", "targetDir": "database/" },
+  "config": { "envSource": ".env.example", "envTarget": "backend/.env" }
+}
+```
+
+**单构建（NestJS 全栈）**：无 `frontend` 字段。
+```json
+{
+  "backend": { "source": "dist/", "targetDir": "backend/" },
+  "database": { "source": "prisma/migrations/", "targetDir": "database/" },
+  "config": { "envSource": ".env.example", "envTarget": "backend/.env" }
+}
+```
+
+**一致性校验**：analyzer 写入前必须验证 `frontend.source` 与 `frontendBuild.workDir` + `frontendBuild.outputDir` 一致。
+
 ### 如果 track/ 不存在
 
 跳过本步骤，不阻塞 analyzer 完成。deployer 将退回通用推断模式。
@@ -217,7 +300,7 @@ SQL dump 导入指定 `--default-character-set=utf8mb4` 防止中文乱码。
     "deploymentDocs": {
       "deliveryModel": "pre-built | source-build",
       "source": "track/ | repository/",
-      "readFiles": ["version/v0.0.2/update_readme.md", "sh/start.sh"],
+      "readFiles": ["<部署文档>", "<启动脚本>"],
       "sourceLocations": {
         "buildCommand": "update_readme.md §2 编译包结构说明（pre-built 模式无需编译）",
         "startCommand": "update_readme.md §6 环境变量与配置变更",
@@ -231,9 +314,14 @@ SQL dump 导入指定 `--default-character-set=utf8mb4` 防止中文乱码。
         "outputDir": "dist/"
       },
       "startCommand": "pm2 start ecosystem.config.cjs",
-      "dbInit": "mysql -u root -p --default-character-set=utf8mb4 <db> < database/keyidea_newoa.sql",
+      "dbInit": "mysql -u root -p --default-character-set=utf8mb4 <db> < database/<dump>.sql",
       "envVars": ["DATABASE_URL", "PORT"],
-      "directoryLayout": "software/ 含 apps/api + apps/web，database/ 含 SQL",
+      "directoryLayout": {
+        "backend": { "source": "api/", "targetDir": "backend/" },
+        "frontend": { "source": "web/", "targetDir": "frontend/" },
+        "database": { "source": "database/", "targetDir": "database/" },
+        "config": { "envSource": ".env.example", "envTarget": "backend/.env" }
+      },
       "knownIssues": ["Prisma 需指定 binaryTargets", "前端需 Nginx 代理"],
       "warnings": []
     },

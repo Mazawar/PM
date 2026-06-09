@@ -20,12 +20,12 @@
 ### 1. 启动服务
 
 **local**：
-从 `environment.json.analyzer.startCommand` 读取启动命令，在 `build/dev/software/` 下执行。预创建 `build/dev/logs/` 目录，日志重定向到 `build/dev/logs/<service>.log`。
+从 `environment.json.analyzer.startCommand` 读取启动命令，在 `build/dev/backend/` 下执行。预创建 `build/dev/logs/` 目录，日志重定向到 `build/dev/logs/<service>.log`。
 
 **remote**：
 ```bash
-ssh_execute "cd <deployPath>/software/apps/api && \
-  nohup node -r dotenv/config dist/src/main.js dotenv_config_path=.env > logs/backend.log 2>&1 &"
+ssh_execute "cd <deployPath>/backend && \
+  nohup java -jar <directoryLayout.backend.artifact> > <deployPath>/logs/backend.log 2>&1 &"
 ```
 `ss -tlnp` 确认 backendPort 在监听。
 

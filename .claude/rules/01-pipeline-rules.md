@@ -4,7 +4,7 @@
 
 九阶段流程不是一次性执行的线性脚本，而是一个**可中断、可恢复**的状态机。主会话崩溃或用户中断后，新的会话应能从断点继续，而不是从头开始。
 
-v2 schema 把状态拆为三段：
+管线状态拆为三段：
 - **global** — 项目级一次性阶段（Detect/Analyze/Build/Validate），整个项目只跑一次
 - **modules** — 按测试模块分（每个模块独立 Plan/Generate/Execute/Report），互不覆盖
 - **publishes** — 发布历史（append-only 数组），与阶段正交，记录每次发布覆盖的模块
@@ -17,11 +17,11 @@ v2 schema 把状态拆为三段：
 test_project/<NN-Project>/.pipeline-state.json
 ```
 
-### Schema (v2)
+### Schema
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 1,
   "project": "<NN-Project>",
   "updatedAt": "<ISO 时间戳>",
   "global": {
@@ -170,14 +170,13 @@ running → failed（附 reason）
 
 ## 主会话启动流程
 
-1. **调用 migration 脚本**：
+1. **调用初始化脚本**：
    ```bash
-   node .claude/scripts/migrate-pipeline-state.mjs --project <NN-Project>
+   node .claude/scripts/pipeline-state.mjs --project <NN-Project>
    ```
-   - 文件不存在 → 自动创建 v2 模板
-   - v1 文件 → 备份为 `.pipeline-state.v1.bak.json`，写入 v2 模板（旧状态不还原）
-   - v2 文件 → 跳过
-2. 读取 v2 文件，定位当前焦点：
+   - 文件不存在 → 自动创建模板
+   - 已存在 → 跳过
+2. 读取状态文件，定位当前焦点：
    - `global` 中如有 `running` 状态 → 从该 global 阶段继续
    - 否则扫描 `modules`，找到**最早**的非 completed 阶段所在模块作为当前焦点
 3. 输出当前焦点状态：
@@ -219,41 +218,28 @@ running → failed（附 reason）
 - 部署验证不通过 = 上游问题，不替上游修
 - 部署验证和环境验证是**两条独立管线**，互不阻断对方的报告产出
 
-## migration 流程
+## 初始化脚本
 
-### v1 → v2 破坏性升级
-
-- **触发**：脚本检测到 `schemaVersion` 字段缺失
-- **动作**：
-  1. 备份 v1 文件为 `test_project/<NN-Project>/.pipeline-state.v1.bak.json`
-  2. 扫描 `tests/{e2e,ui}/` 子目录，自动填充 `modules` key（仅创建空 stage 模板，**不猜状态**）
-  3. `publishes` 初始化为空数组
-  4. `global` 四个阶段都是 `pending`
-- **不还原**：v1 的旧状态不迁移到 v2（用户已确认走破坏性升级）
-
-### migration 脚本
-
-位置：`.claude/scripts/migrate-pipeline-state.mjs`
+位置：`.claude/scripts/pipeline-state.mjs`
 
 CLI 用法：
 ```bash
-node .claude/scripts/migrate-pipeline-state.mjs --project <NN-Project>
-node .claude/scripts/migrate-pipeline-state.mjs --project <NN-Project> --dry-run
+node .claude/scripts/pipeline-state.mjs --project <NN-Project>
+node .claude/scripts/pipeline-state.mjs --project <NN-Project> --dry-run
 ```
 
 ESM 导入（供其他脚本使用）：
 ```js
-import { readState, updateStage, appendPublish } from './migrate-pipeline-state.mjs';
+import { readState, updateStage, appendPublish } from './pipeline-state.mjs';
 ```
 
 ## 状态文件管理
 
-- **创建时机**：migrate 脚本检测到文件不存在时自动创建
+- **创建时机**：初始化脚本检测到文件不存在时自动创建
 - **更新时机**：每个阶段开始和结束时（主会话负责）
 - **清理时机**：用户确认开始新一轮测试时，由主会话通过 `updateStage()` 重置（不要直接重写整个文件）
-- **禁止删除**：v2 文件本身禁止删除
-- **不提交 git**：v2 文件已 gitignore（运行时状态，不属于版本库）
-- **v1 备份文件**：`.pipeline-state.v1.bak.json` 由 `test_project/*` 通配忽略
+- **禁止删除**：状态文件本身禁止删除
+- **不提交 git**：状态文件已 gitignore（运行时状态，不属于版本库）
 
 ## 九阶段流程详细描述
 
@@ -289,7 +275,7 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
 
 ### 基础检查（所有场景）
 
-1. 调用 `migrate-pipeline-state.mjs --project <NN-Project>` 初始化/读取 v2 状态
+1. 调用 `pipeline-state.mjs --project <NN-Project>` 初始化/读取状态
 2. 检查 `playwright.config.ts` 和 `environment.json` 是否存在
 3. **analyzer 缺失** → 启动 `project-manage-analyzer` → 完成后 `updateStage('global', null, 'Analyze', { status: 'completed' })`
 4. **build 缺失** → 启动 `project-manage-deployer` → 完成后 `updateStage('global', null, 'Build', { status: 'completed' })`
@@ -345,7 +331,7 @@ node .claude/scripts/generate-report.mjs --project <NN-Project>
   - Generate: completed (mode: direct-generation)
   - Execute: running
   - Report: pending
-管线状态文件：test_project/01-oa-llm/.pipeline-state.json
+管线状态文件：test_project/<NN-Project>/.pipeline-state.json
 ```
 
 Agent 不读写状态文件，仅主会话负责状态管理。Agent 执行完毕后，主会话根据 Agent 输出调用 `updateStage()` 更新对应阶段。

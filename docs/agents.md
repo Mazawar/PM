@@ -26,7 +26,7 @@ analyzer.*   build.*      validator.*
 ```
 
 - **analyzer**：只读分析，**不构建、不启动**
-- **deployer**：按 `environment.json.build.mode`（`local` / `remote`）分支，**不启动服务**
+- **deployer**：按 `environment.json.build.mode`（`local` / `remote`）分支，**不启动服务**；部署前自动备份（数据库 + 配置），产物扁平化到 `backend/`/`frontend/`/`database/`
 - **validator**：启动服务、做健康/页面/登录验证、生成 seed，**不修改 build/ 产物**；同时出具 `results/.build/env/` 环境验证报告（**测试流程第一道闸门**，不通过不进入端到端）
 
 状态交接载体：`test_project/<NN-Project>/test-config/environment.json` 的三段字段（`analyzer.*` / `build.*` / `validator.*`）。
@@ -53,7 +53,7 @@ analyzer.*   build.*      validator.*
 |------|------|
 | `scan.sh`   | 仓库扫描（检测变更，生成 scan-logs/） |
 | `init-dirs.mjs` | 项目目录初始化（幂等） |
-| `migrate-pipeline-state.mjs` | pipeline-state 迁移 + 读写（ESM） |
+| `pipeline-state.mjs` | pipeline-state 初始化 + 读写（ESM） |
 | `generate-report.mjs` | 解析 Playwright 报告生成 progress/report/summary |
 | `notify.mjs` | 测试报告邮件通知 |
 

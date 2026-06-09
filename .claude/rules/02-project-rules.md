@@ -2,7 +2,7 @@
 
 ## 核心不变量
 
-- `repository/` 与 `test_project/` 条目 **1:1 对应**（如 `01-RuoYi-Vue`）
+- `repository/` 与 `test_project/` 条目 **1:1 对应**（如 `<NN-Project>`）
 - `repository/` **只读** — 仅 `git clone` / `git pull`，禁止修改源码
 - 所有测试代码和产物在 `test_project/` 下
 - 仅以下内容提交到版本库：注册表文件（README.md）、docs、scripts、agent 定义、配置文件
@@ -61,9 +61,17 @@ test_project/<NN-Project>/
 │   ├── version-log.json    # 构建版本追踪总表（每次构建追加一条记录）
 │   ├── deploy-config.json  # 部署配置快照（可复用）
 │   ├── nginx.conf          # Nginx 配置文件
-│   └── artifacts/          # 构建归档（不可删除）
-│       ├── <timestamp>-<commit>.tar.gz
-│       └── <timestamp>-<commit>.manifest.json
+│   ├── artifacts/          # 构建归档（不可删除）
+│   │   ├── <timestamp>-<commit>.tar.gz
+│   │   └── <timestamp>-<commit>.manifest.json
+│   ├── backups/            # 本地备份元数据
+│   │   └── backup-manifest.json
+│   └── dev/                # 完整部署包（扁平结构）
+│       ├── backend/        # 后端产物（JAR/二进制/编译输出）
+│       ├── frontend/       # 前端静态文件（前后端分离时）
+│       ├── database/       # SQL 初始化文件
+│       ├── logs/           # 运行时日志
+│       └── deploy.md       # 部署说明
 ├── templates/                # 报告模板（项目级，可选）
 │   └── generate-report-template.md  # 测试报告 markdown 模板
 └── scan-logs/
@@ -154,22 +162,21 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 
 | 必含 | 必不含（出现即违规，需删除） |
 |------|------|
-| `build/dev/`（完整部署包，含 software/ database/ update_readme.md） | `build/<NN-Project>/`（项目副本，由远程部署前的"组装副本"产生） |
+| `build/dev/`（完整部署包，含 backend/ frontend/ database/ deploy.md） | `build/<NN-Project>/`（项目副本，由远程部署前的"组装副本"产生） |
 | `build/artifacts/<timestamp>-<commit>.tar.gz` + `.manifest.json` | `build/<NN-Project>.tar.gz`（远程部署包，本地无需） |
-| `build/tmp/`（可空，预留给远程部署用） | `build/pre-deploy-backup-*.sql.gz`（部署前数据库备份，本地无需） |
-| `build/version-log.json`（含 `archiveVerification` 校验记录） | `build/deploy-config.json`（远程部署配置，本地无需） |
-|  | `build/nginx.conf`（远程部署配置，本地无需） |
-|  | `build/dev/software/**/*.log`（散落日志，统一在 `build/dev/logs/`） |
+| `build/backups/backup-manifest.json`（本地备份清单） | `build/deploy-config.json`（远程部署配置，本地无需） |
+| `build/version-log.json`（含 `archiveVerification` 校验记录） | `build/nginx.conf`（远程部署配置，本地无需） |
+|  | `build/dev/backend/**/*.log`（散落日志，统一在 `build/dev/logs/`） |
 
 ### 远程部署 — 在本地构建基础上追加
 
-| 追加产物 | 部署后清理策略 |
-|---------|--------------|
+### 追加产物 | 部署后清理策略
+|---------|--------------
 | `build/deploy-config.json` | 保留（下次部署复用） |
 | `build/nginx.conf` | 保留（本地副本） |
 | `build/<NN-Project>.tar.gz`（部署包，部署成功后可清理） | 部署成功后删除，仅保留 artifacts/ 中的源码归档 |
-| `build/pre-deploy-backup-*.sql.gz` | 部署成功后删除 |
 | `build/tmp/` 下的临时文件 | 部署成功后清理，仅保留 `.gitkeep` 占位 |
+| 远程备份 `/var/backups/pm/<NN-Project>/` | 保留（最多 5 份，自动清理） |
 
 ### 检查时机
 
@@ -180,7 +187,7 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 
 - **本地构建**：`nohup ... > build/dev/logs/<service>.log 2>&1 &`
 - **远程部署**：`<deployPath>/logs/<service>.log`
-- **禁止**：`build/`、`build/dev/`、`build/dev/software/` 下任何子目录直接放 `*.log`
+- **禁止**：`build/`、`build/dev/`、`build/dev/backend/` 下任何子目录直接放 `*.log`
 - 后台进程日志必须重定向到 `build/dev/logs/`，避免散落
 
 ## 禁止修改列表

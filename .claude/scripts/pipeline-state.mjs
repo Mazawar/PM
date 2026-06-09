@@ -1,23 +1,21 @@
 #!/usr/bin/env node
 
 /**
- * PM 管线状态迁移脚本
+ * PM 管线状态初始化脚本
  *
- * 将 test_project/<NN-Project>/.pipeline-state.json 从 v1（单层 stages）
- * 升级到 v2（global / modules / publishes 三段结构）。
- *
- * 迁移策略（破坏性）：检测到 v1 → 备份为 .pipeline-state.v1.bak.json → 写入 v2 模板。
- * v2 模板不还原旧状态，所有模块从 pending 开始。
+ * 初始化 test_project/<NN-Project>/.pipeline-state.json。
+ * 文件不存在时自动创建模板（global / modules / publishes 三段结构）。
+ * 已存在时跳过（幂等）。
  *
  * 用法:
- *   node .claude/scripts/migrate-pipeline-state.mjs --project <NN-Project>
- *   node .claude/scripts/migrate-pipeline-state.mjs --project <NN-Project> --dry-run
+ *   node .claude/scripts/pipeline-state.mjs --project <NN-Project>
+ *   node .claude/scripts/pipeline-state.mjs --project <NN-Project> --dry-run
  *
  * 作为 ESM 模块导入时，导出 readState / updateStage / appendPublish。
  * 模块模式下不执行 CLI 逻辑。
  */
 
-import { existsSync, readFileSync, writeFileSync, copyFileSync, readdirSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
 import { resolve, join } from 'path';
 
 const STAGES_MODULE = ['Plan', 'Generate', 'Execute', 'Report'];
@@ -45,7 +43,7 @@ function emptyStage() {
   return { status: 'pending' };
 }
 
-function buildV2Template(projectName, modules) {
+function buildTemplate(projectName, modules) {
   const global = {};
   for (const s of STAGES_GLOBAL) global[s] = emptyStage();
 
@@ -57,7 +55,7 @@ function buildV2Template(projectName, modules) {
   }
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 1,
     project: projectName,
     updatedAt: new Date().toISOString(),
     global,
@@ -85,8 +83,8 @@ function discoverModules(projectPath) {
 export function readState(projectPath) {
   const obj = readStateRaw(projectPath);
   if (!obj) throw new Error(`State file not found: ${statePathFor(projectPath)}`);
-  if (obj.schemaVersion !== 2) {
-    throw new Error(`State file is v1 (no schemaVersion). Run migrate-pipeline-state.mjs first.`);
+  if (obj.schemaVersion !== 1) {
+    throw new Error(`Unexpected schemaVersion: ${obj.schemaVersion}. Expected 1.`);
   }
   return obj;
 }
@@ -136,7 +134,7 @@ function runCli() {
   const dryRun = args.includes('--dry-run');
 
   if (!projectName) {
-    console.error('用法: node migrate-pipeline-state.mjs --project <NN-Project> [--dry-run]');
+    console.error('用法: node pipeline-state.mjs --project <NN-Project> [--dry-run]');
     process.exit(1);
   }
 
@@ -147,7 +145,6 @@ function runCli() {
   }
 
   const statePath = statePathFor(projectDir);
-  const backupPath = join(projectDir, '.pipeline-state.v1.bak.json');
   const log = (action, detail) => {
     const prefix = dryRun ? '[DRY-RUN]' : '[OK]';
     console.log(`  ${prefix} ${action}: ${detail}`);
@@ -163,33 +160,19 @@ function runCli() {
     }
   })();
 
-  // 情况 1：文件不存在 → 创建 v2 模板
+  // 情况 1：文件不存在 → 创建模板
   if (existing === null) {
     const modules = discoverModules(projectDir);
-    const v2 = buildV2Template(projectName, modules);
-    log('CREATE', `v2 模板（modules: [${modules.join(', ') || 'empty'}], publishes: []）`);
-    if (!dryRun) writeFileSync(statePath, JSON.stringify(v2, null, 2) + '\n', 'utf-8');
+    const tmpl = buildTemplate(projectName, modules);
+    log('CREATE', `模板（modules: [${modules.join(', ') || 'empty'}], publishes: []）`);
+    if (!dryRun) writeFileSync(statePath, JSON.stringify(tmpl, null, 2) + '\n', 'utf-8');
     console.log(`\n结果: created`);
     return;
   }
 
-  // 情况 2：已经是 v2
-  if (existing.schemaVersion === 2) {
-    console.log(`  · 已是 v2 格式，跳过（updatedAt: ${existing.updatedAt || 'unknown'}）`);
-    console.log(`\n结果: skipped`);
-    return;
-  }
-
-  // 情况 3：v1（无 schemaVersion 字段）→ 备份 + 重建
-  log('BACKUP', `v1 → ${backupPath}`);
-  if (!dryRun) copyFileSync(statePath, backupPath);
-
-  const modules = discoverModules(projectDir);
-  const v2 = buildV2Template(projectName, modules);
-  log('CREATE', `v2 模板（modules: [${modules.join(', ') || 'empty'}], publishes: []）`);
-  if (!dryRun) writeFileSync(statePath, JSON.stringify(v2, null, 2) + '\n', 'utf-8');
-
-  console.log(`\n结果: migrated（备份: ${backupPath}）`);
+  // 情况 2：已存在
+  console.log(`  · 管线状态已存在（updatedAt: ${existing.updatedAt || 'unknown'}）`);
+  console.log(`\n结果: skipped`);
 }
 
 // CLI 入口检测：仅在直接执行时跑（被 import 时跳过）

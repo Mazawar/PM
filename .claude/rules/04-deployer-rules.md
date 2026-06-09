@@ -45,7 +45,7 @@ deployer **所有操作**的知识来源只有一个：`environment.json.analyze
 | 前端构建 | `deploymentDocs.frontendBuild` | 跳过前端构建（单构建项目） |
 | 启动命令 | `deploymentDocs.startCommand` | DEPLOY-001 FAIL |
 | 环境变量 | `deploymentDocs.envVars` | DEPLOY-001 FAIL |
-| 目录布局 | `deploymentDocs.directoryLayout` | DEPLOY-001 FAIL |
+| 目录布局 | `deploymentDocs.directoryLayout`（JSON 对象） | DEPLOY-001 FAIL |
 | 数据库 | `dbConfig.initMethod` + `initFiles` | DEPLOY-005/009 SKIP |
 | 已知问题 | `deploymentDocs.knownIssues` | 提前记录 |
 
@@ -59,7 +59,7 @@ deployer **所有操作**的知识来源只有一个：`environment.json.analyze
 
 | 编号 | 检查项 | PASS | FAIL | SKIP |
 |------|--------|------|------|------|
-| DEPLOY-001 | 文档完整性 | buildCommand + startCommand + envVars + directoryLayout + deliveryModel 五字段齐全（有前端时 frontendBuild 也需齐全） | 任一缺失 | — |
+| DEPLOY-001 | 文档完整性 | buildCommand + startCommand + envVars + directoryLayout（JSON 对象，含 backend） + deliveryModel 五字段齐全（有前端时 frontendBuild 也需齐全） | 任一缺失，或 directoryLayout 为字符串（旧格式需重跑 analyzer） | — |
 | DEPLOY-002 | 项目构建 | 后端 buildCommand exit 0；有 frontendBuild 时前端也 exit 0 | 任一 exit ≠ 0 | — |
 | DEPLOY-003 | 依赖解析 | archive 打包 + 解压 + 按文档安装依赖 全成功 | 任一失败 | — |
 | DEPLOY-004 | 制品归档 | archive + manifest 存在且校验通过 | 文件缺失或校验不通过 | — |
@@ -80,6 +80,8 @@ deployer **所有操作**的知识来源只有一个：`environment.json.analyze
 ### DEPLOY-001: 文档完整性
 
 读取 `environment.json.analyzer.deploymentDocs`，逐一检查五个必要字段（buildCommand、startCommand、envVars、directoryLayout、deliveryModel）。
+
+**directoryLayout 格式校验**：必须是 JSON 对象且含 `backend` 字段。如果 `directoryLayout` 是字符串 → FAIL，报告「directoryLayout 格式已升级为 JSON 对象，请重跑 analyzer」。如果 `frontendBuild` 存在但 `directoryLayout.frontend` 缺失 → FAIL。
 
 **交叉验证**：同时读取 `deploymentDocs.readFiles` 和 `deploymentDocs.sourceLocations`，验证提取结果与文档原文一致。不一致 → FAIL，报告具体差异。
 
@@ -114,13 +116,16 @@ deployer **所有操作**的知识来源只有一个：`environment.json.analyze
 
 根据 `deliveryModel` 分支：
 
-**`pre-built`**：预构建包已包含依赖，跳过安装步骤。验证 `dev/software/` 下关键产物目录存在（按 `directoryLayout` 描述检查）。
+**`pre-built`**：预构建包已包含依赖，跳过安装步骤。按 `directoryLayout` 将仓库产物映射到扁平结构：
+- `directoryLayout.backend.source` → `build/dev/backend/`
+- `directoryLayout.frontend.source` → `build/dev/frontend/`（有 frontend 时）
+- 验证关键产物文件存在
 
 **`source-build`**：
 1. 打包后端编译产物到 `build/artifacts/<YYYYMMDD-HHmmss>-<commit>.tar.gz`
-2. 解压后端产物到 `build/dev/software/`
+2. 解压后端产物到 `build/dev/backend/`（从 `directoryLayout.backend.source` 提取）
 3. **前端产物归档**（仅 `frontendBuild` 存在时）：
-   - 从 `repository/<NN-Project>/<frontendBuild.workDir>/<frontendBuild.outputDir>` 复制构建产物到 `build/dev/software/<frontendBuild.workDir>/<frontendBuild.outputDir>/`
+   - 从 `repository/<NN-Project>/<frontendBuild.workDir>/<frontendBuild.outputDir>` 复制构建产物到 `build/dev/frontend/`（扁平化，构建产物直接放 frontend/ 下）
    - 产物是静态文件（HTML/JS/CSS），不需要在服务器上安装 Node.js
 4. 如后端文档要求额外步骤（如 Prisma generate），按文档执行
 
@@ -129,7 +134,7 @@ deployer **所有操作**的知识来源只有一个：`environment.json.analyze
 
 ### DEPLOY-004: 制品归档
 
-**`pre-built`**：验证预构建包目录结构完整（按 `directoryLayout` 逐项检查产物目录和文件存在）。
+**`pre-built`**：验证预构建包目录结构完整（按 `directoryLayout` 对象的 `backend`/`frontend`/`database` 字段逐项检查产物目录和文件存在）。
 
 **`source-build`**：
 1. 验证 archive 和 manifest 文件存在
@@ -143,7 +148,7 @@ deployer **所有操作**的知识来源只有一个：`environment.json.analyze
 
 ### DEPLOY-006: 配置完整性
 
-1. 在 `build/dev/software/` 下复制 `.env.development` → `.env`（或按文档创建）
+1. 在 `build/dev/backend/` 下复制 `.env.development` → `.env`（或按文档创建）
 2. 逐一检查 `envVars` 列表中的变量是否存在于 `.env`
 
 ### DEPLOY-007: 远程环境就绪
@@ -165,10 +170,10 @@ ssh_monitor(server, type="overview")
 **核心原则：只上传构建产物，不上传源码。** 远程服务器不应需要安装编译工具链。
 
 上传内容（仅限）：
-- 后端构建产物（如 JAR、编译后的二进制）
-- 前端构建产物（`<frontendBuild.workDir>/<frontendBuild.outputDir>` 下的静态文件）
-- 数据库初始化文件（`dev/database/`）
-- 配置文件（`.env`）
+- 后端构建产物 → `build/dev/backend/`
+- 前端构建产物 → `build/dev/frontend/`（有前端时）
+- 数据库初始化文件 → `build/dev/database/`
+- 配置文件（`.env`） → `build/dev/backend/.env`
 - `deploy.md`
 
 禁止上传：
@@ -177,24 +182,30 @@ ssh_monitor(server, type="overview")
 - 构建工具配置（`webpack.config.*`、`vite.config.*`、`package.json` 等开发依赖）
 
 ```
-ssh_sync(server, source="local:build/dev/", destination="remote:<deployPath>/dev/",
+ssh_sync(server, source="local:build/dev/", destination="remote:<deployPath>/",
          compress=true, exclude=["node_modules", "*.log"])
 ```
 
-验证后端产物：`ssh_execute(server, "ls <deployPath>/dev/software/<后端关键文件>")`
-验证前端产物：`ssh_execute(server, "ls <deployPath>/dev/software/<frontendBuild.workDir>/<frontendBuild.outputDir>/")`（有 frontendBuild 时）
+验证后端产物：`ssh_execute(server, "ls <deployPath>/backend/<directoryLayout.backend.artifact>")`
+验证前端产物：`ssh_execute(server, "ls <deployPath>/frontend/index.html")`（有 frontend 时）
 
 - 同步成功 + 产物验证存在 → PASS
 - 同步失败或产物不存在 → FAIL
 
 ### DEPLOY-009: 远程数据库初始化
 
-重部署时先备份：`ssh_backup_create(server, type="mysql", database=<db>, name="pre-deploy-<NN-Project>")`
+**部署前备份**（非首次部署时）：
+1. 检查数据库是否已存在：`ssh_db_list(server, type="mysql")`
+2. 数据库已存在 → 备份：
+   - `ssh_backup_create(server, type="mysql", database=<db>, name="pre-deploy-<NN-Project>")`
+   - 备份远程配置：`ssh_execute(server, "cp <deployPath>/backend/.env /var/backups/pm/<NN-Project>/backend.env.bak")`（如 .env 存在）
+3. 写入备份清单到 `/var/backups/pm/<NN-Project>/manifest.json`
+4. 清理超过 5 份的旧备份
 
+**数据库初始化**：
 ```
-ssh_db_list(server, type="mysql")
 ssh_execute(server, "mysql -u root -e 'CREATE DATABASE IF NOT EXISTS <db> CHARACTER SET utf8mb4'")
-ssh_db_import(server, type="mysql", database=<db>, inputFile="<deployPath>/dev/database/<file>.sql")
+ssh_db_import(server, type="mysql", database=<db>, inputFile="<deployPath>/database/<file>.sql")
 ssh_db_query(server, type="mysql", database=<db>, query="SELECT COUNT(*) AS cnt FROM <关键表>")
 ```
 
@@ -205,7 +216,7 @@ ssh_db_query(server, type="mysql", database=<db>, query="SELECT COUNT(*) AS cnt 
 **前端服务策略（强制）**：除非项目文档明确要求前端以 dev 模式运行（如 `npm run dev`），否则**一律**通过 Nginx 托管前端静态文件。deployer 不在远程服务器上安装 Node.js 或运行前端 dev server。
 
 Nginx 配置内容：
-- 静态文件根目录指向 `<deployPath>/dev/software/<frontendBuild.workDir>/<frontendBuild.outputDir>/`
+- 静态文件根目录指向 `<deployPath>/frontend/`
 - API 请求反代到后端（如 `/prod-api/` → `http://localhost:<backendPort>`）
 - 有前端时**必须**生成 nginx.conf
 
@@ -292,7 +303,47 @@ DEPLOY-003:SKIP
 - `build/version-log.json` — 构建版本追踪（追加记录）
 - `build/deploy-config.json` — 远程部署配置快照（mode=remote）
 - `build/nginx.conf` — Nginx 配置副本（有前端时）
-- `build/dev/` — 完整部署包（software/ + database/ + deploy.md）
+- `build/dev/` — 完整部署包（backend/ + frontend/ + database/ + logs/ + deploy.md）
+- `build/backups/backup-manifest.json` — 本地备份清单（仅元数据）
+
+## 备份机制
+
+### 本地备份（DEPLOY-003 前）
+
+覆盖 `build/dev/` 前检查已有产物：
+1. `build/dev/backend/.env` 存在 → 复制到 `build/backups/pre-deploy-<timestamp>/backend.env.bak`
+2. 写入 `build/backups/backup-manifest.json` 追加一条记录
+3. 清理超过 5 份的旧备份
+
+### 远程备份（DEPLOY-009 前）
+
+见 DEPLOY-009 执行细节。备份存储在 `/var/backups/pm/<NN-Project>/`，由 SSH backup 工具管理。
+
+### 备份清单格式（manifest.json）
+
+```json
+{
+  "project": "<NN-Project>",
+  "backups": [
+    {
+      "id": "pre-deploy-20260608-165200",
+      "timestamp": "ISO",
+      "trigger": "deploy",
+      "previousCommit": "7da12b0c",
+      "contents": { "database": true, "configFiles": ["backend/.env"] },
+      "location": "local | remote"
+    }
+  ],
+  "maxBackups": 5
+}
+```
+
+### 回滚（用户触发）
+
+用户说"回滚"时 → 主会话列出备份 → 用户选择 → deployer mode=rollback 执行：
+- 恢复数据库：`ssh_backup_restore(server, backupId, database=<db>)`
+- 恢复配置：从备份目录复制 `.env` 回 `<deployPath>/backend/`
+- 重启服务
 
 ## 禁止
 

@@ -97,6 +97,11 @@ const directories = [
     guardFile: null,
   },
   {
+    name: 'build/backups',
+    guardFile: '.gitkeep',
+    guardContent: '',
+  },
+  {
     name: 'templates',
     guardFile: 'generate-report-template.md',
     guardContent: null, // 特殊处理：从全局模板复制

@@ -36,9 +36,9 @@ color: green
 ### Step 1: 前置检查
 
 1. 读取 `environment.json.build.builtAt`，必须存在（否则报错："先运行 deployer"）
-2. 确认 `build/dev/software/package.json` 存在
+2. 确认 `build/dev/backend/` 目录存在且含主产物文件
 3. 读取 `.pipeline-state.json`，输出 `global.Validate` 当前状态
-4. mode=remote 时确认远程 `<deployPath>/software/package.json` 存在
+4. mode=remote 时确认远程 `<deployPath>/backend/` 目录存在
 
 ### Step 2: 启动服务
 

@@ -48,14 +48,22 @@ pm/
 │       ├── tests/             # 测试代码（unit/api/e2e/ui 各层级按模块分子目录）
 │       │   ├── seed.spec.ts  # 登录种子文件（Planner/Generator 共享）
 │       │   └── {level}/{module}/tc-{编号}-{简称}.spec.ts
-│       ├── .pipeline-state.json # 管线状态（v2：global/modules/publishes 三段）
+│       ├── .pipeline-state.json # 管线状态（global/modules/publishes 三段）
 │       ├── build/            # 构建部署产物（deployer agent 生成）
 │       │   ├── version-log.json    # 构建版本追踪总表
 │       │   ├── deploy-config.json  # 部署配置快照（可复用）
 │       │   ├── nginx.conf          # Nginx 配置文件
-│       │   └── artifacts/          # 构建归档（不可删除）
-│       │       ├── <timestamp>-<commit>.tar.gz
-│       │       └── <timestamp>-<commit>.manifest.json
+│       │   ├── artifacts/          # 构建归档（不可删除）
+│       │   │   ├── <timestamp>-<commit>.tar.gz
+│       │   │   └── <timestamp>-<commit>.manifest.json
+│       │   ├── backups/            # 本地备份元数据
+│       │   │   └── backup-manifest.json
+│       │   └── dev/                # 完整部署包（扁平结构）
+│       │       ├── backend/        # 后端产物
+│       │       ├── frontend/       # 前端静态文件
+│       │       ├── database/       # SQL 初始化文件
+│       │       ├── logs/           # 运行时日志
+│       │       └── deploy.md       # 部署说明
 │       ├── scan-logs/         # 变更报告（scan.sh 生成）
 │       └── results/           # 测试执行结果（按模块分目录）
 ├── docs/                      # 项目文档（agents.md）
@@ -66,7 +74,7 @@ pm/
 │   └── scripts/
 │       ├── scan.sh            # 仓库扫描脚本
 │       ├── init-dirs.mjs      # 项目目录初始化（幂等）
-│       ├── migrate-pipeline-state.mjs # 管线状态迁移（v1 → v2）
+│       ├── pipeline-state.mjs    # 管线状态初始化 + 读写（ESM）
 │       ├── generate-report.mjs # Playwright 报告解析（生成 progress/report/summary）
 │       └── notify.mjs         # 测试报告邮件通知
 ├── .mcp.json                  # MCP Server 配置（Playwright + SSH）
@@ -85,7 +93,7 @@ pm/
 | `test-config/auth.json` | 登录认证状态（seed.spec.ts 生成，chromium project 自动加载） |
 | `tests/seed.spec.ts` | 登录种子文件（Planner/Generator/Healer 共享，自动登录） |
 | `case/` | 用户案例目录（业务案例、测试场景，planner 最高优先读取） |
-| `.pipeline-state.json` | 管线状态文件（v2 schema：global 项目级 + modules 模块级 + publishes 历史，破坏性升级会备份为 .pipeline-state.v1.bak.json） |
+| `.pipeline-state.json` | 管线状态文件（global 项目级 + modules 模块级 + publishes 历史） |
 | `build/version-log.json` | 构建版本追踪总表（每次构建追加一条记录） |
 | `build/deploy-config.json` | 部署配置快照（可复用，下次构建跳过已安装组件） |
 | `build/nginx.conf` | Nginx 配置文件 |
@@ -100,7 +108,7 @@ pm/
 | 文件 | 内容 |
 |------|------|
 | `00-README.md` | 规则索引：分层结构、管线阶段映射、Agent 与规则对应关系 |
-| `01-pipeline-rules.md` | 管线状态持久化 + 主会话编排：v2 schema、九阶段流程、环境检查、调度管线、用户确认点 |
+| `01-pipeline-rules.md` | 管线状态持久化 + 主会话编排：九阶段流程、环境检查、调度管线、用户确认点 |
 | `02-project-rules.md` | 项目结构、目录规范、注册表双写、Git 规则、禁止修改列表、文件保护 |
 | `03-analyzer-rules.md` | analyzer agent：本地源码分析、远程探测、端口/技术栈/凭据/中间件/数据库推断 |
 | `04-deployer-rules.md` | deployer agent：验证部署能力（编译验证、归档、组装 dev/、远程部署） |
@@ -174,15 +182,15 @@ node .claude/scripts/init-dirs.mjs --project <NN-Project>
 
 幂等脚本，自动创建 case/、plans/、tests/、test-config/、results/、scan-logs/、build/artifacts/ 目录。已有文件不覆盖。
 
-### 管线状态迁移（v1 → v2）
+### 管线状态初始化
 
 ```bash
-node .claude/scripts/migrate-pipeline-state.mjs --project <NN-Project>
-node .claude/scripts/migrate-pipeline-state.mjs --project <NN-Project> --dry-run
+node .claude/scripts/pipeline-state.mjs --project <NN-Project>
+node .claude/scripts/pipeline-state.mjs --project <NN-Project> --dry-run
 ```
 
-- 检测到 v1（无 `schemaVersion` 字段）→ 备份为 `.pipeline-state.v1.bak.json` → 写入 v2 模板
-- v2 文件已存在 → 跳过（幂等）
+- 文件不存在 → 自动创建模板（global/modules/publishes 三段结构）
+- 已存在 → 跳过（幂等）
 - 也可作为 ESM 模块导入，导出 `readState` / `updateStage` / `appendPublish` 供其他脚本使用
 
 ### 项目注册
