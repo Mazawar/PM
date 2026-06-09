@@ -107,7 +107,7 @@ brew install rsync
 brew install hudochenkov/sshpass/sshpass
 ```
 
-配置方式：复制 `.env.example` 为 `.env` 并填写服务器信息（见 CLAUDE.md "SSH 远程管理" 章节）。
+配置方式：复制 `.env.example` 为 `.env` 并填写服务器信息（字段说明见 `README.md`）。
 
 ---
 
