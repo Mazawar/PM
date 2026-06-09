@@ -277,9 +277,9 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
 
 1. 调用 `pipeline-state.mjs --project <NN-Project>` 初始化/读取状态
 2. 检查 `playwright.config.ts` 和 `environment.json` 是否存在
-3. **analyzer 缺失** → 启动 `project-manage-analyzer` → 完成后 `updateStage('global', null, 'Analyze', { status: 'completed' })`
-4. **build 缺失** → 启动 `project-manage-deployer` → 完成后 `updateStage('global', null, 'Build', { status: 'completed' })`
-5. **validate 缺失** → 启动 `project-manage-validator` → 完成后 `updateStage('global', null, 'Validate', { status: 'completed' })`
+3. **analyzer 缺失** → 启动 `project-manage-analyzer` → **校验产出**（`environment.json` 含 `analyzer.completedAt` + `playwright.config.ts` 存在）→ `updateStage('global', null, 'Analyze', { status: 'completed' })`
+4. **build 缺失** → 启动 `project-manage-deployer` → **校验产出**（`results/.build/deploy/progress.txt` + `report.md` 存在）→ `updateStage('global', null, 'Build', { status: 'completed' })`
+5. **validate 缺失** → 启动 `project-manage-validator` → **校验产出**（`results/.build/env/progress.txt` + `report.md` 存在）→ `updateStage('global', null, 'Validate', { status: 'completed' })`
 6. **三层都就绪** → 读取 `healthCheck` → curl 检查服务
 7. 服务未运行 → 启动 `project-manage-validator`
 
@@ -294,6 +294,31 @@ node .claude/scripts/generate-report.mjs --project <NN-Project>
 生成 `results/{module}/progress.txt`、`results/{module}/report.md`、`results/summary.md`。
 
 **禁止空结果**：即使全部通过也必须生成。
+
+## Agent 产出校验（强制）
+
+Agent 返回后、`updateStage(status: 'completed')` 前，**必须检查预期产出文件是否存在**。缺失则要求 Agent 补齐或标记 `failed`。
+
+### 校验清单
+
+| 阶段 | 必须存在的产出文件 |
+|------|------------------|
+| Analyze | `test-config/environment.json`（含 `analyzer.completedAt`）、`playwright.config.ts` |
+| Build | `results/.build/deploy/progress.txt`、`results/.build/deploy/report.md` |
+| Validate | `results/.build/env/progress.txt`、`results/.build/env/report.md` |
+| Plan | `plans/00-test-plan.md`、`plans/NN-{module}.md`（至少一个）、`tests/seed.spec.ts` |
+| Generate | `tests/{level}/{module}/tc-*.spec.ts`（至少一个文件） |
+| Execute | `results/{module}/progress.txt`、`results/{module}/report.md` |
+
+### 校验流程
+
+1. Agent 返回成功信号
+2. 逐项检查上表中的文件是否存在
+3. **全部存在** → `updateStage(status: 'completed')`
+4. **有缺失** → 记录缺失文件列表，向用户报告，不标记 completed
+5. 用户指示补齐 → 重新启动该 Agent（传递缺失文件列表）或主会话直接补写
+
+**禁止**在产出不完整时标记阶段为 `completed`。
 
 ## Agent 调度管线
 
