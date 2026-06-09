@@ -365,9 +365,31 @@ officecli add-part <file> <parent>                   # create new document part 
 
 ---
 
+## Local Sub-Skill Index
+
+10 specialized sub-skills installed alongside this main SKILL.md. **Load with `officecli load_skill <short-name>` via MCP** before working on the matching artifact. The mapping below is the decision table — pick by what the user is asking for, not by which format extension the file has.
+
+| Short name (use with `load_skill`) | Format | When to use | Inherits from |
+|---|---|---|---|
+| `word` | docx | Reports, letters, memos, proposals, generic documents | base |
+| `academic-paper` | docx | Journal / conference / thesis (APA / Chicago / IEEE / MLA citations, equations, SEQ + PAGEREF cross-refs, multi-column journal layout, bibliography) | word |
+| `pptx` | pptx | Board reviews, sales decks, all-hands, product launches, training | base |
+| `pitch-deck` | pptx | **Fundraising only** — seed / Series A-C / SAFE / convertible / strategic raise | pptx |
+| `morph-ppt` | pptx | Cross-slide Morph animations, Keynote-style continuous motion, shape continuity across slides | pptx |
+| `morph-ppt-3d` | pptx | 3D Morph: GLB models, camera moves, depth | morph-ppt |
+| `excel` | xlsx | Generic workbooks, formulas, pivots, trackers, CSV import | base |
+| `financial-model` | xlsx | 3-statement / DCF / LBO / unit-economics / scenario / sensitivity | excel |
+| `data-dashboard` | xlsx | Multi-element Dashboard sheet with KPI cards, multiple charts, sparklines, CF | excel |
+
+**Loading rule.** Pick the **most specific** match. If none fits, load the format default (`word` / `pptx` / `excel`). Loaded rules persist across turns — don't re-load each reply. Two distinct artifacts → two separate loads.
+
+**Note on `word-form`.** Installed locally from upstream but not registered in the MCP server's `load_skill` list (returns `Unknown skill`). Skip — form-field work falls back to `word` base skill.
+
+---
+
 ## Specialized Skills
 
-`officecli load_skill <name>` — output is a SKILL.md, follow its rules.
+`officecli load_skill <short-name>` — output is a SKILL.md, follow its rules.
 
 **Loading rule**:
 - Pick the most specific match in "When to use"; if none fits, load the format default (`word` / `pptx` / `excel`).
