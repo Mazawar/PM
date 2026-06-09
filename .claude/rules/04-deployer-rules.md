@@ -309,6 +309,16 @@ DEPLOY-003:SKIP
 ```markdown
 # <项目名> 部署指南
 
+## 版本信息
+
+| 项目 | 值 |
+|------|-----|
+| 版本 | <从 version-log.json 最新记录取 version，如 v1.0.0> |
+| 构建时间 | <从 version-log.json 最新记录取 builtAt> |
+| Git Commit | <从 version-log.json 最新记录取 commit> |
+| 部署模式 | <local / remote> |
+| 部署路径 | <deployPath，remote 模式时> |
+
 ## 1. 环境要求
 
 | 组件 | 版本要求 | 验证命令 |
@@ -464,6 +474,68 @@ tail -f <deployPath>/logs/backend.log
 | 数据库连接失败 | 检查 .env 中 MYSQL_* 变量，`systemctl status mysql` |
 | Nginx 502 | 后端未启动或端口不对，检查 backend.log |
 | 前白屏 | 检查 Nginx 配置中前端静态文件路径是否正确 |
+
+## 9. 升级与回滚（非首次部署）
+
+### 升级前备份
+
+```bash
+# 1. 备份数据库
+sudo mysqldump -u root <数据库名> > /var/backups/<项目名>/pre-upgrade-$(date +%Y%m%d-%H%M%S).sql
+
+# 2. 备份配置文件
+cp <deployPath>/backend/.env /var/backups/<项目名>/backend.env.bak
+
+# 3. 备份列表（最多保留 5 份）
+ls -lt /var/backups/<项目名>/
+```
+
+### 升级步骤
+
+```bash
+# 1. 停止当前服务（见「停止服务」步骤）
+
+# 2. 备份当前产物（可选）
+cp -r <deployPath>/backend <deployPath>/backend.bak.<旧版本>
+
+# 3. 替换产物
+#    上传新的 dev/ 内容覆盖 <deployPath>/
+#    注意保留 .env（不要覆盖）
+
+# 4. 数据库迁移（如有新 SQL）
+sudo mysql -u root <数据库名> < database/<新版本迁移文件>.sql
+
+# 5. 启动服务（见「启动服务」步骤）
+
+# 6. 验证（见「验证」步骤）
+```
+
+### 回滚
+
+升级失败时，恢复到上一版本：
+
+```bash
+# 1. 停止服务
+
+# 2. 恢复数据库
+sudo mysql -u root <数据库名> < /var/backups/<项目名>/pre-upgrade-<时间戳>.sql
+
+# 3. 恢复后端产物
+rm -rf <deployPath>/backend
+cp -r <deployPath>/backend.bak.<旧版本> <deployPath>/backend
+
+# 4. 恢复配置（如被覆盖）
+cp /var/backups/<项目名>/backend.env.bak <deployPath>/backend/.env
+
+# 5. 启动服务并验证
+```
+
+### 回滚检查清单
+
+- [ ] 数据库备份文件存在且大小合理
+- [ ] backend.bak 目录存在且产物完整
+- [ ] .env 配置已恢复
+- [ ] 服务启动成功，健康检查通过
 ```
 
 **填充规则**：
