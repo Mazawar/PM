@@ -11,6 +11,16 @@
 
 这样多模块并行/迭代时，不同模块的进度独立追踪，不再因为切换模块而丢失另一个模块的进度。
 
+## 时间戳格式（强制）
+
+所有 Agent 和脚本生成的时间戳**必须使用本地时间 + 时区偏移**，禁止使用 UTC。
+
+- **ISO 字段**（`completedAt`、`at`、`builtAt` 等）：`2026-06-09T20:45:00+08:00`
+- **可读字段**（报告中的时间行）：`2026-06-09 20:45`
+- 禁止 `new Date().toISOString()`（输出 UTC `Z` 后缀），改用 `toLocalISO()` / `toLocalStr()`
+
+脚本工具：`.claude/scripts/lib/time.mjs`（导出 `toLocalISO` 和 `toLocalStr`）
+
 ## 状态文件
 
 ```

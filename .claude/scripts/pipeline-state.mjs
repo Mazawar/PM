@@ -17,6 +17,7 @@
 
 import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
 import { resolve, join } from 'path';
+import { toLocalISO } from './lib/time.mjs';
 
 const STAGES_MODULE = ['Plan', 'Generate', 'Execute', 'Report'];
 const STAGES_GLOBAL = ['Detect', 'Analyze', 'Build', 'Validate'];
@@ -57,7 +58,7 @@ function buildTemplate(projectName, modules) {
   return {
     schemaVersion: 1,
     project: projectName,
-    updatedAt: new Date().toISOString(),
+    updatedAt: toLocalISO(),
     global,
     modules: mods,
     publishes: [],
@@ -91,7 +92,7 @@ export function readState(projectPath) {
 
 export function updateStage(projectPath, scope, key, stage, data) {
   const state = readState(projectPath);
-  const now = new Date().toISOString();
+  const now = toLocalISO();
 
   if (scope === 'global') {
     if (!STAGES_GLOBAL.includes(stage)) throw new Error(`Invalid global stage: ${stage}`);
@@ -120,7 +121,7 @@ export function appendPublish(projectPath, publish) {
     ? 1
     : Math.max(...state.publishes.map(x => x.id || 0)) + 1;
   state.publishes.push({ id, ...publish });
-  state.updatedAt = new Date().toISOString();
+  state.updatedAt = toLocalISO();
   writeFileSync(statePathFor(projectPath), JSON.stringify(state, null, 2) + '\n', 'utf-8');
   return state.publishes[state.publishes.length - 1];
 }

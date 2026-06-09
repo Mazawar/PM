@@ -19,6 +19,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, copyFileSync } from 'fs';
 import { resolve, join, dirname, basename } from 'path';
+import { toLocalStr } from './lib/time.mjs';
 
 // --- 参数解析 ---
 const args = process.argv.slice(2);
@@ -272,7 +273,7 @@ function generateProgress(module, tests) {
 // --- 渲染 report.md（模板驱动）---
 function generateReport(module, tests, env) {
   const now = new Date();
-  const timeStr = now.toISOString().slice(0, 16).replace('T', ' ');
+  const timeStr = toLocalStr(now);
   const passCount = tests.filter(t => t.status === 'passed').length;
   const failCount = tests.filter(t => t.status === 'failed').length;
   const skipCount = tests.filter(t => t.status === 'skipped').length;
@@ -351,7 +352,7 @@ function generateReport(module, tests, env) {
 // --- 生成 summary.md ---
 function generateSummary(modules, allTests, env) {
   const now = new Date();
-  const timeStr = now.toISOString().slice(0, 16).replace('T', ' ');
+  const timeStr = toLocalStr(now);
   const totalPass = allTests.filter(t => t.status === 'passed').length;
   const totalFail = allTests.filter(t => t.status === 'failed').length;
   const totalSkip = allTests.filter(t => t.status === 'skipped').length;

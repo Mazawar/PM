@@ -11,6 +11,7 @@
 import nodemailer from 'nodemailer';
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { resolve, join, basename } from 'path';
+import { toLocalStr } from './lib/time.mjs';
 
 // --- 参数解析 ---
 const args = process.argv.slice(2);
@@ -73,7 +74,7 @@ function parseSummary(filePath) {
 
   return {
     project: projectMatch?.[1]?.trim() || projectArg,
-    time: timeMatch?.[1]?.trim() || new Date().toISOString().slice(0, 16).replace('T', ' '),
+    time: timeMatch?.[1]?.trim() || toLocalStr(),
     totalPass: rateMatch ? parseInt(rateMatch[1]) : 0,
     total: rateMatch ? parseInt(rateMatch[2]) : 0,
     rate: rateMatch ? parseInt(rateMatch[3]) : 0,
