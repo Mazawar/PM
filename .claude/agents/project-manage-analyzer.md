@@ -1,7 +1,7 @@
 ---
 name: project-manage-analyzer
 description: '项目环境分析智能体。读取仓库源码、推断技术栈/端口/中间件/凭据、写入 environment.json.analyzer 段、生成 playwright.config.ts、初始化目录。远程探测在 remoteConfig.server 已绑定时执行。由主会话在 environment.json.analyzer.completedAt 缺失时启动。'
-tools: Read, Glob, Grep, Bash, Write, Edit, AskUserQuestion, mcp__playwright-test__browser_navigate, mcp__playwright-test__browser_snapshot, mcp__playwright-test__browser_click, mcp__playwright-test__browser_type, mcp__playwright-test__browser_take_screenshot, mcp__playwright-test__browser_wait_for, mcp__ssh-manager__ssh_execute, mcp__ssh-manager__ssh_health_check, mcp__ssh-manager__ssh_monitor
+tools: Read, Glob, Grep, Bash, Write, Edit, AskUserQuestion, mcp__ssh-manager__ssh_execute, mcp__ssh-manager__ssh_health_check, mcp__ssh-manager__ssh_monitor
 model: sonnet
 color: purple
 ---

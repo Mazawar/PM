@@ -153,15 +153,17 @@ deployer **所有操作**的知识来源只有一个：`environment.json.analyze
 
 ### DEPLOY-007: 远程环境就绪
 
-使用高层 SSH 工具探测远程环境：
+**优先批量命令**（单次 SSH 调用收集全部信息）：
 
-```
-ssh_health_check(server, detailed=true)
-ssh_service_status(server, services=["mysql", "nginx"])
-ssh_monitor(server, type="overview")
+```bash
+ssh_execute "echo '===JAVA===' && java -version 2>&1 | head -1 && echo '===MAVEN===' && mvn -version 2>&1 | head -1 && echo '===MYSQL===' && mysql --version && echo '===NGINX===' && nginx -v 2>&1 && echo '===PORTS===' && ss -tlnp | grep -E ':(80|8080) '"
 ```
 
-对比 `deploymentDocs` 要求与实际环境：
+解析分隔输出，对比 `deploymentDocs` 要求。需详细信息时再用高层工具补充：
+- `ssh_health_check(server, detailed=true)`
+- `ssh_service_status(server, services=["mysql", "nginx"])`
+
+对比结果：
 - 运行时版本匹配 → PASS
 - 任一不满足 → FAIL，列出缺失/版本不匹配的组件
 

@@ -19,6 +19,14 @@
 
 ### 1. 启动服务
 
+**启动前检查（强制）**：先确认服务是否已在运行，避免重复启动。
+- local：`curl -s -o /dev/null -w "%{http_code}" <healthCheck.url>`
+- remote：`ssh_execute "curl -s -o /dev/null -w '%{http_code}' <healthCheck.url>"`
+
+healthCheck 返回 expectedStatus → **跳过启动**，ENV-001 直接 PASS。
+
+**仅在服务未运行时启动**：
+
 **local**：
 从 `environment.json.analyzer.startCommand` 读取启动命令，在 `build/dev/backend/` 下执行。预创建 `build/dev/logs/` 目录，日志重定向到 `build/dev/logs/<service>.log`。
 
@@ -54,12 +62,25 @@ exit 1
 
 ### 3. 页面验证
 
+**remote 模式（快速路径，推荐）**：
+1. `ssh_execute "curl -s -o /dev/null -w '%{http_code}' http://localhost:<frontendPort>"` → 确认 200
+2. `ssh_execute "curl -s http://localhost:<frontendPort> | head -20"` → 确认 HTML 含 `<title>` 且非空白/错误页
+3. 两项通过 → PASS（2 个 SSH 调用，< 3 秒）
+
+**local 模式（完整验证）**：
 1. `browser_snapshot` 确认页面渲染出实际内容（不是空白页或错误提示）
 2. `browser_console_messages`（level=error）确认无模块解析失败、JS 运行时错误
 3. 页面加载失败时检查 `build/dev/` 完整性和 workspace 包是否构建
 
 ### 4. 登录验证
 
+**remote 模式（快速路径，推荐）**：
+1. `ssh_execute` 调用登录 API：`curl -s -X POST http://localhost:<backendPort>/api/auth/login -H 'Content-Type: application/json' -d '{"username":"<username>","password":"<password>"}'`
+2. 响应含 token 或成功标识 → PASS（1 个 SSH 调用，< 2 秒）
+3. 登录路径不确定时回退到浏览器方式
+4. 无 credentials 时标 SKIP
+
+**local 模式（完整验证）**：
 按 `analyzer.login` 段配置填写表单、提交、确认跳转正确页。
 
 ## 出具报告
@@ -79,8 +100,8 @@ ENV-004:PASS
 |------|--------|------|
 | ENV-001 | 服务启动 | 进程存在 + 端口在监听 |
 | ENV-002 | 健康检查 | healthCheck 端点返回 expectedStatus |
-| ENV-003 | 页面渲染 | HTML 200 + 实际内容非空 + 控制台无 JS 错误 |
-| ENV-004 | 登录验证 | 凭据能登录 + 跳正确页（无 credentials 则 SKIP） |
+| ENV-003 | 页面渲染 | remote: curl 200 + HTML 非空；local: snapshot + 无 JS 错误 |
+| ENV-004 | 登录验证 | remote: curl API 返回 token；local: 浏览器表单登录（无 credentials 则 SKIP） |
 
 无对应配置时标 SKIP。
 

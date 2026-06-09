@@ -52,11 +52,15 @@ color: green
 
 ### Step 4: 页面验证
 
-`browser_snapshot` + `browser_console_messages level=error`，确认页面渲染正常、无模块解析错误。
+**remote 模式（快速路径）**：`ssh_execute` 用 curl 检查 HTML 状态码 + 内容（2 个调用，< 3 秒）。
+
+**local 模式**：`browser_snapshot` + `browser_console_messages level=error`，确认页面渲染正常、无模块解析错误。
 
 ### Step 5: 登录验证
 
-按 `analyzer.login` 段配置填写表单、提交、确认跳转。
+**remote 模式（快速路径）**：`ssh_execute` 用 curl POST 登录 API 验证凭据（1 个调用，< 2 秒）。路径不确定时回退浏览器方式。
+
+**local 模式**：按 `analyzer.login` 段配置填写表单、提交、确认跳转。
 
 ### Step 6: 出具环境验证报告
 
