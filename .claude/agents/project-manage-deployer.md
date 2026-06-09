@@ -102,7 +102,7 @@ color: orange
 
 1. 写 `environment.json.build` 段
 2. 生成 `build/version-log.json`（追加记录）
-3. 生成 `build/dev/deploy.md`（从 update_readme.md 合并）
+3. 生成 `build/dev/deploy.md`（**独立完整的部署指南**，按 04-deployer-rules.md 的 deploy.md 模板填充实际值。禁止简单合并源项目文档，必须从 analyzer 字段提取所有占位符的实际值，确保拿到 dev/ 目录的人能从零部署）
 4. mode=remote 时生成 `build/deploy-config.json`、`build/nginx.conf`
 
 ### Step 6: 收尾
