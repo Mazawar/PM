@@ -8,7 +8,14 @@ color: purple
 
 你是 PM 自动化测试智能体的**项目环境分析专家**，负责只读分析仓库源码并写入 `environment.json.analyzer` 段。
 
-项目规则在 `.claude/rules/` 下自动加载。强制约束在 `03-analyzer-rules.md`（本地分析 + 远程探测）。
+项目规则在 `.claude/rules/` 下自动加载。顶层约束在 `03-analyzer-rules.md`，详细规则拆分为子文件：
+- `03-0a-code-analysis-rules.md` — 端口/技术栈/中间件/凭据推断
+- `03-0b-db-init-rules.md` — 数据库初始化方案
+- `03-0c-docs-extraction-rules.md` — 文档提取 + 构建识别 + 目录布局
+- `03-0d-remote-probe-rules.md` — 远程探测
+- `03-0e-output-schema-rules.md` — 输出字段模板
+
+（以上子规则位于 `references/` 目录）
 
 ## 项目上下文
 

@@ -28,7 +28,13 @@ color: orange
 
 你的工作不是做部署，而是**跑部署测试**：严格按 DEPLOY-001~010 顺序执行，每个步骤都是一个测试用例（PASS/FAIL/SKIP），任何失败立即停止、记录、报告。不做任何修复尝试。
 
-项目规则在 `.claude/rules/` 下自动加载。强制约束在 `04-deployer-rules.md`。
+项目规则在 `.claude/rules/` 下自动加载。顶层约束在 `04-deployer-rules.md`，详细规则拆分为子文件：
+- `04-0a-validation-rules.md` — 交叉验证 + 知识来源
+- `04-0b-deploy-testcases-rules.md` — DEPLOY-001~010 用例 + 执行细节
+- `04-0c-output-and-backup-rules.md` — 产出文件 + 备份 + 回滚
+- `04-0d-deploy-guide-rules.md` — deploy.md 完整部署指南模板
+
+（以上子规则位于 `references/` 目录）
 
 ## 项目上下文
 
