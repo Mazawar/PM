@@ -90,9 +90,37 @@ UI 测试统一 Playwright。L2 API 测试统一 Vitest。
 
 ## 计划分层（强制）
 
-- `test_project/<NN-Project>/plans/00-test-plan.md` — **仅** Application Overview + 模块索引表
+- `test_project/<NN-Project>/plans/00-test-plan.md` — **仅** Application Overview + 模块索引表，禁止写详细步骤
 - `test_project/<NN-Project>/plans/NN-{module}.md` — **所有**详细内容（TC 步骤、expect），NN 为两位序号
 - 禁止在总计划中写详细步骤，禁止在模块计划中省略步骤
+
+### 总计划模板（00-test-plan.md，强制）
+
+```markdown
+# <项目名> 测试计划
+
+## Application Overview
+
+- 目标应用: <URL>
+- 技术栈: <前端框架 + 后端框架>
+- 测试范围: <简述覆盖范围>
+
+## 模块索引
+
+| # | 模块 | 计划文件 | TC 范围 | 用例数 | 优先级 |
+|---|------|---------|---------|--------|--------|
+| 01 | <模块名> | 01-<module>.md | TC-001 ~ TC-018 | 18 | P0 |
+| 02 | <模块名> | 02-<module>.md | TC-019 ~ TC-032 | 14 | P1 |
+
+**总计**: <N> 个模块, <M> 个用例
+```
+
+**总计划中禁止出现的内容**：
+- TC 详细步骤（Steps / expect）
+- UI Map
+- 测试数据
+- 页面探索细节
+- 任何超过上表的正文段落
 
 ## 用户案例读取优先级（强制）
 

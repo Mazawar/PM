@@ -69,8 +69,8 @@ test_project/<NN-Project>/.pipeline-state.json
 |--------|------|------|
 | global | `Detect`   | scan.sh 执行结果 |
 | global | `Analyze`  | 项目环境分析（analyzer agent）：源码/端口/凭据/中间件推断，写 environment.json.analyzer.* |
-| global | `Build`    | 部署验证（deployer agent）：编译验证+归档+组装 dev/；remote 模式额外+远程部署 |
-| global | `Validate` | 环境验证（validator agent）：启动服务 → 健康检查 → 出环境验证报告 |
+| global | `Build`    | 部署验证（deployer agent）：编译验证+组装 dev/；remote 模式额外+远程部署 |
+| global | `Validate` | 环境验证（validator agent）：启动服务 → 健康检查 → 出环境验证报告 → 验证通过后归档制品 |
 | modules | `Plan`     | 模块测试计划 |
 | modules | `Generate` | 测试代码生成 |
 | modules | `Execute`  | 测试执行 |
@@ -261,7 +261,7 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
 1. **Detect** — `scan.sh` 检测变更，生成报告到 `test_project/<NN-Project>/scan-logs/`
 2. **Analyze** — `project-manage-analyzer` agent 读仓库源码、推断技术栈/端口/中间件/凭据，写 `environment.json.analyzer.*` 段、生成 `playwright.config.ts`、初始化目录
 3. **Build** — 主会话询问构建模式（local | remote）→ 写 `environment.json.build.mode` → 启动 `project-manage-deployer` agent 验证部署能力
-4. **Validate** — 启动 `project-manage-validator` agent：启动服务 → 健康检查 → 页面验证 → 登录验证 → 出环境验证报告
+4. **Validate** — 启动 `project-manage-validator` agent：启动服务 → 健康检查 → 页面验证 → 登录验证 → 出环境验证报告 → 验证通过后归档制品
 5. **Plan** — planner agent 生成测试计划（优先读取 `case/` 目录中的用户案例），**用户多轮确认与调整**后才进入 Generate
 6. **Generate** — generator agent 生成测试代码，**用户确认**
 7. **Execute** — 运行测试，失败交 healer agent

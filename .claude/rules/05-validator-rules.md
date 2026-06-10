@@ -105,6 +105,34 @@ ENV-004:PASS
 
 无对应配置时标 SKIP。
 
+### 制品归档（ENV 全部通过后执行）
+
+**仅在 ENV-001~004 无 FAIL 时执行。** 将已验证通过的 `build/dev/` 产物及部署文档打包归档到 `build/artifacts/`。
+
+归档内容：
+1. `build/dev/` 全部内容（backend/、frontend/、database/、logs/、deploy.md）
+2. `build/nginx.conf`（有前端时）
+3. `build/version-log.json`
+4. `build/deploy-config.json`（remote 模式时）
+
+归档规则：
+- 打包到 `build/artifacts/<YYYYMMDD-HHmmss>-<commit>.tar.gz`
+- 生成 `.manifest.json`（列出归档内容文件清单）
+- 归档禁止包含：`node_modules/`、`.git/`、源码文件
+- 前端产物只归档构建输出，不归档源码
+
+写入 `environment.json.build` 段的 archive 字段：
+```json
+{
+  "build": {
+    "mode": "local|remote",
+    "archive": "build/artifacts/<ts>-<commit>.tar.gz",
+    "builtAt": "ISO",
+    "archivedAt": "ISO"
+  }
+}
+```
+
 ### report.md
 
 ```markdown
