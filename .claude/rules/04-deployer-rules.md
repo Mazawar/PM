@@ -47,6 +47,7 @@
 ## 禁止
 
 - 启动服务、健康检查、更新 baseURL（validator 负责）
+- **制品归档**（validator 在环境验证通过后负责，deployer 不做归档）
 - 修改 `repository/` 源码
 - 删除 `case/`、`.last_hash`、`.pipeline-state.json`
 - 猜测构建命令、尝试替代方案

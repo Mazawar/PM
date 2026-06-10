@@ -10,7 +10,6 @@
 {
   "build": {
     "mode": "local|remote",
-    "archive": "build/artifacts/<ts>-<commit>.tar.gz",
     "builtAt": "ISO",
     "remote": {
       "deployPath": "/home/ubuntu/projects/<NN-Project>"
@@ -18,6 +17,8 @@
   }
 }
 ```
+
+**注意**：`archive` 和 `archivedAt` 字段由 validator 在环境验证通过并归档后写入，deployer 不写归档相关字段。
 
 ### 部署验证报告
 

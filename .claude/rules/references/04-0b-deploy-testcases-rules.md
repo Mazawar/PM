@@ -12,8 +12,8 @@
 |------|--------|------|------|------|
 | DEPLOY-001 | 文档完整性 | buildCommand + startCommand + envVars + directoryLayout（JSON 对象，含 backend） + deliveryModel 五字段齐全（有前端时 frontendBuild 也需齐全） | 任一缺失，或 directoryLayout 为字符串（旧格式需重跑 analyzer） | — |
 | DEPLOY-002 | 项目构建 | 后端 buildCommand exit 0；有 frontendBuild 时前端也 exit 0 | 任一 exit ≠ 0 | — |
-| DEPLOY-003 | 依赖解析 | archive 打包 + 解压 + 按文档安装依赖 全成功 | 任一失败 | — |
-| DEPLOY-004 | 制品归档 | archive + manifest 存在且校验通过 | 文件缺失或校验不通过 | — |
+| DEPLOY-003 | 产物提取 | 产物提取到 dev/ + 依赖安装 全成功 | 任一失败 | — |
+| DEPLOY-004 | 制品校验 | dev/ 目录结构完整、关键文件存在 | 文件缺失或结构不完整 | — |
 | DEPLOY-005 | 数据库文件 | SQL 按 initFiles 提取到 dev/database/ 成功 | 文件缺失或损坏 | 无 dbConfig |
 | DEPLOY-006 | 配置完整性 | .env 中 envVars 所有变量齐备 | 任一变量缺失 | 无 envVars |
 
@@ -63,7 +63,7 @@
 
 **`deliveryModel` 缺失或为其他值**：FAIL，报告「deploymentDocs.deliveryModel 未设置或无效」。
 
-### DEPLOY-003: 依赖解析
+### DEPLOY-003: 产物提取
 
 根据 `deliveryModel` 分支：
 
@@ -73,24 +73,23 @@
 - 验证关键产物文件存在
 
 **`source-build`**：
-1. 打包后端编译产物到 `build/artifacts/<YYYYMMDD-HHmmss>-<commit>.tar.gz`
-2. 解压后端产物到 `build/dev/backend/`（从 `directoryLayout.backend.source` 提取）
-3. **前端产物归档**（仅 `frontendBuild` 存在时）：
+1. 解压/复制后端编译产物到 `build/dev/backend/`（从 `directoryLayout.backend.source` 提取）
+2. **前端产物提取**（仅 `frontendBuild` 存在时）：
    - 从 `repository/<NN-Project>/<frontendBuild.workDir>/<frontendBuild.outputDir>` 复制构建产物到 `build/dev/frontend/`（扁平化，构建产物直接放 frontend/ 下）
    - 产物是静态文件（HTML/JS/CSS），不需要在服务器上安装 Node.js
-4. 如后端文档要求额外步骤（如 Prisma generate），按文档执行
+3. 如后端文档要求额外步骤（如 Prisma generate），按文档执行
 
-归档禁止包含：`node_modules/`、`version/`、`.git/`、文档、大文件。
-**前端产物归档禁止包含源码**，只归档 `frontendBuild.outputDir` 下的构建产物。
+**归档由 validator 在环境验证全部通过后负责，deployer 不做归档。**
 
-### DEPLOY-004: 制品归档
+### DEPLOY-004: 制品校验
 
 **`pre-built`**：验证预构建包目录结构完整（按 `directoryLayout` 对象的 `backend`/`frontend`/`database` 字段逐项检查产物目录和文件存在）。
 
 **`source-build`**：
-1. 验证 archive 和 manifest 文件存在
-2. manifest.files 与实际内容一致
-3. 关键文件存在（按文档要求检查）
+1. 验证 `build/dev/backend/` 目录存在且关键文件存在（按 `directoryLayout.backend.artifact` 或文档要求检查）
+2. 有 `frontendBuild` 时验证 `build/dev/frontend/index.html` 存在
+3. 有 `dbConfig` 时验证 SQL 文件已在 `build/dev/database/` 中（如有）
+4. 检查无违规文件（`*.log` 散落、`node_modules/` 等）
 
 ### DEPLOY-005: 数据库文件
 
