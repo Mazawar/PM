@@ -295,7 +295,9 @@ Detect → Analyze → Build → Validate → Plan → Generate → Execute → 
 
 ## Report 阶段（强制）
 
-测试运行完成后，无论通过或失败，**必须**生成结果文件：
+测试运行完成后，无论通过或失败，**必须**生成结果文件。
+
+### 步骤一：生成 Markdown 报告（强制）
 
 ```bash
 node .claude/scripts/generate-report.mjs --project <NN-Project>
@@ -304,6 +306,21 @@ node .claude/scripts/generate-report.mjs --project <NN-Project>
 生成 `results/{module}/progress.txt`、`results/{module}/report.md`、`results/summary.md`。
 
 **禁止空结果**：即使全部通过也必须生成。
+
+### 步骤二：询问是否生成 DOCX 报告
+
+Markdown 报告生成完成后，用 `AskUserQuestion` 询问：
+
+```
+是否要生成 DOCX 报告？（基于模板，含图文交错截图，适合正式交付）
+```
+
+| 选项 | 后续 |
+|------|------|
+| 是 | 按 `references/09-0a-generate-report-rules.md` 执行 DOCX 生成流程 |
+| 否 | Report 阶段结束，进入 Publish 询问 |
+
+DOCX 生成依赖 Markdown 报告作为数据源，**不可跳过步骤一**。
 
 ## Agent 产出校验（强制）
 
