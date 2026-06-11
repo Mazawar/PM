@@ -4,20 +4,20 @@
  * PM 测试报告邮件通知脚本
  *
  * 用法:
- *   node .claude/scripts/notify.mjs --project 02-oa-llm           # 发送邮件
- *   node .claude/scripts/notify.mjs --project 02-oa-llm --dry-run # 仅输出邮件内容不发送
+ *   node .claude/skills/notify/notify.mjs --project 02-oa-llm           # 发送邮件
+ *   node .claude/skills/notify/notify.mjs --project 02-oa-llm --dry-run # 仅输出邮件内容不发送
  */
 
 import nodemailer from 'nodemailer';
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { resolve, join, basename } from 'path';
-import { toLocalStr } from './lib/time.mjs';
+import { toLocalStr } from '../../scripts/lib/time.mjs';
 
 // --- 参数解析 ---
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const projectArg = args.find(a => !a.startsWith('--'));
-const PROJECT_ROOT = resolve(import.meta.dirname, '../..');
+const PROJECT_ROOT = resolve(import.meta.dirname, '../../..');
 
 if (!projectArg) {
   console.error('用法: node notify.mjs --project <NN-Project> [--dry-run]');
@@ -31,10 +31,10 @@ if (!existsSync(projectDir)) {
 }
 
 // --- 加载配置 ---
-const configPath = join(import.meta.dirname, '..', 'notify-config.json');
+const configPath = join(PROJECT_ROOT, '.claude', 'notify-config.json');
 if (!existsSync(configPath)) {
   console.error(`通知配置不存在: ${configPath}`);
-  console.error('请复制 notify-config.example.json 为 notify-config.json 并填写 SMTP 信息');
+  console.error('请使用 /notify setup 配置');
   process.exit(1);
 }
 const config = JSON.parse(readFileSync(configPath, 'utf-8'));

@@ -110,7 +110,7 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 node .claude/scripts/generate-report.mjs --project <NN-Project>
 
 # 测试报告邮件通知
-node .claude/scripts/notify.mjs --project <NN-Project>
+node .claude/skills/notify/notify.mjs --project <NN-Project>
 ```
 
 项目注册使用 `/pm` Skill（add/del/list/track）。
