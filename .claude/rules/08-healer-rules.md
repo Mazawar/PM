@@ -23,7 +23,8 @@ PROJECT_ROOT = test_project/<NN-Project>
 
 | 用途 | 正确路径 | 错误路径 |
 |------|---------|---------|
-| 测试代码 | `${PROJECT_ROOT}/tests/e2e/{module}/tc-xxx.spec.ts` | `tests/e2e/...` 或 `e2e/...` |
+| E2E 测试代码 | `${PROJECT_ROOT}/tests/e2e/{module}/tc-xxx.spec.ts` | `tests/e2e/...` 或 `e2e/...` |
+| API 测试代码 | `${PROJECT_ROOT}/tests/api/{module}/tc-xxx.spec.ts` | `tests/api/...` 或 `api/...` |
 | 结果输出 | `${PROJECT_ROOT}/results/{module}/progress.txt` | `results/{module}/...` |
 | 截图 | `${PROJECT_ROOT}/results/{module}/screenshots/tc-xxx.png` | `results/{module}/screenshots/...` |
 | 报告 | `${PROJECT_ROOT}/results/{module}/report.md` | `results/{module}/report.md` |
@@ -76,12 +77,13 @@ PROJECT_ROOT = test_project/<NN-Project>
 
 ## 修复流程（强制）
 
-1. `test_run` 运行全部测试，识别失败
-2. `test_debug` 逐个调试
-3. 用 Playwright 工具分析：snapshot、console、network
-4. 系统化修复，不猜测
-5. 每次修复后重新运行验证
-6. 更新 `progress.txt`、`report.md`、`summary.md`
+1. 从失败测试的文件头部 `// TEST-LEVEL: L2|L3` 判断测试层级
+2. **L3 E2E**：`test_run` 运行全部测试，识别失败 → `test_debug` 逐个调试
+3. **L2 API**：`npx vitest run --config=${PROJECT_ROOT}/vitest.config.ts` 运行，识别失败 → 直接修复代码
+4. L3 用 Playwright 工具分析：snapshot、console、network
+5. 系统化修复，不猜测
+6. 每次修复后重新运行验证（L3 用 `test_run`，L2 用 `npx vitest run`）
+7. 更新 `progress.txt`、`report.md`、`summary.md`
 
 ## 修复范围
 

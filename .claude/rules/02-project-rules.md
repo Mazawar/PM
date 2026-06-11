@@ -30,22 +30,19 @@ test_project/<NN-Project>/
 ├── test-config/
 │   └── environment.json       # 环境配置（技术栈、端口、凭据、中间件、启动命令）
 ├── tests/
-│   ├── unit/                 # L1
+│   ├── seed.spec.ts            # 登录种子（Planner/Generator/Healer 共享）
+│   ├── api/                    # L2 API 测试（Vitest）
 │   │   └── {module}/
 │   │       └── tc-{编号}-{简称}.spec.ts
-│   ├── api/                  # L2
-│   │   └── {module}/
-│   │       └── tc-{编号}-{简称}.spec.ts
-│   ├── e2e/                  # L3
-│   │   └── {module}/         # 按模块分子目录
-│   │       ├── tc-{编号}-{简称}.spec.ts
-│   │       └── ...
-│   └── ui/                   # L4
+│   └── e2e/                    # L3 E2E 测试（Playwright）
 │       └── {module}/
 │           ├── tc-{编号}-{简称}.spec.ts
 │           └── ...
 ├── results/
 │   ├── summary.md
+│   ├── .ui/                        # UI 审查报告（planner 探索发现）
+│   │   ├── report.md              # UI 问题截图 + 描述
+│   │   └── screenshots/
 │   ├── .build/                   # 构建验证报告（.前缀排在目录最前）
 │   │   ├── deploy/               # deployer 部署验证报告
 │   │   │   ├── progress.txt
@@ -126,12 +123,12 @@ export default defineConfig({
 
 ### 运行命令
 
-L3/L4:
+E2E:
 ```bash
 npx playwright test --config=test_project/<NN-Project>/playwright.config.ts
 ```
 
-L2:
+API:
 ```bash
 npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 ```

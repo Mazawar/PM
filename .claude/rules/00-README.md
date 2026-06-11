@@ -26,9 +26,9 @@
 ├── 05-validator-rules      validator agent — 环境验证 + 健康检查 + 环境验证报告
 
 测试执行层（Agent 约束，管线下游）
-├── 06-planner-rules        planner agent — TC 编号、计划分层、用户案例优先级、Seed 生成、用户确认流程
-├── 07-generator-rules      generator agent — 直接生成/录制模式、代码生成、等待策略、断言约束
-├── 08-healer-rules         healer agent — 修复流程、结果更新、progress/report/截图规范
+├── 06-planner-rules        planner agent — TC 编号、计划分层、UI Map 录制（强制）、UI 问题标注、用户案例优先级、Seed 生成、用户确认流程
+├── 07-generator-rules      generator agent — 直接生成（默认）/ 录制（兜底）、L2 API + L3 E2E、代码生成、等待策略、断言约束
+├── 08-healer-rules         healer agent — 修复流程、L2/L3 运行器检测、结果更新、progress/report/截图规范
 
 报告与发布层
 ├── 09-report-rules         Report 阶段 — 格式选择（Markdown/DOCX）、报告生成

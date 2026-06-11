@@ -135,7 +135,7 @@ function moduleFromPath(filePath) {
     return parts[testsIdx + 2];
   }
   // path relative to tests/: e2e/auth/tc-001.spec.ts -> auth
-  if (parts.length >= 3 && /^(e2e|ui|api|unit)$/.test(parts[0])) {
+  if (parts.length >= 3 && /^(e2e|api)$/.test(parts[0])) {
     return parts[1];
   }
   return null;

@@ -68,7 +68,7 @@ function buildTemplate(projectName, modules) {
 function discoverModules(projectPath) {
   const testsDir = join(projectPath, 'tests');
   const seen = new Set();
-  for (const level of ['e2e', 'ui']) {
+  for (const level of ['e2e', 'api']) {
     const levelDir = join(testsDir, level);
     if (!existsSync(levelDir)) continue;
     for (const name of readdirSync(levelDir)) {

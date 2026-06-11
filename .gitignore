@@ -13,6 +13,8 @@ test_project/*
 # Playwright 运行时产物（trace、截图等）
 .claude/test-artifacts/
 .playwright-mcp/
+/test-results/
+/seed.spec.ts
 
 # IDE
 .vscode/

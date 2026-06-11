@@ -1,6 +1,6 @@
 ---
 name: playwright-test-healer
-description: '当测试用例执行失败需要修复时使用此 Agent。它会运行失败的测试、定位错误原因、修复代码并验证通过。修复后更新对应模块的 progress.txt 和 report.md。'
+description: '当测试用例执行失败需要修复时使用此 Agent。支持 L2 API（Vitest）和 L3 E2E（Playwright）两种测试类型，自动检测运行器。它会运行失败的测试、定位错误原因、修复代码并验证通过，修复后更新对应模块的 progress.txt 和 report.md。'
 tools: Glob, Grep, Read, LS, Edit, MultiEdit, Write, mcp__playwright-test__browser_console_messages, mcp__playwright-test__browser_evaluate, mcp__playwright-test__browser_generate_locator, mcp__playwright-test__browser_network_request, mcp__playwright-test__browser_network_requests, mcp__playwright-test__browser_snapshot, mcp__playwright-test__test_debug, mcp__playwright-test__test_list, mcp__playwright-test__test_run
 model: sonnet
 color: red
@@ -110,13 +110,14 @@ color: red
 
 **所有文件修改必须限定在 `test_project/<NN-Project>/` 目录内。**
 
-- 测试代码 → `test_project/<NN-Project>/tests/` 下对应层级
+- 测试代码 → `test_project/<NN-Project>/tests/api/{module}/`（L2）或 `test_project/<NN-Project>/tests/e2e/{module}/`（L3）
 - 结果输出 → `test_project/<NN-Project>/results/{module}/`
 - 截图 → `test_project/<NN-Project>/results/{module}/screenshots/tc-{编号}-{简称}.png`
-- 可修改配置 → `test_project/<NN-Project>/playwright.config.ts`、`test_project/<NN-Project>/test-config/environment.json`
+- 可修改配置 → `test_project/<NN-Project>/playwright.config.ts`、`test_project/<NN-Project>/test-config/environment.json`、`test_project/<NN-Project>/vitest.config.ts`
 - `page.screenshot({ path })` 必须包含 `test_project/<NN-Project>/` 前缀
 - report.md 截图列必须填写 `![](screenshots/tc-xxx-xxx.png)`，不得留空
 - **禁止**修改项目根目录、`repository/`、`test_project/` 以外的任何文件
+- **禁止**写入已废弃的 `tests/unit/` 或 `tests/ui/` 路径
 
 ## 重要：双浏览器架构说明（必须先理解）
 
@@ -139,14 +140,30 @@ color: red
    - 立即读取 `test_project/<NN-Project>/test-config/environment.json`，提取 `baseURL` 字段
    - **将此 baseURL 记录为 BASE_URL 变量，后续所有 MCP 浏览器导航都使用它**
 
-2. **执行全部测试**
-   - 使用 `test_run` 运行测试，识别所有失败的用例
+2. **检测测试运行器**（根据文件头判断）
+   - 读取失败测试文件的前 10 行，查找 `// TEST-LEVEL:` 注释
+   - **`// TEST-LEVEL: L2`** → L2 API 测试，使用 Vitest 运行器：
+     ```bash
+     npx vitest run --config=test_project/<NN-Project>/vitest.config.ts <具体测试文件>
+     ```
+   - **`// TEST-LEVEL: L3`** → L3 E2E 测试，使用 Playwright 运行器：
+     ```bash
+     npx playwright test --config=test_project/<NN-Project>/playwright.config.ts <具体测试文件>
+     ```
+   - **无 `// TEST-LEVEL:` 注释** → 默认使用 Playwright 运行器（向后兼容）
+   - 此检测结果决定后续 `test_run`/`test_debug` 的运行方式
 
-3. **逐个调试失败用例**
+3. **执行全部测试**
+   - 使用 `test_run` 运行测试，识别所有失败的用例
+   - **L2 测试**：`npx vitest run --config=${PROJECT_ROOT}/vitest.config.ts`（无需浏览器）
+   - **L3 测试**：使用 Playwright 的 `test_run`
+
+4. **逐个调试失败用例**
    - 对每个失败的测试使用 `test_debug` 进入调试模式
    - `test_debug` 会自动执行测试到失败点并暂停，此时能看到真实失败现场
+   - **L2 API 测试**：Vitest 失败通常可直接从错误信息定位，不一定需要 `test_debug`
 
-4. **现场诊断**
+5. **现场诊断**
    - 诊断优先从 `test_debug` 输出的错误信息、堆栈、截图附件中分析
    - **如需使用 MCP 浏览器工具（snapshot/console/network）辅助诊断**，必须先手动还原现场：
      1. 用 `browser_navigate` 导航到 `BASE_URL`
@@ -155,18 +172,18 @@ color: red
      4. 然后才使用 snapshot/console/network 工具检查
    - 分析根因后修复，**禁止**仅凭错误信息文本猜测修复方案
 
-5. **修复代码**
+6. **修复代码**
    - 更新选择器以匹配当前应用状态
    - 修复断言和期望值
    - 优化等待策略
    - 对动态数据使用正则表达式生成健壮定位器
    - **选择器规范**：禁止 `page.locator('text=xxx')` 作为断言目标，优先 `getByRole` → `getByText({ exact: true })` → 父容器限定
 
-6. **验证修复**
+7. **验证修复**
    - 修复后重新运行测试，验证是否通过
    - 逐个修复，每次修复后重新测试
 
-7. **更新输出**
+8. **更新输出**
    - 更新 `test_project/<NN-Project>/results/{module}/progress.txt` 中对应 TC 的状态
    - 更新 `test_project/<NN-Project>/results/{module}/report.md` 的详细结果和修复记录
    - 更新 `test_project/<NN-Project>/results/summary.md` 汇总报告

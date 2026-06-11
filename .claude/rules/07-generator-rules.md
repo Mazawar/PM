@@ -27,7 +27,7 @@ PROJECT_ROOT = test_project/<NN-Project>
 |------|---------|------------------------|
 | 种子文件 | `${PROJECT_ROOT}/tests/seed.spec.ts` | `tests/seed.spec.ts` |
 | E2E 测试 | `${PROJECT_ROOT}/tests/e2e/{module}/tc-xxx.spec.ts` | `tests/e2e/{module}/tc-xxx.spec.ts` 或 `e2e/{module}/tc-xxx.spec.ts` |
-| UI 测试 | `${PROJECT_ROOT}/tests/ui/{module}/tc-xxx.spec.ts` | `tests/ui/{module}/tc-xxx.spec.ts` 或 `ui/{module}/tc-xxx.spec.ts` |
+| API 测试 | `${PROJECT_ROOT}/tests/api/{module}/tc-xxx.spec.ts` | `tests/api/{module}/tc-xxx.spec.ts` 或 `api/{module}/tc-xxx.spec.ts` |
 | 截图 | `${PROJECT_ROOT}/results/{module}/screenshots/tc-xxx.png` | `results/{module}/screenshots/tc-xxx.png` |
 
 ### 写入前自检（每次 `generator_write_test` 或文件写入前强制执行）
@@ -92,13 +92,19 @@ PROJECT_ROOT = test_project/<NN-Project>
 
 启动时**必须**先检查计划文件是否包含完整 UI Map：
 
-1. 读取模块计划文件（`plans/NN-{module}.md`），查找 `UI Map` 章节
-2. **有 UI Map** → **直接生成模式**
-3. **无 UI Map** → **录制模式**
+1. 读取模块计划文件（`plans/NN-{module}.md`），查找 `## UI Map` 章节
+2. **有 UI Map** → **直接生成模式（默认）**
+3. **无 UI Map** → **录制模式（兜底，仅限 UI Map 缺失时）**
 
-## 模式 A：直接生成（有 UI Map 时）
+Planner 规则已强制要求记录 UI Map，因此直接生成是标准流程。录制模式属于异常降级。
+
+## 模式 A：直接生成（默认，有 UI Map 时）
 
 从 UI Map 提取选择器直接生成代码，**不执行浏览器操作**。
+
+**L2 API 测试**：使用 Vitest 导入（`import { test, expect } from 'vitest'`），不需要浏览器交互。通过 HTTP 请求（如 `fetch` 或 `supertest`）测试 API 端点，断言响应状态码和数据结构。
+
+**L3 E2E 测试**：从 UI Map 提取选择器转为 Playwright locator 生成代码。
 
 **流程**：
 1. 读取计划文件中的 UI Map 和 TC 步骤
@@ -111,7 +117,7 @@ PROJECT_ROOT = test_project/<NN-Project>
 5. 调用 `generator_write_test` 写入文件
 6. **不调用** `generator_setup_page`、`generator_read_log`
 
-## 模式 B：录制模式（无 UI Map 时）
+## 模式 B：录制模式（兜底，无 UI Map 时）
 
 **核心原则：每个 TC 独立一个录制会话。录制时只操作不写代码，操作完后从日志提取代码。**
 
@@ -147,7 +153,7 @@ PROJECT_ROOT = test_project/<NN-Project>
 ```typescript
 // TEST-ID: TP-<project>-L<level>-<序号>
 // TEST-NAME: <测试名称>
-// TEST-LEVEL: L1|L2|L3|L4
+// TEST-LEVEL: L2|L3
 // TEST-TARGET: <目标页面/功能>
 // MODULE: <模块名>
 // TC: TC-XXX
@@ -165,15 +171,13 @@ PROJECT_ROOT = test_project/<NN-Project>
 - 模块目录 kebab-case（与 `plans/` 文件名去掉序号前缀后一致，如 `01-role-management` → `role-management`）
 - 写入 `test_project/<NN-Project>/tests/` 对应层级下的模块子文件夹
 - 模块子文件夹由 `generator_write_test` 自动创建
-- **禁止**写入项目根目录的 `tests/`、`e2e/`、`ui/`（这些路径会散落到工作空间根目录）
+- **禁止**写入项目根目录的 `tests/`、`e2e/`、`api/`（这些路径会散落到工作空间根目录）
 - `fileName` 参数**必须**以 `test_project/<NN-Project>/tests/` 开头
 
 ```
 test_project/<NN-Project>/tests/
-├── unit/{module}/tc-{编号}-{简称}.spec.ts
 ├── api/{module}/tc-{编号}-{简称}.spec.ts
-├── e2e/{module}/tc-{编号}-{简称}.spec.ts
-└── ui/{module}/tc-{编号}-{简称}.spec.ts
+└── e2e/{module}/tc-{编号}-{简称}.spec.ts
 ```
 
 ## 测试数据

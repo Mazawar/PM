@@ -21,7 +21,7 @@ pm/
 │       ├── plans/             # 测试计划（00-test-plan.md + 模块详细计划）
 │       ├── case/              # 用户案例（planner 优先读取，禁止覆盖）
 │       ├── test-config/       # environment.json + auth.json
-│       ├── tests/             # {level}/{module}/tc-*.spec.ts
+│       ├── tests/             # api/{module}/ + e2e/{module}/ + seed.spec.ts
 │       ├── .pipeline-state.json # 管线状态（global/modules/publishes）
 │       ├── build/             # 构建部署产物
 │       │   ├── artifacts/     # 归档（不可删除）

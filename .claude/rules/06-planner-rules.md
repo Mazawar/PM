@@ -51,10 +51,8 @@
 
 | 层级 | 名称 | 粒度 | 说明 |
 |------|------|------|------|
-| L1 | Unit | 毫秒级 | Mock 外部服务，验证单个函数/类逻辑 |
 | L2 | API | 秒级 | 真实中间件（DB、缓存），Mock 第三方服务 |
 | L3 | E2E | 分钟级 | 完整应用栈，端到端业务流程 |
-| L4 | UI | 分钟级 | 浏览器交互，表单验证，响应式布局 |
 
 ## 框架选择
 
@@ -62,19 +60,17 @@
 
 - Java/Spring → JUnit5 + Mockito / Spring Boot Test + REST Assured
 - Python → pytest + unittest.mock / pytest + requests
-- Node.js/Vue/React → **Vitest**（L2 API 测试）+ Playwright
+- Node.js/Vue/React → **Vitest**（L2 API 测试）+ Playwright（L3 E2E 测试）
 - Go → testing + testify
 
-UI 测试统一 Playwright。L2 API 测试统一 Vitest。
+L2 API 测试统一 Vitest。
 
 ## 覆盖要求
 
 | 层级 | 最低 | 目标 |
 |------|------|------|
-| L1 | 60% | 80%+ |
 | L2 | 40% | 70%+ |
 | L3 | 核心流程 100% | 所有关键路径 |
-| L4 | 主页面 100% | 核心交互 |
 
 ## TC 编号管理（强制）
 
@@ -136,6 +132,78 @@ UI 测试统一 Playwright。L2 API 测试统一 Vitest。
 - 无法解析的内容忽略，不报错
 - 用户案例中的具体步骤直接转化为 TC 步骤，减少自主探索量
 - 案例覆盖的功能**必须全部纳入计划**，不能遗漏
+
+## UI Map 录制（强制）
+
+Planner 探索页面时**必须同步记录 UI Map**，供 Generator 直接生成代码，避免重新录制。
+
+### 录制要求
+
+- 每个探索的页面，记录导航路径、页面 URL、关键交互元素及其定位方式
+- 定位方式优先级：`getByRole` + name → `getByPlaceholder` / label → `getByText` → CSS selector
+- 动态行为（弹窗、加载状态、分页）必须记录在「注意事项」中
+- 所有记录写入模块计划文件 `plans/NN-{module}.md` 的 `## UI Map` 章节
+
+### UI Map 格式
+
+每个页面/功能独立一个 UI Map 块：
+
+```markdown
+## UI Map
+
+### 导航路径
+首页 > 系统管理 > 角色管理
+
+### 页面 URL
+/system/role
+
+### 关键元素
+| 元素 | 定位方式 | 备注 |
+|------|---------|------|
+| 新增按钮 | `getByRole('button', { name: '新增' })` | 页面顶部 |
+| 搜索框 | `getByPlaceholder('请输入角色名称')` | 配合搜索按钮 |
+| 数据表格 | `getByRole('table')` | el-table, 含分页 |
+| 确认弹窗 | `getByRole('dialog')` | 删除/提交后弹出 |
+
+### 注意事项
+- 表格分页在底部，数据多时需翻页
+- 删除操作有二次确认弹窗
+```
+
+### 禁止
+
+- 禁止省略 UI Map — 没有 UI Map 的计划视为不完整
+- 禁止猜测选择器 — 必须从 `browser_snapshot` 实际观察记录
+
+## UI 问题标注
+
+探索时发现 UI 问题（布局错乱、缺失标签、无障碍问题、视觉不一致），截图并记录到 `results/.ui/report.md`。
+
+### 格式
+
+```markdown
+# UI 审查报告
+
+- 项目: <NN-Project>
+- 审查时间: <YYYY-MM-DD HH:mm>
+- 审查范围: 测试规划阶段探索发现
+
+## 问题
+
+### UI-001: <问题标题>
+- **页面**: /system/role
+- **严重程度**: 高/中/低
+- **截图**: ![](screenshots/ui-001-xxx.png)
+- **描述**: <观察到的现象>
+- **建议**: <推荐修复方式>
+```
+
+### 约束
+
+- 问题独立编号：`UI-NNN`，与 TC 编号无关
+- 截图存放在 `results/.ui/screenshots/`
+- **有内容时才创建报告**，无问题不创建空文件
+- 这是观察报告，不是测试用例，不生成脚本
 
 ## 用户确认流程（强制）
 

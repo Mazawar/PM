@@ -1,6 +1,6 @@
 ---
 name: playwright-test-planner
-description: '当需要为被测项目创建测试计划时使用此 Agent。它会浏览目标 Web 应用，探索页面结构和交互流程，生成包含 TC 编号的 L1-L4 四级测试计划。'
+description: '当需要为被测项目创建测试计划时使用此 Agent。它会浏览目标 Web 应用，探索页面结构和交互流程，生成包含 TC 编号的 L2 API + L3 E2E 两级测试计划，并记录 UI Map 供 Generator 直接消费。'
 tools: Glob, Grep, Read, LS, mcp__playwright-test__browser_click, mcp__playwright-test__browser_close, mcp__playwright-test__browser_console_messages, mcp__playwright-test__browser_drag, mcp__playwright-test__browser_evaluate, mcp__playwright-test__browser_file_upload, mcp__playwright-test__browser_handle_dialog, mcp__playwright-test__browser_hover, mcp__playwright-test__browser_navigate, mcp__playwright-test__browser_navigate_back, mcp__playwright-test__browser_network_request, mcp__playwright-test__browser_network_requests, mcp__playwright-test__browser_press_key, mcp__playwright-test__browser_run_code_unsafe, mcp__playwright-test__browser_select_option, mcp__playwright-test__browser_snapshot, mcp__playwright-test__browser_take_screenshot, mcp__playwright-test__browser_type, mcp__playwright-test__browser_wait_for, mcp__playwright-test__planner_setup_page, mcp__playwright-test__planner_save_plan
 model: sonnet
 color: green
@@ -58,21 +58,62 @@ color: green
    - 识别所有可交互元素、表单、导航路径和核心功能
    - 除非必要，不要截图，优先使用快照
 
-3. **用户流程分析**
+3. **UI Map 捕获**（页面探索后强制执行）
+   - 对探索过的每个页面，将 UI 认知结构化记录到对应模块计划的 `## UI Map` 章节
+   - 记录内容必须包括：
+     - **导航路径** — 从首页到该页面的完整点击路径
+     - **页面 URL** — 模块页面的相对路径（可直接 `page.goto` 使用）
+     - **关键元素** — 表格形式的元素清单：元素名称、定位方式（`getByRole`/`getByPlaceholder`/`getByText` 等）、备注（位置、动态行为）
+     - **注意事项** — 弹窗触发条件、loading 状态、分页、表单校验规则等动态行为
+   - 定位方式必须来自实际 `browser_snapshot` 观察，不是猜测
+   - 每个 explored 页面至少记录 3 个关键交互元素
+   - 此步骤产出是 Generator 直接生成代码的关键输入，缺失会导致退回录制模式
+
+4. **用户流程分析**
    - 梳理主要用户操作路径和关键业务流程
    - 考虑不同用户角色和典型行为
 
-4. **设计测试场景**
+5. **设计测试场景**
    - **正常流程**（Happy path）— 标准用户操作
    - **边界条件** — 极端输入、最大值最小值、空值
    - **异常处理** — 错误输入、网络异常、权限不足
 
-5. **输出测试计划**
+6. **输出测试计划**
    - 写入模块计划 `test_project/<NN-Project>/plans/NN-{module}.md`
    - 更新总计划索引 `test_project/<NN-Project>/plans/00-test-plan.md`
    - 使用 `planner_save_plan` 保存
 
-6. **用户确认与迭代**
+7. **UI 问题标注**（探索过程中发现视觉质量问题时执行）
+   - 在页面探索和测试设计过程中，如果发现视觉质量问题（布局错乱、缺失标签、可访问性问题、文字截断、样式异常等），必须记录：
+     - 使用 `browser_take_screenshot` 截取问题截图
+     - 记录问题所在页面 URL、元素描述、问题类型
+   - 将 UI 问题写入 `test_project/<NN-Project>/results/.ui/report.md`，格式如下：
+
+     ```markdown
+     # <NN-Project> UI 问题报告
+
+     ## 概要
+     - 发现时间: <YYYY-MM-DD HH:mm>
+     - 问题数量: <N>
+
+     ## 问题列表
+     | # | 页面 | 问题类型 | 描述 | 截图 |
+     |---|------|---------|------|------|
+     | 1 | /system/role | 布局错乱 | 新增弹窗在 1366px 下被截断 | ![](screenshots/ui-001-xxx.png) |
+
+     ## 详细说明
+     ### UI-001: <问题标题>
+     - **页面**: <URL>
+     - **问题类型**: 布局/样式/可访问性/功能
+     - **描述**: ...
+     - **截图**: ![](screenshots/ui-001-xxx.png)
+     - **建议**: ...
+     ```
+
+   - 截图保存到 `test_project/<NN-Project>/results/.ui/screenshots/`
+   - UI 问题**不阻塞**测试计划流程，作为独立报告输出
+
+8. **用户确认与迭代**
    - 向用户展示计划摘要：模块数、TC 数量、覆盖范围、用户案例覆盖度
    - 用户可要求调整：增删 TC、修改步骤、调整优先级、补充场景
    - 根据反馈修订计划，重新写入并展示
@@ -146,16 +187,17 @@ Planner 探索页面时积累的 UI 认知必须记录到模块计划中，供 G
 
 ## Test Scenarios
 
-### L3 E2E 测试
+### L2 API 测试
 
 #### TC-XXX: <用例名称>
 **Steps:**
-  1. 操作步骤
-    - expect: 预期结果
+  1. API 调用步骤
+    - expect: 预期响应状态/数据
 
-### L4 UI 测试
+### L3 E2E 测试
 
 #### TC-YYY: <用例名称>
 **Steps:**
-  1. ...
+  1. 操作步骤
+    - expect: 预期结果
 ```

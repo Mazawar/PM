@@ -93,6 +93,10 @@ const directories = [
 `,
   },
   {
+    name: 'results/.ui',
+    guardFile: null,
+  },
+  {
     name: 'build/artifacts',
     guardFile: null,
   },
