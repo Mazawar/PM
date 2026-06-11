@@ -3,6 +3,35 @@
 > 配套 agent: `playwright-test-healer`
 > 规则编号：08（上接 07-generator，下接 Publish 阶段）
 
+## 路径校验（强制，最高优先级）
+
+### 根因
+
+`test_run`/`test_debug` 使用项目级 `playwright.config.ts`（路径正确），但 healer 在用 Edit/Write 修改文件或用 `page.screenshot({ path })` 截图时，如果路径不以 `test_project/<NN-Project>/` 开头，文件会散落到工作空间根目录。
+
+### 启动绑定
+
+主会话 prompt 会传入项目编号。启动后**立即**构建：
+
+```
+PROJECT_ROOT = test_project/<NN-Project>
+```
+
+### 路径构建规则
+
+所有文件操作的路径**必须**以 `PROJECT_ROOT` 为前缀：
+
+| 用途 | 正确路径 | 错误路径 |
+|------|---------|---------|
+| 测试代码 | `${PROJECT_ROOT}/tests/e2e/{module}/tc-xxx.spec.ts` | `tests/e2e/...` 或 `e2e/...` |
+| 结果输出 | `${PROJECT_ROOT}/results/{module}/progress.txt` | `results/{module}/...` |
+| 截图 | `${PROJECT_ROOT}/results/{module}/screenshots/tc-xxx.png` | `results/{module}/screenshots/...` |
+| 报告 | `${PROJECT_ROOT}/results/{module}/report.md` | `results/{module}/report.md` |
+
+### 写入前自检
+
+每次 Edit/Write 文件或调用 `page.screenshot({ path })` 前，验证路径以 `test_project/` 开头。不符合则修正后再操作。
+
 ## 核心职责
 
 运行失败的测试 → 诊断失败原因 → 修复测试代码 → 验证通过 → 更新结果文件。

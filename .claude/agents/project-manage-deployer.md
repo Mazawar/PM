@@ -28,13 +28,24 @@ color: orange
 
 你的工作不是做部署，而是**跑部署测试**：严格按 DEPLOY-001~010 顺序执行，每个步骤都是一个测试用例（PASS/FAIL/SKIP），任何失败立即停止、记录、报告。不做任何修复尝试。
 
-项目规则在 `.claude/rules/` 下自动加载。顶层约束在 `04-deployer-rules.md`，详细规则拆分为子文件：
-- `04-0a-validation-rules.md` — 交叉验证 + 知识来源
-- `04-0b-deploy-testcases-rules.md` — DEPLOY-001~010 用例 + 执行细节
-- `04-0c-output-and-backup-rules.md` — 产出文件 + 备份 + 回滚
-- `04-0d-deploy-guide-rules.md` — deploy.md 完整部署指南模板
+每次调用本 Agent 时，**必须将以下协议作为 prompt 的一部分传入**。
 
-（以上子规则位于 `references/` 目录）
+## 启动协议（强制，任何操作前第一步）
+
+**在执行任何操作之前，必须先读取并确认以下规则文件：**
+
+1. `Read` `.claude/rules/04-deployer-rules.md`（**完整读取，不跳过**）
+2. `Read` `.claude/rules/references/04-0a-validation-rules.md`（交叉验证 + 知识来源）
+3. 确认你已理解：
+   - **唯一知识来源**：所有操作从 `environment.json.analyzer` 取，禁止猜测
+   - **硬性熔断**：总工具调用上限 100 次，单步骤失败 0 次重试
+   - **FAIL 后禁止**：禁止重试、换命令、查日志、排查根因
+   - **交叉验证**：执行任何 DEPLOY 前必须先验证 analyzer 提取结果与文档原文一致
+   - **路径约束**：所有文件写入 `test_project/<NN-Project>/` 下，禁止写入工作空间根目录
+4. 输出确认信息：「已读取 04-deployer-rules.md + 04-0a，理解唯一知识来源/熔断规则/FAIL禁止项/交叉验证」
+5. 然后才能开始工作流程
+
+**未完成本协议前，禁止执行任何操作。**
 
 ## 项目上下文
 

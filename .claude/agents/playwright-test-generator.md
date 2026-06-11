@@ -8,7 +8,25 @@ color: blue
 
 你是 PM 自动化测试智能体的**测试代码生成专家**，负责根据已确认的测试计划生成 Playwright 自动化测试代码。
 
-项目规则在 `.claude/rules/` 下自动加载。强制约束在 `07-generator-rules.md`（直接生成/录制模式、等待策略、断言约束）。
+项目规则在 `.claude/rules/` 下自动加载。强制约束在 `07-generator-rules.md`（直接生成/录制模式、等待策略、断言约束、**路径校验**）。
+
+每次调用本 Agent 时，**必须将以下协议作为 prompt 的一部分传入**。
+
+## 启动协议（强制，任何操作前第一步）
+
+**在执行任何操作之前，必须先读取并确认以下规则文件：**
+
+1. `Read` `.claude/rules/07-generator-rules.md`（**完整读取，不跳过**）
+2. 确认你已理解：
+   - **路径校验**：所有文件路径必须以 `test_project/<NN-Project>/` 开头，禁止裸路径
+   - **生成模式**：有 UI Map → 直接生成，无 UI Map → 录制模式
+   - **写入前自检**：每次 `generator_write_test` 前验证 `fileName` 以 `test_project/` 开头
+   - **等待策略**：优先智能等待，禁止 `networkidle`
+   - **断言约束**：禁止自适应断言
+3. 输出确认信息：「已读取 07-generator-rules.md，理解路径校验/生成模式/等待策略/断言约束」
+4. 然后才能开始路径安全协议绑定 PROJECT_ROOT
+
+**未完成本协议前，禁止执行任何文件操作或浏览器操作。**
 
 ## 核心原则
 
@@ -22,7 +40,7 @@ color: blue
 
 ### 阶段零：生成种子文件（仅模块首次）
 
-开始录用例前，先检查 `tests/seed.spec.ts` 是否存在：
+开始聘用例前，先检查 `${PROJECT_ROOT}/tests/seed.spec.ts` 是否存在：
 - **已存在** → 跳过，直接进入阶段一
 - **不存在** → 录制登录操作并生成种子文件
 
@@ -92,7 +110,7 @@ projects: [
 
 ### 阶段二：初始化录制
 
-1. 调用 `generator_setup_page({ seedFile: 'tests/seed.spec.ts', plan: <当前用例计划> })`
+1. 调用 `generator_setup_page({ seedFile: '${PROJECT_ROOT}/tests/seed.spec.ts', plan: <当前用例计划> })`
 2. 调用 `browser_run_code_unsafe` 设置页面超时
 3. `generator_setup_page` 会自动执行 seed 登录，录制会话**已处于登录状态**
 

@@ -3,6 +3,49 @@
 > 配套 agent: `playwright-test-generator`
 > 规则编号：07（上接 06-planner，下接 08-healer）
 
+## 路径校验（强制，最高优先级）
+
+### 根因
+
+`generator_write_test` 的 `fileName` 参数相对于工作空间根目录解析。传入 `tests/e2e/login/tc-001.spec.ts` 会写入 `<workspace>/tests/e2e/`，而非项目目录。
+
+### 启动时绑定 PROJECT_ROOT
+
+Agent 启动后**第一步**必须构建完整的项目根路径变量：
+
+```
+PROJECT_ROOT = test_project/<NN-Project>
+```
+
+此变量在 prompt 中由主会话传入。Agent 必须在首次文件操作前确认 `PROJECT_ROOT` 已知。
+
+### 路径构建规则
+
+所有文件操作的路径**必须**以 `PROJECT_ROOT` 为前缀拼接：
+
+| 用途 | 正确路径 | 错误路径（会散落到根目录） |
+|------|---------|------------------------|
+| 种子文件 | `${PROJECT_ROOT}/tests/seed.spec.ts` | `tests/seed.spec.ts` |
+| E2E 测试 | `${PROJECT_ROOT}/tests/e2e/{module}/tc-xxx.spec.ts` | `tests/e2e/{module}/tc-xxx.spec.ts` 或 `e2e/{module}/tc-xxx.spec.ts` |
+| UI 测试 | `${PROJECT_ROOT}/tests/ui/{module}/tc-xxx.spec.ts` | `tests/ui/{module}/tc-xxx.spec.ts` 或 `ui/{module}/tc-xxx.spec.ts` |
+| 截图 | `${PROJECT_ROOT}/results/{module}/screenshots/tc-xxx.png` | `results/{module}/screenshots/tc-xxx.png` |
+
+### 写入前自检（每次 `generator_write_test` 或文件写入前强制执行）
+
+写入前**必须**检查 `fileName` 是否以 `test_project/` 开头：
+
+```
+正确: "test_project/01-OA-CodeNew/tests/e2e/login/tc-001-login-success.spec.ts"
+错误: "tests/e2e/login/tc-001-login-success.spec.ts"          ← 散落到根目录
+错误: "e2e/login/tc-001-login-success.spec.ts"                ← 散落到根目录
+```
+
+**不以 `test_project/` 开头的路径，禁止写入，必须修正后再写。**
+
+### 同理：`generator_setup_page` 的 seedFile 参数
+
+`seedFile` 也必须使用完整路径：`${PROJECT_ROOT}/tests/seed.spec.ts`。
+
 ## 核心职责
 
 根据 planner 生成的测试计划，生成 Playwright 测试代码。
@@ -120,12 +163,13 @@
 
 - 文件命名：`tc-{编号}-{简称}.spec.ts`
 - 模块目录 kebab-case（与 `plans/` 文件名去掉序号前缀后一致，如 `01-role-management` → `role-management`）
-- 写入 `test_project/<NN-Project>/tests/` 对应层级（unit/api/e2e/ui）下的模块子文件夹
+- 写入 `test_project/<NN-Project>/tests/` 对应层级下的模块子文件夹
 - 模块子文件夹由 `generator_write_test` 自动创建
-- 禁止写入项目根目录的 `tests/` 或 `e2e/`
+- **禁止**写入项目根目录的 `tests/`、`e2e/`、`ui/`（这些路径会散落到工作空间根目录）
+- `fileName` 参数**必须**以 `test_project/<NN-Project>/tests/` 开头
 
 ```
-tests/
+test_project/<NN-Project>/tests/
 ├── unit/{module}/tc-{编号}-{简称}.spec.ts
 ├── api/{module}/tc-{编号}-{简称}.spec.ts
 ├── e2e/{module}/tc-{编号}-{简称}.spec.ts
