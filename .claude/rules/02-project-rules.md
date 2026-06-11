@@ -204,3 +204,37 @@ npx vitest run --config=test_project/<NN-Project>/vitest.config.ts
 - `case/` — 用户案例目录，**任何 Agent 禁止删除、清空或覆盖其中文件**
 - 创建目录时，若上述文件/目录已存在必须保留原内容
 
+## 测试账号配置同步（强制）
+
+**根因**：管理员账号被停用或密码被修改时，测试套件全部登录失败，连累部署验证 / 健康检查 / 业务测试连锁失败。
+
+任何导致 `analyzer.credentials` 变化的场景（数据库重置、Flyway 重跑、运维改密、用户主动改密）— **必须**在变更后**同一会话内**同步下列文件，三处保持一致：
+
+| 文件 | 字段 | 备注 |
+|------|------|------|
+| `test-config/environment.json` | `analyzer.credentials.{primary,fallback,admin}.{username,password}` | 单一真实来源 |
+| `tests/seed.spec.ts` | 登录填入的账号密码 | 硬编码（与 environment.json 对齐） |
+| 任何测试文件内 hardcode 的账号 / 密码 | 全部替换 | 禁止遗漏 |
+
+**credentials 结构**（强制）：
+
+```json
+{
+  "analyzer": {
+    "credentials": {
+      "primary":  { "username": "ops",   "password": "ops123",   "role": "SYSTEM_ADMIN" },
+      "fallback": { "username": "audit", "password": "audit123", "role": "AUDITOR" },
+      "admin":    { "username": "admin", "password": "admin123", "role": "SUPER_ADMIN" }
+    }
+  }
+}
+```
+
+字段必须 ≥ 2 套（primary + fallback），admin 可选。
+
+**主会话职责**：每次测试运行前，用 `curl /api/auth/login` 验证当前配置账号**确实**能登录后端，再启动测试；不能登录则必须先解决（重置 DB / 修环境变量 / 修 seed）再跑测试。
+
+**违反本规则的代价**：
+- 配置文件与实际后端账号不同步 → seed 失败、整个 chromium project 0 通过
+- credentials 字段缺失或多账号不全 → 测试无法启动
+

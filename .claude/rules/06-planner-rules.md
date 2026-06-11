@@ -262,3 +262,38 @@ setup('登录并保存认证状态', async ({ page }) => {
 
 - 所有测试数据使用 `test_` 前缀
 - 优先创建新数据，避免修改/删除已有数据
+
+## 测试账号选择（强制）
+
+planner 阶段对测试账号的约束：
+
+1. **默认账号选择**：planner 必须从 `environment.json.analyzer.credentials` 中选择 `primary` 作为默认测试账号；只有当用例明确要求管理员独有功能时才用 `admin` 字段
+2. **账号字段约定**：`environment.json.analyzer.credentials` 必须是对象结构，≥ 2 套账号（`primary` + `fallback`），`admin` 可选：
+
+   ```json
+   "credentials": {
+     "primary":  { "username": "ops",   "password": "ops123",   "role": "SYSTEM_ADMIN" },
+     "fallback": { "username": "audit", "password": "audit123", "role": "AUDITOR" },
+     "admin":    { "username": "admin", "password": "admin123", "role": "SUPER_ADMIN" }
+   }
+   ```
+
+3. **TC 计划文件标注账号**：每个模块计划文件（`plans/NN-{module}.md`）必须含 `## 账号策略` 段：
+
+   ```markdown
+   ## 账号策略
+   - 默认账号: primary (ops / SYSTEM_ADMIN)
+   - 需要管理员权限的 TC: TC-016, TC-019（assign / change role permissions）
+   - 备选账号: fallback (audit)
+   - 禁止操作: admin / primary / fallback 不在停用 / 重置 / 改密类 TC 中使用
+   ```
+
+4. **停用 / 重置类 TC 必须用临时账号**：`test_disabled_<ts>` / `test_reset_<ts>` / `test_passwd_<ts>` 前缀的临时账号，**禁止**对 admin / primary / fallback 任一账号执行停用、改密、删除操作
+5. **凭据来源标注**：planner 在计划中写明"账号来自 `environment.json.analyzer.credentials.primary`"，不写死明文密码
+6. **TC 顺序约束**：写测试用例时按"普通业务 TC → 涉及角色/权限的 TC → 涉及账号生命周期（停用/启用/重置）的 TC"顺序排列，账号生命周期间隔足够时间避免相互影响
+7. **planner 完成后自检**：
+   - [ ] `environment.json.credentials` 是对象结构且 ≥ 2 套
+   - [ ] 默认账号 = primary
+   - [ ] 每个模块 plan 含 `## 账号策略` 段
+   - [ ] 停用 / 重置类 TC 用 `test_*_<ts>` 临时账号
+   - [ ] 凭据来源已注明
