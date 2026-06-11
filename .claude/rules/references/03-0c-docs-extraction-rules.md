@@ -82,8 +82,10 @@ analyzer **必须**将仓库中的产物路径映射到扁平化的 `build/dev/`
       "targetDir": "database/"
     },
     "config": {
+      "method": "env-export | dotenv | application-yml | none",
       "envSource": "环境模板文件路径",
-      "envTarget": "backend/.env"
+      "envTarget": "backend/.env",
+      "applyCommand": "启动前注入配置的命令片段"
     }
   }
 }
@@ -96,36 +98,67 @@ analyzer **必须**将仓库中的产物路径映射到扁平化的 `build/dev/`
 | `backend` | 是 | `source` 指向编译产物所在目录（如 `target/`、`dist/`、`build/`），`targetDir` 固定 `"backend/"` |
 | `frontend` | 条件 | 有 `frontendBuild` 时必须，`source` 等于 `frontendBuild.workDir` + `frontendBuild.outputDir` |
 | `database` | 条件 | 有 `dbConfig` 时必须，`source` 指向 SQL 文件所在目录 |
-| `config` | 否 | `envTarget` 固定 `"backend/.env"` |
+| `config` | 否 | 描述环境配置如何注入应用。`method` 决定注入方式（见下表），`applyCommand` 是 deployer/validator 启动服务时需要执行的命令片段 |
+
+#### config.method 判定规则（强制）
+
+analyzer **必须**根据技术栈和项目实际配置机制判定 `method`，禁止一律写 `dotenv`。
+
+| method | 适用场景 | applyCommand 示例 |
+|--------|---------|-------------------|
+| `env-export` | Spring Boot、Go 等不原生读 `.env` 的运行时；需要 `export` 环境变量后启动 | `export $(cat backend/.env \| grep -v '^#' \| xargs) && java -jar ...` |
+| `dotenv` | Node.js + dotenv 库、Python + python-dotenv 等原生加载 `.env` 的运行时 | `node server.js`（应用自行读取 `.env`） |
+| `application-yml` | Spring Boot 且环境变量已在 `application-{profile}.yml` 中硬编码（无需外部注入） | `java -jar ... --spring.profiles.active=mysql` |
+| `none` | 无需环境变量（配置内嵌或无外部依赖） | 直接启动即可 |
+
+**判定流程**：
+1. 检查 `application-{profile}.yml` / `application-{profile}.properties` 中是否引用了 `${ENV_VAR}` 占位符 → 引用了则需注入（`env-export` 或 `dotenv`）
+2. 检查是否依赖 dotenv 类库（Node.js 的 `require('dotenv')`、Python 的 `python-dotenv`）→ `dotenv`
+3. 配置已硬编码在 profile 文件中 → `application-yml`
+4. 以上都不适用 → `none`
 
 #### 按项目类型示例
 
-**前后端分离（source-build — Java+Vue）**：
+**Spring Boot + Vue（前后端分离）**：Spring Boot 不读 `.env`，需 `env-export`。
 ```json
 {
   "backend": { "source": "<后端模块>/target/", "artifact": "<产物>.jar", "targetDir": "backend/" },
   "frontend": { "source": "<前端目录>/dist/", "targetDir": "frontend/" },
   "database": { "source": "sql/", "targetDir": "database/" },
-  "config": { "envSource": "<前端目录>/.env.development", "envTarget": "backend/.env" }
+  "config": {
+    "method": "env-export",
+    "envSource": ".env.example",
+    "envTarget": "backend/.env",
+    "applyCommand": "cd backend && export $(cat .env | grep -v '^#' | xargs) && nohup java -jar <artifact> > ../logs/backend.log 2>&1 &"
+  }
 }
 ```
 
-**前后端分离（pre-built 包）**：
-```json
-{
-  "backend": { "source": "api/", "targetDir": "backend/" },
-  "frontend": { "source": "web/", "targetDir": "frontend/" },
-  "database": { "source": "database/", "targetDir": "database/" },
-  "config": { "envSource": ".env.example", "envTarget": "backend/.env" }
-}
-```
-
-**单构建（NestJS 全栈）**：无 `frontend` 字段。
+**NestJS 全栈**：Node.js + dotenv，应用自行加载。
 ```json
 {
   "backend": { "source": "dist/", "targetDir": "backend/" },
   "database": { "source": "prisma/migrations/", "targetDir": "database/" },
-  "config": { "envSource": ".env.example", "envTarget": "backend/.env" }
+  "config": {
+    "method": "dotenv",
+    "envSource": ".env.example",
+    "envTarget": "backend/.env",
+    "applyCommand": "cd backend && node main.js"
+  }
+}
+```
+
+**Spring Boot 配置硬编码**：`application-mysql.yml` 中 datasource 已写死，无需外部注入。
+```json
+{
+  "backend": { "source": "target/", "artifact": "app.jar", "targetDir": "backend/" },
+  "database": { "source": "sql/", "targetDir": "database/" },
+  "config": {
+    "method": "application-yml",
+    "envSource": "",
+    "envTarget": "",
+    "applyCommand": "cd backend && nohup java -jar app.jar --spring.profiles.active=mysql > ../logs/backend.log 2>&1 &"
+  }
 }
 ```
 

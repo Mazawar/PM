@@ -44,7 +44,12 @@
         "backend": { "source": "api/", "targetDir": "backend/" },
         "frontend": { "source": "web/", "targetDir": "frontend/" },
         "database": { "source": "database/", "targetDir": "database/" },
-        "config": { "envSource": ".env.example", "envTarget": "backend/.env" }
+        "config": {
+          "method": "env-export | dotenv | application-yml | none",
+          "envSource": ".env.example",
+          "envTarget": "backend/.env",
+          "applyCommand": "cd backend && export $(cat .env | grep -v '^#' | xargs) && nohup java -jar <artifact> > ../logs/backend.log 2>&1 &"
+        }
       },
       "knownIssues": ["Prisma 需指定 binaryTargets", "前端需 Nginx 代理"],
       "warnings": []

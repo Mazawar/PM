@@ -98,8 +98,16 @@
 
 ### DEPLOY-006: 配置完整性
 
-1. 在 `build/dev/backend/` 下复制 `.env.development` → `.env`（或按文档创建）
-2. 逐一检查 `envVars` 列表中的变量是否存在于 `.env`
+根据 `directoryLayout.config.method` 分支：
+
+| method | 检查方式 |
+|--------|---------|
+| `env-export` | 创建 `.env` 文件到 `envTarget` 路径，逐一检查 `envVars` 变量存在。验证 `applyCommand` 能正确 export |
+| `dotenv` | 同 `env-export`，创建 `.env` 并检查变量齐全 |
+| `application-yml` | 检查 `applyCommand` 中的 `--spring.profiles.active` 对应的 profile 文件存在于 JAR 内（无需外部 `.env`） |
+| `none` | 跳过（无外部配置依赖） |
+
+`method` 缺失时默认按 `dotenv` 处理（向后兼容旧 environment.json）。
 
 ### DEPLOY-007: 远程环境就绪
 
